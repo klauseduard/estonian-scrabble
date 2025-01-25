@@ -24,31 +24,23 @@ class WordList:
 
     def _normalize_word(self, word: str) -> str:
         """Normalize word to ensure consistent character handling."""
-        # First convert word to lowercase
-        result = word.lower()
-        
-        # Replace decomposed characters with their proper Estonian equivalents
-        replacements = {
-            's\u030C': 'š',  # s + combining caron
-            'z\u030C': 'ž',  # z + combining caron
-            'o\u0303': 'õ',  # o + combining tilde
-            'a\u0308': 'ä',  # a + combining diaeresis
-            'o\u0308': 'ö',  # o + combining diaeresis
-            'u\u0308': 'ü',  # u + combining diaeresis
-        }
-        
-        # Apply replacements
-        for old, new in replacements.items():
-            result = result.replace(old, new)
-        
-        return result
+        # Just convert to lowercase as the special characters are already handled
+        return word.lower()
 
     def _download_wordlist(self) -> bool:
         """Download the Estonian wordlist."""
         self.logger.info("Downloading Estonian wordlist...")
         try:
             with urllib.request.urlopen(self.WORDLIST_URL) as response:
-                content = response.read().decode('utf-8', errors='replace')
+                # Read raw bytes first
+                content_bytes = response.read()
+                
+                # Replace the specific UTF-8 sequences before decoding
+                content_bytes = content_bytes.replace(b'\xc2\xa8', 'š'.encode('utf-8'))
+                content_bytes = content_bytes.replace(b'\xc2\xb8', 'ž'.encode('utf-8'))
+                
+                # Now decode with the replacements
+                content = content_bytes.decode('utf-8')
                 
             # Process and clean the wordlist
             valid_words = set()
