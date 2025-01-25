@@ -2,6 +2,8 @@
 
 This project was developed as an experiment in AI-assisted programming, utilizing Cursor IDE's agent mode powered by the Claude-3.5-Sonnet model. The development was conducted in "YOLO mode", where the AI agent was given significant autonomy in the development process.
 
+> **Development Timeline**: The core game implementation was completed in just 30 minutes of AI-assisted development. The entire project, including polishing, bug fixes, and comprehensive documentation with screenshots (where the AI guided the screenshot creation process), took only a couple of hours. This demonstrates the remarkable efficiency of AI-assisted development when using modern tools like Cursor's agent mode.
+
 ## AI-Assisted Development
 
 ### Tools Used
