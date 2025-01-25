@@ -25,12 +25,15 @@ BUTTON_TEXT_SIZE = 24  # Smaller text size for buttons
 class ScrabbleUI:
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
-        pygame.display.set_caption("Estonian Scrabble")
+        pygame.display.set_caption("Eesti Scrabble")
         self.font = pygame.font.Font(None, 36)  # Main font
         self.button_font = pygame.font.Font(None, BUTTON_TEXT_SIZE)  # Smaller font for buttons
         
         # Initialize game components
         self.game = GameState(BOARD_SIZE)
+        # Set Estonian player names
+        self.game.players[0].name = "Mängija 1"
+        self.game.players[1].name = "Mängija 2"
         board_start = (WINDOW_SIZE - (BOARD_SIZE * TILE_SIZE)) // 2
         self.board = Board(BOARD_SIZE, TILE_SIZE, board_start, self.font)
         # Position rack higher to make room for buttons
@@ -55,7 +58,7 @@ class ScrabbleUI:
             button_y,
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
-            "Pass Turn",
+            "Jäta vahele",
             self.button_font
         )
         
@@ -65,7 +68,7 @@ class ScrabbleUI:
             button_y,
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
-            "Submit Turn",
+            "Kinnita käik",
             self.button_font
         )
         

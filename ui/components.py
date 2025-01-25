@@ -131,7 +131,7 @@ class TurnIndicator:
         pygame.draw.polygon(screen, TURN_INDICATOR_COLOR, points)
         
         # Draw "Turn" text
-        text = self.font.render("Turn", True, TURN_INDICATOR_COLOR)
+        text = self.font.render("Käik", True, TURN_INDICATOR_COLOR)
         text_rect = text.get_rect(center=(self.x, self.y + self.arrow_size + self.padding))
         screen.blit(text, text_rect)
     
