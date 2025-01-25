@@ -2,6 +2,8 @@
 
 A Scrabble game implementation that supports Estonian alphabet and uses Estonian wordlist.
 
+> **Development Note**: This project was developed as an experiment in AI-assisted programming using Cursor IDE's agent mode with Claude-3.5-Sonnet model. The entire development process was conducted in "YOLO mode", where the AI agent actively participated in coding, debugging, and documentation.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
