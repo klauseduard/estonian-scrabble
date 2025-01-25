@@ -24,16 +24,16 @@ LETTER_DISTRIBUTION = {
     'ö': {'count': 2, 'points': 3},
     'ü': {'count': 2, 'points': 3},
     
-    # Low-frequency consonants
+    # Low-frequency consonants (ordered by relative frequency)
     'h': {'count': 3, 'points': 3},
     'p': {'count': 3, 'points': 3},
     'j': {'count': 2, 'points': 3},
-    'b': {'count': 1, 'points': 4},
-    'f': {'count': 1, 'points': 4},
-    'g': {'count': 1, 'points': 4},
-    'š': {'count': 1, 'points': 4},
-    'z': {'count': 1, 'points': 4},
-    'ž': {'count': 1, 'points': 4},
+    'b': {'count': 2, 'points': 3},
+    'g': {'count': 2, 'points': 3},
+    'f': {'count': 1, 'points': 5},
+    'š': {'count': 1, 'points': 5},
+    'z': {'count': 1, 'points': 5},
+    'ž': {'count': 1, 'points': 5},
 }
 
 # Board premium squares
