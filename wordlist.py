@@ -2,6 +2,7 @@ import os
 import urllib.request
 import logging
 from typing import Set
+import unicodedata
 
 class WordList:
     # Raw content URL from GitHub (change 'blob' to 'raw')
@@ -21,6 +22,11 @@ class WordList:
         )
         self.logger = logging.getLogger(__name__)
 
+    def _normalize_word(self, word: str) -> str:
+        """Normalize word to ensure consistent character handling."""
+        # Convert to lowercase and apply NFKC normalization
+        return unicodedata.normalize('NFKC', word.lower())
+
     def _download_wordlist(self) -> bool:
         """Download the Estonian wordlist from GitHub."""
         self.logger.info("Downloading Estonian wordlist from GitHub...")
@@ -29,7 +35,6 @@ class WordList:
                 content = response.read().decode('utf-8', errors='ignore')
                 
             # Process and clean the wordlist
-            # The dictionary file contains words with flags (e.g., word/flags)
             valid_words = set()
             for line in content.splitlines():
                 # Skip empty lines and comments
@@ -39,10 +44,8 @@ class WordList:
                 # Words in the file are in format "word/flags"
                 word = line.split('/')[0].strip().lower()
                 
-                # Skip single letters and non-alphabetic entries
-                if (len(word) > 1 and 
-                    word.replace('õ', 'o').replace('ä', 'a').replace('ö', 'o')
-                       .replace('ü', 'u').replace('š', 's').replace('ž', 'z').isalpha()):
+                # Skip single letters
+                if len(word) > 1:
                     valid_words.add(word)
 
             # Save processed wordlist
@@ -79,15 +82,22 @@ class WordList:
         
         try:
             with open(self.LOCAL_FILENAME, 'r', encoding='utf-8') as f:
-                self.words = set(word.strip().lower() for word in f)
+                self.words = {word.strip().lower() for word in f}  # Removed normalization here
             self.logger.info(f"Loaded {len(self.words)} words from wordlist")
+            # Debug log some sample words
+            sample_words = {'loov', 'voli', 'mört', 'õpik', 'tere'}
+            for word in sample_words:
+                self.logger.info(f"Word '{word}' {'is' if word in self.words else 'is not'} in wordlist")
         except Exception as e:
             self.logger.error(f"Error loading wordlist: {e}")
             self.words = set()
 
     def is_valid_word(self, word: str) -> bool:
         """Check if a word exists in the Estonian wordlist."""
-        return word.lower() in self.words
+        word_lower = word.lower()
+        is_valid = word_lower in self.words
+        self.logger.info(f"Checking word '{word}' (lowercased: '{word_lower}'): {is_valid}")
+        return is_valid
 
     def get_possible_words(self, letters: str) -> list:
         """Find all possible words that can be made from given letters."""
