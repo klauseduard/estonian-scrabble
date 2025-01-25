@@ -77,7 +77,7 @@ class ScrabbleUI:
             PADDING,
             LANG_BUTTON_SIZE,
             LANG_BUTTON_SIZE,
-            "🌐",  # Globe emoji as button text
+            self.lang_manager.get_string("lang_button"),  # Use language-specific text
             self.button_font
         )
         
@@ -112,6 +112,7 @@ class ScrabbleUI:
         self.game.players[1].name = self.lang_manager.get_string("player_2")
         self.submit_button.text = self.lang_manager.get_string("submit_turn")
         self.pass_button.text = self.lang_manager.get_string("pass_turn")
+        self.lang_button.text = self.lang_manager.get_string("lang_button")  # Update language button text
 
     def draw_board(self):
         # Fill background

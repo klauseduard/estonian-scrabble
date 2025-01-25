@@ -13,6 +13,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "turn": "Käik",
         "player_1": "Mängija 1",
         "player_2": "Mängija 2",
+        "lang_button": "EN",  # Show what language you'll get when clicking
         # Premium square labels
         "tws": "KSK",  # Kolmekordne sõna kokku
         "dws": "KSK",  # Kahekordne sõna kokku
@@ -26,6 +27,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "turn": "Turn",
         "player_1": "Player 1",
         "player_2": "Player 2",
+        "lang_button": "ET",  # Show what language you'll get when clicking
         # Premium square labels
         "tws": "TWS",  # Triple Word Score
         "dws": "DWS",  # Double Word Score
