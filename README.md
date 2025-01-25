@@ -65,9 +65,12 @@ Before you begin, ensure you have the following installed:
    - Two players take turns
 
 2. **Game Controls**
-   - Drag and drop tiles from your rack to the board
-   - Right-click a tile to remove it from the board
-   - Click "Commit" to end your turn
+   - **Mouse Controls:**
+     - Left-click and hold to drag tiles from your rack to the board
+     - Release left mouse button to place a tile
+     - Right-click a tile on the board to return it to your rack
+     - Left-click buttons ("Commit", "Pass", "Exchange") to perform actions
+   - Click "Commit" to end your turn when you're satisfied with your word placement
    - Click "Pass" to skip your turn
    - Click "Exchange" to swap tiles (counts as your turn)
 
