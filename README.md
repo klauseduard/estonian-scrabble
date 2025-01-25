@@ -214,12 +214,50 @@ When adding new features:
 
 ## Future Improvements
 
-- [ ] Add proper Estonian wordlist source
-- [ ] Implement scoring system
-- [ ] Add game save/load functionality
-- [ ] Add network multiplayer support
-- [ ] Add unit tests
-- [ ] Add AI opponent
+> _Note: The following improvements were suggested by the AI agent during development. The human developer was mostly focused on getting the basic game working! Feel free to implement any of these if you're interested._
+
+✅ Implemented:
+- Estonian wordlist integration
+- Basic scoring system with premium squares
+- Real-time word validation
+
+🚀 AI's Wishlist:
+1. **Enhanced Word Validation**:
+   - Add support for compound words
+   - Implement word challenges between players
+   - Cache validated words for performance
+
+2. **Game Features**:
+   - Save/load game state
+   - Undo/redo moves
+   - Game replay functionality
+   - Tournament mode with time limits
+   - Statistics tracking (highest scores, longest words, etc.)
+
+3. **Multiplayer**:
+   - Network play support
+   - Lobby system for finding opponents
+   - Chat functionality
+   - Player rankings
+
+4. **AI Features**:
+   - AI opponent with adjustable difficulty
+   - AI move suggestions for learning
+   - Analysis of played games
+
+5. **Technical Improvements**:
+   - Unit test coverage
+   - Performance optimizations
+   - Proper logging system
+   - Configurable game rules
+   - Cross-platform packaging
+
+6. **UI Enhancements**:
+   - Animations for tile placement
+   - Sound effects
+   - Dark/light theme support
+   - Mobile-friendly responsive design
+   - Accessibility features
 
 ## License
 
