@@ -22,7 +22,8 @@ BUTTON_WIDTH = 120  # Slightly smaller width
 BUTTON_HEIGHT = 40  # Slightly smaller height
 PADDING = 20
 BUTTON_TEXT_SIZE = 24  # Smaller text size for buttons
-LANG_BUTTON_SIZE = 40  # Square button for language toggle
+LANG_BUTTON_SIZE = 30  # Smaller language button
+LANG_BUTTON_PADDING = 5  # Smaller padding for language button
 
 class ScrabbleUI:
     def __init__(self):
@@ -31,6 +32,7 @@ class ScrabbleUI:
         pygame.display.set_caption(self.lang_manager.get_string("window_title"))
         self.font = pygame.font.Font(None, 36)  # Main font
         self.button_font = pygame.font.Font(None, BUTTON_TEXT_SIZE)  # Smaller font for buttons
+        self.lang_button_font = pygame.font.Font(None, 20)  # Even smaller font for language button
         
         # Initialize game components
         self.game = GameState(BOARD_SIZE)
@@ -71,14 +73,14 @@ class ScrabbleUI:
             self.button_font
         )
 
-        # Add language toggle button in top-right corner
+        # Add language toggle button in bottom-right corner, above the buttons
         self.lang_button = Button(
-            WINDOW_SIZE - LANG_BUTTON_SIZE - PADDING,
-            PADDING,
+            WINDOW_SIZE - LANG_BUTTON_SIZE - LANG_BUTTON_PADDING,
+            button_y + (BUTTON_HEIGHT - LANG_BUTTON_SIZE) // 2,  # Vertically center with other buttons
             LANG_BUTTON_SIZE,
             LANG_BUTTON_SIZE,
-            self.lang_manager.get_string("lang_button"),  # Use language-specific text
-            self.button_font
+            self.lang_manager.get_string("lang_button"),
+            self.lang_button_font
         )
         
         # Initialize score displays
