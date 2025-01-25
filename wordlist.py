@@ -5,7 +5,7 @@ from typing import Set
 import unicodedata
 
 class WordList:
-    # Raw content URL from GitHub (change 'blob' to 'raw')
+    # Estonian dictionary from titoBouzout's collection
     WORDLIST_URL = "https://raw.githubusercontent.com/titoBouzout/Dictionaries/master/Estonian.dic"
     LOCAL_FILENAME = "estonian_words.txt"
     
@@ -24,29 +24,48 @@ class WordList:
 
     def _normalize_word(self, word: str) -> str:
         """Normalize word to ensure consistent character handling."""
-        # Convert to lowercase and apply NFKC normalization
-        return unicodedata.normalize('NFKC', word.lower())
+        # First convert word to lowercase
+        result = word.lower()
+        
+        # Replace decomposed characters with their proper Estonian equivalents
+        replacements = {
+            's\u030C': 'š',  # s + combining caron
+            'z\u030C': 'ž',  # z + combining caron
+            'o\u0303': 'õ',  # o + combining tilde
+            'a\u0308': 'ä',  # a + combining diaeresis
+            'o\u0308': 'ö',  # o + combining diaeresis
+            'u\u0308': 'ü',  # u + combining diaeresis
+        }
+        
+        # Apply replacements
+        for old, new in replacements.items():
+            result = result.replace(old, new)
+        
+        return result
 
     def _download_wordlist(self) -> bool:
-        """Download the Estonian wordlist from GitHub."""
-        self.logger.info("Downloading Estonian wordlist from GitHub...")
+        """Download the Estonian wordlist."""
+        self.logger.info("Downloading Estonian wordlist...")
         try:
             with urllib.request.urlopen(self.WORDLIST_URL) as response:
-                content = response.read().decode('utf-8', errors='ignore')
+                content = response.read().decode('utf-8', errors='replace')
                 
             # Process and clean the wordlist
             valid_words = set()
             for line in content.splitlines():
-                # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                # Skip empty lines
+                if not line:
                     continue
-                    
-                # Words in the file are in format "word/flags"
-                word = line.split('/')[0].strip().lower()
                 
-                # Skip single letters
-                if len(word) > 1:
-                    valid_words.add(word)
+                # Extract the word (before any flags)
+                word = line.split('/')[0].strip()
+                
+                # Only process words of reasonable length
+                if 1 < len(word) < 30:
+                    normalized_word = self._normalize_word(word)
+                    # Skip words with replacement characters
+                    if not any(c == '?' for c in normalized_word):
+                        valid_words.add(normalized_word)
 
             # Save processed wordlist
             with open(self.LOCAL_FILENAME, 'w', encoding='utf-8') as f:
@@ -60,19 +79,17 @@ class WordList:
             return False
 
     def _create_test_wordlist(self):
-        """Create a small test wordlist with common Estonian words."""
+        """Create a test wordlist as fallback."""
         self.logger.warning("Creating test wordlist as fallback")
         test_words = [
-            "tere", "maja", "kool", "raamat", "õpik",
-            "päike", "öö", "ülikool", "šokolaad", "žetoon",
-            "auto", "puu", "laud", "tool", "arvuti",
-            "telefon", "raamatukogu", "õpilane", "õpetaja",
-            "täna", "homme", "eile", "sõber", "pere",
-            "kodu", "töö", "aed", "tänav", "linn"
+            "tere", "maja", "kool", "garaaž", "šokolaad",
+            "žürii", "mõõk", "jäätis", "köök", "süüa",
+            "õun", "päev", "öökull", "ära", "üles"
         ]
         with open(self.LOCAL_FILENAME, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(test_words))
-        self.logger.info("Created test wordlist with common Estonian words")
+            normalized_words = sorted(set(self._normalize_word(word) for word in test_words))
+            f.write('\n'.join(normalized_words))
+        self.logger.info(f"Created test wordlist with {len(normalized_words)} words")
 
     def _load_wordlist(self):
         """Load the Estonian wordlist from file or download it."""
@@ -82,22 +99,23 @@ class WordList:
         
         try:
             with open(self.LOCAL_FILENAME, 'r', encoding='utf-8') as f:
-                self.words = {word.strip().lower() for word in f}  # Removed normalization here
+                self.words = {self._normalize_word(word.strip()) for word in f}
             self.logger.info(f"Loaded {len(self.words)} words from wordlist")
-            # Debug log some sample words
-            sample_words = {'loov', 'voli', 'mört', 'õpik', 'tere'}
+            
+            # Log some sample words for verification
+            sample_words = {'šokolaad', 'garaaž', 'žürii', 'mõõk', 'jäätis'}
             for word in sample_words:
-                self.logger.info(f"Word '{word}' {'is' if word in self.words else 'is not'} in wordlist")
+                normalized = self._normalize_word(word)
+                if normalized in self.words:
+                    self.logger.debug(f"Found word: {word} (normalized: {normalized})")
         except Exception as e:
             self.logger.error(f"Error loading wordlist: {e}")
             self.words = set()
 
     def is_valid_word(self, word: str) -> bool:
         """Check if a word exists in the Estonian wordlist."""
-        word_lower = word.lower()
-        is_valid = word_lower in self.words
-        self.logger.info(f"Checking word '{word}' (lowercased: '{word_lower}'): {is_valid}")
-        return is_valid
+        normalized = self._normalize_word(word)
+        return normalized in self.words
 
     def get_possible_words(self, letters: str) -> list:
         """Find all possible words that can be made from given letters."""

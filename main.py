@@ -8,6 +8,7 @@ from ui import (
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
     CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR
 )
+from ui.language import LanguageManager
 
 # Initialize Pygame
 pygame.init()
@@ -21,32 +22,35 @@ BUTTON_WIDTH = 120  # Slightly smaller width
 BUTTON_HEIGHT = 40  # Slightly smaller height
 PADDING = 20
 BUTTON_TEXT_SIZE = 24  # Smaller text size for buttons
+LANG_BUTTON_SIZE = 30  # Smaller language button
+LANG_BUTTON_PADDING = 5  # Smaller padding for language button
 
 class ScrabbleUI:
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
-        pygame.display.set_caption("Estonian Scrabble")
+        self.lang_manager = LanguageManager()
+        pygame.display.set_caption(self.lang_manager.get_string("window_title"))
         self.font = pygame.font.Font(None, 36)  # Main font
         self.button_font = pygame.font.Font(None, BUTTON_TEXT_SIZE)  # Smaller font for buttons
+        self.lang_button_font = pygame.font.Font(None, 20)  # Even smaller font for language button
         
         # Initialize game components
         self.game = GameState(BOARD_SIZE)
+        # Set player names based on current language
+        self.game.players[0].name = self.lang_manager.get_string("player_1")
+        self.game.players[1].name = self.lang_manager.get_string("player_2")
         board_start = (WINDOW_SIZE - (BOARD_SIZE * TILE_SIZE)) // 2
         self.board = Board(BOARD_SIZE, TILE_SIZE, board_start, self.font)
-        # Position rack higher to make room for buttons
         self.rack = Rack(WINDOW_SIZE - PADDING, TILE_SIZE, self.font)
         
         # Calculate rack width and position
-        max_rack_tiles = 7  # Maximum number of tiles in rack
+        max_rack_tiles = 7
         rack_width = max_rack_tiles * TILE_SIZE
         rack_x = (WINDOW_SIZE - rack_width) // 2
         
         # Initialize UI controls
-        # Place buttons below the rack
         button_y = WINDOW_SIZE + RACK_HEIGHT - BUTTON_HEIGHT - PADDING
-        
-        # Center both buttons
-        total_width = (BUTTON_WIDTH * 2) + PADDING  # Total width of both buttons plus padding
+        total_width = (BUTTON_WIDTH * 2) + PADDING
         start_x = (WINDOW_SIZE - total_width) // 2
         
         # Position Pass button on the left
@@ -55,7 +59,7 @@ class ScrabbleUI:
             button_y,
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
-            "Pass Turn",
+            self.lang_manager.get_string("pass_turn"),
             self.button_font
         )
         
@@ -65,15 +69,25 @@ class ScrabbleUI:
             button_y,
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
-            "Submit Turn",
+            self.lang_manager.get_string("submit_turn"),
             self.button_font
+        )
+
+        # Add language toggle button in bottom-right corner, above the buttons
+        self.lang_button = Button(
+            WINDOW_SIZE - LANG_BUTTON_SIZE - LANG_BUTTON_PADDING,
+            button_y + (BUTTON_HEIGHT - LANG_BUTTON_SIZE) // 2,  # Vertically center with other buttons
+            LANG_BUTTON_SIZE,
+            LANG_BUTTON_SIZE,
+            self.lang_manager.get_string("lang_button"),
+            self.lang_button_font
         )
         
         # Initialize score displays
-        score_y = PADDING  # 20px from top
+        score_y = PADDING
         self.score_displays = [
-            ScoreDisplay(PADDING, score_y, self.font),                    # Player 1 score
-            ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font)      # Player 2 score
+            ScoreDisplay(PADDING, score_y, self.font),
+            ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font)
         ]
         
         # Initialize turn indicator
@@ -92,6 +106,15 @@ class ScrabbleUI:
         else:
             # Enable only if all words are valid
             self.submit_button.enabled = self.game.word_validator.is_placement_valid()
+
+    def _update_ui_text(self):
+        """Update all UI text elements after language change."""
+        pygame.display.set_caption(self.lang_manager.get_string("window_title"))
+        self.game.players[0].name = self.lang_manager.get_string("player_1")
+        self.game.players[1].name = self.lang_manager.get_string("player_2")
+        self.submit_button.text = self.lang_manager.get_string("submit_turn")
+        self.pass_button.text = self.lang_manager.get_string("pass_turn")
+        self.lang_button.text = self.lang_manager.get_string("lang_button")  # Update language button text
 
     def draw_board(self):
         # Fill background
@@ -135,6 +158,8 @@ class ScrabbleUI:
         self.submit_button.draw(self.screen)
         # Draw pass button
         self.pass_button.draw(self.screen)
+        # Draw language toggle button
+        self.lang_button.draw(self.screen)
         
         # Draw player scores
         for i, player in enumerate(self.game.players):
@@ -155,20 +180,23 @@ class ScrabbleUI:
                     pygame.quit()
                     sys.exit()
                 
+                # Handle language toggle button
+                if self.lang_button.handle_event(event):
+                    self.lang_manager.toggle_language()
+                    self._update_ui_text()
+                
                 # Handle submit button
-                if self.submit_button.handle_event(event):
+                elif self.submit_button.handle_event(event):
                     if self.game.commit_turn():
                         self._update_submit_button()
                 
                 # Handle pass button
                 elif self.pass_button.handle_event(event):
-                    # Skip current player's turn
                     self.game.next_player()
                     self._update_submit_button()
                 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
-                        # Check if clicking on rack
                         rack_idx = self.rack.get_tile_index(event.pos, len(self.game.current_player.rack))
                         if rack_idx is not None:
                             self.selected_tile = rack_idx
@@ -176,7 +204,6 @@ class ScrabbleUI:
                             self.drag_pos = event.pos
                     
                     elif event.button == 3:  # Right click
-                        # Remove tile if it was placed in current turn
                         board_pos = self.board.get_board_position(event.pos)
                         if board_pos:
                             row, col = board_pos
@@ -185,7 +212,7 @@ class ScrabbleUI:
                                 self._update_submit_button()
                 
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1 and self.dragging:  # Left click release
+                    if event.button == 1 and self.dragging:
                         board_pos = self.board.get_board_position(event.pos)
                         if board_pos and self.selected_tile is not None:
                             row, col = board_pos
@@ -198,9 +225,10 @@ class ScrabbleUI:
                 elif event.type == pygame.MOUSEMOTION:
                     if self.dragging:
                         self.drag_pos = event.pos
-                    # Update button hover state
+                    # Update button hover states
                     self.submit_button.handle_event(event)
                     self.pass_button.handle_event(event)
+                    self.lang_button.handle_event(event)
 
             self.draw_board()
             self.draw_rack()

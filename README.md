@@ -2,6 +2,8 @@
 
 A Scrabble game implementation that supports Estonian alphabet and uses Estonian wordlist.
 
+> [🇪🇪 Eestikeelne dokumentatsioon (README in Estonian)](README.et.md)
+
 > **Development Note**: This project was developed as an experiment in AI-assisted programming using Cursor IDE's agent mode with Claude-3.5-Sonnet model. The entire development process was conducted in "YOLO mode", where the AI agent actively participated in coding, debugging, and documentation.
 
 ## Prerequisites
@@ -65,9 +67,12 @@ Before you begin, ensure you have the following installed:
    - Two players take turns
 
 2. **Game Controls**
-   - Drag and drop tiles from your rack to the board
-   - Right-click a tile to remove it from the board
-   - Click "Commit" to end your turn
+   - **Mouse Controls:**
+     - Left-click and hold to drag tiles from your rack to the board
+     - Release left mouse button to place a tile
+     - Right-click a tile on the board to return it to your rack
+     - Left-click buttons ("Commit", "Pass", "Exchange") to perform actions
+   - Click "Commit" to end your turn when you're satisfied with your word placement
    - Click "Pass" to skip your turn
    - Click "Exchange" to swap tiles (counts as your turn)
 
@@ -214,12 +219,50 @@ When adding new features:
 
 ## Future Improvements
 
-- [ ] Add proper Estonian wordlist source
-- [ ] Implement scoring system
-- [ ] Add game save/load functionality
-- [ ] Add network multiplayer support
-- [ ] Add unit tests
-- [ ] Add AI opponent
+> _Note: The following improvements were suggested by the AI agent during development. The human developer was mostly focused on getting the basic game working! Feel free to implement any of these if you're interested._
+
+✅ Implemented:
+- Estonian wordlist integration
+- Basic scoring system with premium squares
+- Real-time word validation
+
+🚀 AI's Wishlist:
+1. **Enhanced Word Validation**:
+   - Add support for compound words
+   - Implement word challenges between players
+   - Cache validated words for performance
+
+2. **Game Features**:
+   - Save/load game state
+   - Undo/redo moves
+   - Game replay functionality
+   - Tournament mode with time limits
+   - Statistics tracking (highest scores, longest words, etc.)
+
+3. **Multiplayer**:
+   - Network play support
+   - Lobby system for finding opponents
+   - Chat functionality
+   - Player rankings
+
+4. **AI Features**:
+   - AI opponent with adjustable difficulty
+   - AI move suggestions for learning
+   - Analysis of played games
+
+5. **Technical Improvements**:
+   - Unit test coverage
+   - Performance optimizations
+   - Proper logging system
+   - Configurable game rules
+   - Cross-platform packaging
+
+6. **UI Enhancements**:
+   - Animations for tile placement
+   - Sound effects
+   - Dark/light theme support
+   - Mobile-friendly responsive design
+   - Accessibility features
 
 ## License
 
