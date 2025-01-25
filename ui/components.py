@@ -22,6 +22,7 @@ BUTTON_COLOR = (70, 130, 180)            # Steel blue for buttons
 BUTTON_HOVER_COLOR = (100, 149, 237)     # Cornflower blue for button hover
 BUTTON_DISABLED_COLOR = (169, 169, 169)  # Dark gray for disabled buttons
 SCORE_COLOR = (47, 79, 79)               # Dark slate gray for score display
+TURN_INDICATOR_COLOR = (34, 139, 34)    # Forest green for turn indicator
 
 class Button:
     def __init__(self, x: int, y: int, width: int, height: int, text: str, font: pygame.font.Font):
@@ -114,6 +115,42 @@ class ScoreDisplay:
         color = SCORE_COLOR if not is_current else BUTTON_COLOR
         text_surface = self.font.render(text, True, color)
         screen.blit(text_surface, (self.x, self.y))
+
+class TurnIndicator:
+    def __init__(self, x: int, y: int, font: pygame.font.Font):
+        self.x = x
+        self.y = y
+        self.font = font
+        self.arrow_size = 20
+        self.padding = 10
+
+    def draw(self, screen: pygame.Surface, is_player_one: bool):
+        """Draw a turn indicator showing which player's turn it is."""
+        # Draw arrow
+        points = self._get_arrow_points(is_player_one)
+        pygame.draw.polygon(screen, TURN_INDICATOR_COLOR, points)
+        
+        # Draw "Turn" text
+        text = self.font.render("Turn", True, TURN_INDICATOR_COLOR)
+        text_rect = text.get_rect(center=(self.x, self.y + self.arrow_size + self.padding))
+        screen.blit(text, text_rect)
+    
+    def _get_arrow_points(self, is_player_one: bool) -> list:
+        """Get the points for drawing the arrow polygon."""
+        if is_player_one:
+            # Arrow pointing left (from Player 1 to their score)
+            return [
+                (self.x + self.arrow_size, self.y - self.arrow_size//2),
+                (self.x - self.arrow_size, self.y),
+                (self.x + self.arrow_size, self.y + self.arrow_size//2)
+            ]
+        else:
+            # Arrow pointing right (from Player 2 to their score)
+            return [
+                (self.x - self.arrow_size, self.y - self.arrow_size//2),
+                (self.x + self.arrow_size, self.y),
+                (self.x - self.arrow_size, self.y + self.arrow_size//2)
+            ]
 
 class Tile:
     def __init__(self, letter: str, size: int, font: pygame.font.Font):

@@ -2,7 +2,7 @@ import pygame
 import sys
 from game import GameState
 from ui import (
-    Tile, Board, Rack, Button, ScoreDisplay,
+    Tile, Board, Rack, Button, ScoreDisplay, TurnIndicator,
     WHITE, BLACK, BOARD_COLOR,
     PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
@@ -76,6 +76,9 @@ class ScrabbleUI:
             ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font)      # Player 2 score
         ]
         
+        # Initialize turn indicator
+        self.turn_indicator = TurnIndicator(WINDOW_SIZE // 2, score_y + 10, self.font)
+        
         # UI state
         self.selected_tile = None
         self.dragging = False
@@ -141,6 +144,9 @@ class ScrabbleUI:
                 player.score,
                 i == self.game.current_player_idx
             )
+            
+        # Draw turn indicator
+        self.turn_indicator.draw(self.screen, self.game.current_player_idx == 0)
 
     def run(self):
         while True:
