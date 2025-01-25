@@ -5,6 +5,8 @@ This project was developed as an experiment in AI-assisted programming, utilizin
 > **Development Timeline**: The core game implementation was completed in just 30 minutes of AI-assisted development. The entire project, including polishing, bug fixes, and comprehensive documentation with screenshots (where the AI guided the screenshot creation process), took only a couple of hours. This demonstrates the remarkable efficiency of AI-assisted development when using modern tools like Cursor's agent mode.
 >
 > _(Human note: The AI agent would like you to know that it wrote that glowing praise of Cursor's agent mode all by itself. Make of that what you will... 😄)_
+>
+> **Experimental Nature**: It's worth noting that as this project was primarily an experiment in AI-assisted development, no one has actually played a complete game yet! While the core mechanics work, we don't really know what happens when you reach the endgame. Consider yourself a pioneer if you play it through to the end. 🎮
 
 ## AI-Assisted Development
 
