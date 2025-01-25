@@ -2,6 +2,8 @@
 
 Scrabble'i mängu rakendus, mis toetab eesti tähestikku ja kasutab eesti sõnastikku.
 
+> **Tõlke märkus**: See dokumentatsioon on tõlgitud inglise keelest eesti keelde kasutades tehisintellekti (Claude-3.5-Sonnet) ja pole inimese poolt üle kontrollitud. Kui leiate tõlkevigu, andke palun teada!
+
 > **Arenduse märkus**: See projekt arendati eksperimendina tehisintellekti-toetatud programmeerimises, kasutades Cursor IDE agendi režiimi Claude-3.5-Sonnet mudeliga. Kogu arendusprotsess viidi läbi "YOLO režiimis", kus tehisintellekti agent osales aktiivselt koodi kirjutamises, vigade parandamises ja dokumentatsiooni koostamises.
 
 ## Eeldused
