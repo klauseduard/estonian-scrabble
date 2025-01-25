@@ -4,6 +4,7 @@ from game.constants import (
     TRIPLE_WORD_SCORE, DOUBLE_WORD_SCORE,
     TRIPLE_LETTER_SCORE, DOUBLE_LETTER_SCORE
 )
+from .language import LanguageManager
 
 # Colors
 WHITE = (255, 255, 255)
@@ -123,6 +124,7 @@ class TurnIndicator:
         self.font = font
         self.arrow_size = 20
         self.padding = 10
+        self.lang_manager = LanguageManager()
 
     def draw(self, screen: pygame.Surface, is_player_one: bool):
         """Draw a turn indicator showing which player's turn it is."""
@@ -130,8 +132,8 @@ class TurnIndicator:
         points = self._get_arrow_points(is_player_one)
         pygame.draw.polygon(screen, TURN_INDICATOR_COLOR, points)
         
-        # Draw "Turn" text
-        text = self.font.render("Käik", True, TURN_INDICATOR_COLOR)
+        # Draw turn text
+        text = self.font.render(self.lang_manager.get_string("turn"), True, TURN_INDICATOR_COLOR)
         text_rect = text.get_rect(center=(self.x, self.y + self.arrow_size + self.padding))
         screen.blit(text, text_rect)
     
@@ -176,6 +178,7 @@ class Board:
         self.board_start = board_start
         self.font = font
         self.small_font = pygame.font.Font(None, 20)  # Smaller font for premium labels
+        self.lang_manager = LanguageManager()
 
     def get_square_position(self, row: int, col: int) -> Tuple[int, int]:
         """Convert board coordinates to screen coordinates."""
@@ -197,13 +200,13 @@ class Board:
         """Get the premium type and color for a square."""
         pos = (row, col)
         if pos in TRIPLE_WORD_SCORE:
-            return "TWS", PREMIUM_TRIPLE_WORD
+            return self.lang_manager.get_string("tws"), PREMIUM_TRIPLE_WORD
         elif pos in DOUBLE_WORD_SCORE:
-            return "DWS", PREMIUM_DOUBLE_WORD
+            return self.lang_manager.get_string("dws"), PREMIUM_DOUBLE_WORD
         elif pos in TRIPLE_LETTER_SCORE:
-            return "TLS", PREMIUM_TRIPLE_LETTER
+            return self.lang_manager.get_string("tls"), PREMIUM_TRIPLE_LETTER
         elif pos in DOUBLE_LETTER_SCORE:
-            return "DLS", PREMIUM_DOUBLE_LETTER
+            return self.lang_manager.get_string("dls"), PREMIUM_DOUBLE_LETTER
         return "", BOARD_COLOR
 
     def draw_square(self, screen: pygame.Surface, row: int, col: int, override_color: Optional[Tuple[int, int, int]] = None):
