@@ -1,6 +1,14 @@
 # Estonian Scrabble
 
-A Scrabble game implementation that supports Estonian alphabet and uses Estonian wordlist.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Estonian](https://img.shields.io/badge/language-Estonian-green.svg)](https://en.wikipedia.org/wiki/Estonian_language)
+
+A Python-based implementation of the classic Scrabble board game, specifically designed for the Estonian language. Features include Estonian alphabet support (õ, ä, ö, ü, š, ž), Estonian wordlist validation, and a modern graphical user interface.
+
+**View on GitHub**: [github.com/klauseduard/estonian-scrabble](https://github.com/klauseduard/estonian-scrabble)
+
+**Keywords**: scrabble, estonian language, word game, python game, desktop application, educational game, language learning
 
 > [🇪🇪 Eestikeelne dokumentatsioon (README in Estonian)](README.et.md)
 
@@ -35,8 +43,8 @@ Before you begin, ensure you have the following installed:
    - Download this repository as a ZIP file and extract it
    - Or if you're familiar with git:
      ```bash
-     git clone [repository-url]
-     cd scrabble
+     git clone https://github.com/klauseduard/estonian-scrabble.git
+     cd estonian-scrabble
      ```
 
 2. **Open Terminal/Command Prompt**
