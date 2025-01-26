@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://klauseduard.github.io/estonian-scrabble/sitemap.xml 
