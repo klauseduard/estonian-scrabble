@@ -4,6 +4,8 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Estonian](https://img.shields.io/badge/language-Estonian-green.svg)](https://en.wikipedia.org/wiki/Estonian_language)
 
+> **Important Note**: This documentation is AI-generated. The entire project, including all documentation files, README guides, and development notes, was created through AI-assisted programming using Cursor IDE's agent mode with Claude-3.5-Sonnet model. The development process was conducted as an experiment in "YOLO mode" where the AI agent was responsible for code generation, documentation writing, and debugging assistance.
+
 A Python-based implementation of the classic Scrabble board game, specifically designed for the Estonian language. Features include Estonian alphabet support (õ, ä, ö, ü, š, ž), Estonian wordlist validation, and a modern graphical user interface.
 
 **View on GitHub**: [github.com/klauseduard/estonian-scrabble](https://github.com/klauseduard/estonian-scrabble)
@@ -11,8 +13,6 @@ A Python-based implementation of the classic Scrabble board game, specifically d
 **Keywords**: scrabble, estonian language, word game, python game, desktop application, educational game, language learning
 
 > [🇪🇪 Eestikeelne dokumentatsioon (README in Estonian)](README.et.md)
-
-> **Development Note**: This project was developed as an experiment in AI-assisted programming using Cursor IDE's agent mode with Claude-3.5-Sonnet model. The entire development process was conducted in "YOLO mode", where the AI agent actively participated in coding, debugging, and documentation.
 
 ## Prerequisites
 
