@@ -3,12 +3,19 @@ from typing import List, Optional
 from game.word_validator import WordValidator
 from wordlist import WordList
 
+class MockWordList:
+    """A simple mock wordlist for testing."""
+    def __init__(self, words):
+        self.words = set(words)
+        
+    def is_valid_word(self, word: str) -> bool:
+        return word.lower() in self.words
+
 class TestWordValidator(unittest.TestCase):
     def setUp(self):
-        # Create a simple wordlist for testing
-        self.wordlist = WordList()
-        # Add some test words
-        self.wordlist.words = {"ema", "maa", "kes", "sees", "ses", "emas"}
+        # Create a mock wordlist for testing
+        test_words = {"ema", "maa", "kes", "sees", "ses", "emas", "ems"}
+        self.wordlist = MockWordList(test_words)
         self.validator = WordValidator(self.wordlist)
         
     def create_empty_board(self) -> List[List[Optional[str]]]:
