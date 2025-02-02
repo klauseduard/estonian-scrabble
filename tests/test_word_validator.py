@@ -8,7 +8,7 @@ class TestWordValidator(unittest.TestCase):
         # Create a simple wordlist for testing
         self.wordlist = WordList()
         # Add some test words
-        self.wordlist.words = {"ema", "maa", "kes", "sees"}
+        self.wordlist.words = {"ema", "maa", "kes", "sees", "ses"}
         self.validator = WordValidator(self.wordlist)
         
     def create_empty_board(self) -> List[List[Optional[str]]]:
@@ -53,32 +53,37 @@ class TestWordValidator(unittest.TestCase):
         
         # Test cases for current turn tile placements
         test_cases = [
-            # Valid horizontal line
-            ({(7, 9), (7, 10)}, True),  # ES forming continuous line
+            # Valid horizontal line forming "SEES"
+            ({(7, 9), (7, 10)}, True, [('S', (7, 9)), ('S', (7, 10))]),
             # Valid vertical line
-            ({(8, 7), (9, 7)}, True),  # Two tiles in column
+            ({(8, 7), (9, 7)}, True, [('E', (8, 7)), ('S', (9, 7))]),
             # Invalid diagonal
-            ({(8, 8), (9, 9)}, False),  # Diagonal placement
+            ({(8, 8), (9, 9)}, False, [('S', (8, 8)), ('S', (9, 9))]),
             # Invalid scattered
-            ({(8, 7), (8, 9)}, False),  # Gap between tiles
-            # Single tile is valid
-            ({(8, 7)}, True),  # Single tile
+            ({(8, 7), (8, 9)}, False, [('S', (8, 7)), ('S', (8, 9))]),
+            # Single tile is valid (when connected)
+            ({(8, 7)}, True, [('S', (8, 7))]),
             # Empty set is valid
-            (set(), True),  # No tiles
+            (set(), True, []),
         ]
         
-        for tiles, expected_valid in test_cases:
+        for tiles, expected_valid, letters in test_cases:
             # Place the tiles on board
-            for row, col in tiles:
-                board[row][col] = 'S'  # Use any letter for testing
+            for (row, col), (letter, _) in zip(tiles, letters):
+                board[row][col] = letter
                 
             # Validate the placement
             validity = self.validator.validate_placement(board, tiles)
             
-            # Check if validation matches expected
-            actual_valid = all(validity.get((r, c), False) for r, c in tiles)
-            self.assertEqual(actual_valid, expected_valid, 
-                           f"Failed for tiles {tiles}, expected {expected_valid}")
+            # For valid placements, check if they're connected and form valid words
+            if expected_valid:
+                self.assertTrue(self.validator._are_turn_tiles_connected(tiles),
+                              f"Tiles {tiles} should form a continuous line")
+                self.assertTrue(all(validity.get((r, c), False) for r, c in tiles),
+                              f"All tiles in {tiles} should be valid")
+            else:
+                self.assertFalse(all(validity.get((r, c), False) for r, c in tiles),
+                               f"Tiles {tiles} should be invalid")
             
             # Clean up the board for next test
             for row, col in tiles:
