@@ -94,5 +94,44 @@ class TestWordValidator(unittest.TestCase):
             for row, col in tiles:
                 board[row][col] = None
 
+    def test_tiles_must_be_adjacent(self):
+        """Test that tiles must be adjacent to each other in a continuous line."""
+        board = self.create_empty_board()
+        
+        # Place "EMA" in the center
+        center = 7
+        board[center][center] = 'E'
+        board[center][center + 1] = 'M'
+        board[center][center + 2] = 'A'
+        
+        # Try placing tiles with a gap
+        current_turn_tiles = {(7, 4), (7, 6)}  # Two tiles in same row but with a gap
+        board[7][4] = 'S'
+        board[7][6] = 'S'
+        
+        # Validate the placement
+        validity = self.validator.validate_placement(board, current_turn_tiles)
+        
+        # Should be invalid because tiles aren't adjacent
+        self.assertFalse(all(validity.get((r, c), False) for r, c in current_turn_tiles),
+                        "Tiles with a gap between them should be invalid")
+        
+        # Clean up for next test
+        for row, col in current_turn_tiles:
+            board[row][col] = None
+            
+        # Try placing three tiles with a gap
+        current_turn_tiles = {(7, 4), (7, 5), (7, 7)}  # Three tiles with a gap after second tile
+        board[7][4] = 'S'
+        board[7][5] = 'E'
+        board[7][7] = 'S'
+        
+        # Validate the placement
+        validity = self.validator.validate_placement(board, current_turn_tiles)
+        
+        # Should be invalid because not all tiles are adjacent
+        self.assertFalse(all(validity.get((r, c), False) for r, c in current_turn_tiles),
+                        "Tiles with a gap between them should be invalid")
+
 if __name__ == '__main__':
     unittest.main() 

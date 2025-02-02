@@ -77,13 +77,17 @@ class WordValidator:
         if len(set(rows)) == 1:
             # All tiles in same row - check if continuous
             cols = sorted(cols)
-            return cols[-1] - cols[0] + 1 == len(cols)
+            # Check each position between min and max col has a tile
+            return all((rows[0], col) in current_turn_tiles 
+                      for col in range(cols[0], cols[-1] + 1))
             
         # Check if tiles are in same column
         if len(set(cols)) == 1:
             # All tiles in same column - check if continuous
             rows = sorted(rows)
-            return rows[-1] - rows[0] + 1 == len(rows)
+            # Check each position between min and max row has a tile
+            return all((row, cols[0]) in current_turn_tiles 
+                      for row in range(rows[0], rows[-1] + 1))
             
         # Tiles neither in same row nor column
         return False
