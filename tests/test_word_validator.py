@@ -14,7 +14,7 @@ class MockWordList:
 class TestWordValidator(unittest.TestCase):
     def setUp(self):
         # Create a mock wordlist for testing
-        test_words = {"ema", "maa", "kes", "sees", "ses", "emas", "ems"}
+        test_words = {"ema", "maa", "kes", "sees", "ses", "emas", "ems", "ms"}
         self.wordlist = MockWordList(test_words)
         self.validator = WordValidator(self.wordlist)
         
