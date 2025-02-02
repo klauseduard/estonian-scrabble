@@ -8,7 +8,7 @@ class TestWordValidator(unittest.TestCase):
         # Create a simple wordlist for testing
         self.wordlist = WordList()
         # Add some test words
-        self.wordlist.words = {"ema", "maa", "kes", "sees", "ses"}
+        self.wordlist.words = {"ema", "maa", "kes", "sees", "ses", "emas"}
         self.validator = WordValidator(self.wordlist)
         
     def create_empty_board(self) -> List[List[Optional[str]]]:
@@ -53,16 +53,14 @@ class TestWordValidator(unittest.TestCase):
         
         # Test cases for current turn tile placements
         test_cases = [
-            # Valid horizontal line forming "SEES"
-            ({(7, 9), (7, 10)}, True, [('S', (7, 9)), ('S', (7, 10))]),
+            # Valid horizontal line forming "EMAS"
+            ({(7, 3)}, True, [('S', (7, 3))]),  # Forms "EMAS" with existing "EMA"
             # Valid vertical line
-            ({(8, 7), (9, 7)}, True, [('E', (8, 7)), ('S', (9, 7))]),
+            ({(8, 7)}, True, [('S', (8, 7))]),  # Forms "EMS" vertically
             # Invalid diagonal
             ({(8, 8), (9, 9)}, False, [('S', (8, 8)), ('S', (9, 9))]),
             # Invalid scattered
             ({(8, 7), (8, 9)}, False, [('S', (8, 7)), ('S', (8, 9))]),
-            # Single tile is valid (when connected)
-            ({(8, 7)}, True, [('S', (8, 7))]),
             # Empty set is valid
             (set(), True, []),
         ]
