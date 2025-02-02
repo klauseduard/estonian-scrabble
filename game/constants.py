@@ -1,39 +1,39 @@
 # Estonian Scrabble letter distribution and points
 LETTER_DISTRIBUTION = {
     # High-frequency vowels
-    'a': {'count': 12, 'points': 1},
-    'e': {'count': 11, 'points': 1},
+    'a': {'count': 10, 'points': 1},
+    'e': {'count': 9, 'points': 1},
     'i': {'count': 9, 'points': 1},
-    'u': {'count': 6, 'points': 1},
-    'o': {'count': 5, 'points': 1},
+    'u': {'count': 5, 'points': 2},
+    'o': {'count': 5, 'points': 2},
     
     # High-frequency consonants
-    's': {'count': 9, 'points': 1},
-    't': {'count': 8, 'points': 1},
+    's': {'count': 8, 'points': 1},
+    't': {'count': 7, 'points': 1},
     'l': {'count': 6, 'points': 1},
     'n': {'count': 6, 'points': 1},
-    'k': {'count': 5, 'points': 2},
-    'r': {'count': 5, 'points': 2},
+    'k': {'count': 6, 'points': 2},
+    'r': {'count': 6, 'points': 2},
     'd': {'count': 4, 'points': 2},
     'm': {'count': 4, 'points': 2},
-    'v': {'count': 3, 'points': 3},
+    'v': {'count': 4, 'points': 2},
     
     # Estonian special characters (vowels)
     'ä': {'count': 4, 'points': 2},
-    'õ': {'count': 3, 'points': 2},
+    'õ': {'count': 2, 'points': 3},
     'ö': {'count': 2, 'points': 3},
     'ü': {'count': 2, 'points': 3},
     
     # Low-frequency consonants (ordered by relative frequency)
     'h': {'count': 3, 'points': 3},
     'p': {'count': 3, 'points': 3},
-    'j': {'count': 2, 'points': 3},
-    'b': {'count': 2, 'points': 3},
-    'g': {'count': 2, 'points': 3},
-    'f': {'count': 1, 'points': 5},
-    'š': {'count': 1, 'points': 5},
-    'z': {'count': 1, 'points': 5},
-    'ž': {'count': 1, 'points': 5},
+    'j': {'count': 2, 'points': 4},
+    'b': {'count': 2, 'points': 4},
+    'g': {'count': 2, 'points': 4},
+    'f': {'count': 1, 'points': 8},
+    'š': {'count': 1, 'points': 8},
+    'z': {'count': 1, 'points': 10},
+    'ž': {'count': 1, 'points': 10},
 }
 
 # Board premium squares
