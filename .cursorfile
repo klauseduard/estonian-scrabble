@@ -1,0 +1,47 @@
+# Cursor Rules for Scrabble Project
+
+## Linting
+- **PEP8 Enforcement:** All Python code should follow PEP8 styling guidelines.
+- **Maximum Line Length:** 100 characters per line.
+- **Whitespace:** No trailing whitespace is allowed.
+- **Final Newline:** Files must end with a newline.
+
+## Formatting
+- **Formatter:** Use Black for automatic code formatting.
+- **Line Length:** Configure Black to use a line length of 100 characters.
+- **Quotes:** Prefer double quotes over single quotes.
+
+## Refactoring & Code Quality
+- **Import Organization:** Automatically sort and group imports where possible.
+- **Unused Variables:** Warn about any unused variables.
+- **Naming:** Suggest improvements for ambiguous naming.
+
+## Documentation
+- **Modules:** Each module should include a brief description at the top.
+- **Functions:** Docstrings are encouraged for functions (though not strictly enforced).
+
+## Git Commit Formatting
+- **Subject Line:** 
+  - Keep it to 72 characters or less.
+  - Write in the imperative mood (e.g., "Fix bug" instead of "Fixed bug" or "Fixes bug").
+  - Optionally, follow the Conventional Commits format (e.g., "feat(scope): add new feature", "fix: resolve bug").
+- **Body:** 
+  - Separate the subject from the body with a blank line.
+  - Wrap the body text at 72 characters per line.
+  - Use newlines to clearly divide different sections, ensuring the message is readable.
+- **Clarity:** 
+  - Provide a clear, concise explanation of the changes.
+  - Avoid long lines of text without proper breaks.
+
+## Project Structure
+- **Project Name:** Scrabble
+- **Supported Languages:** Python
+- **Entry Points:** 
+  - `main.py`
+  - `scrabble/game.py`
+
+## File Inclusion/Exclusion
+- **Included Files:** 
+  - All Python (`*.py`), Markdown (`*.md`), and text (`*.txt`) files.
+- **Excluded Directories:** 
+  - `venv/`, `node_modules/`, and `.git/` 
