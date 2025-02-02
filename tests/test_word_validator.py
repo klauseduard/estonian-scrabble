@@ -61,9 +61,9 @@ class TestWordValidator(unittest.TestCase):
         # Test cases for current turn tile placements
         test_cases = [
             # Valid horizontal line forming "EMAS"
-            ({(7, 3)}, True, [('S', (7, 3))]),  # Forms "EMAS" with existing "EMA"
+            ({(7, 10)}, True, [('S', (7, 10))]),  # Forms "EMAS" with existing "EMA"
             # Valid vertical line
-            ({(8, 7)}, True, [('S', (8, 7))]),  # Forms "EMS" vertically
+            ({(8, 8)}, True, [('S', (8, 8))]),  # Forms "MS" vertically with existing "M"
             # Invalid diagonal
             ({(8, 8), (9, 9)}, False, [('S', (8, 8)), ('S', (9, 9))]),
             # Invalid scattered
