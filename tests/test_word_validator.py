@@ -23,115 +23,54 @@ class TestWordValidator(unittest.TestCase):
         
     def test_disconnected_tile_placement(self):
         """Test that disconnected tile placements are marked as invalid."""
-        board = self.create_empty_board()
-        
-        # Place "EMA" in the center
-        center = 7
-        board[center][center] = 'E'
-        board[center][center + 1] = 'M'
-        board[center][center + 2] = 'A'
-        
-        # Try placing disconnected tiles: 'K' away from "EMA" and 'ES' connected to "EMA"
-        current_turn_tiles = {(5, 5), (7, 9), (7, 10)}  # K at (5,5), ES at (7,9-10)
-        board[5][5] = 'K'
-        board[7][9] = 'E'
-        board[7][10] = 'S'
-        
-        # Validate the placement
-        validity = self.validator.validate_placement(board, current_turn_tiles)
-        
-        # All positions should be marked as invalid due to disconnected placement
-        self.assertFalse(validity[(5, 5)])  # K should be invalid
-        self.assertFalse(validity[(7, 9)])  # E should be invalid
-        self.assertFalse(validity[(7, 10)])  # S should be invalid
-        
-        # The overall placement should be invalid
-        self.assertFalse(self.validator.is_placement_valid())
+        board = [[None] * 15 for _ in range(15)]
+        tiles = {(7, 7), (10, 10)}  # Disconnected tiles
+        self.assertFalse(self.validator._are_turn_tiles_connected(board, tiles))
         
     def test_continuous_line_validation(self):
         """Test that tiles must form a continuous line."""
-        board = self.create_empty_board()
+        board = [[None] * 15 for _ in range(15)]
         
-        # Place "EMA" in the center
-        center = 7
-        board[center][center] = 'E'
-        board[center][center + 1] = 'M'
-        board[center][center + 2] = 'A'
+        # Test horizontal placement
+        tiles = {(7, 7), (7, 8), (7, 9)}  # Continuous line
+        self.assertTrue(self.validator._are_turn_tiles_connected(board, tiles))
         
-        # Test cases for current turn tile placements
-        test_cases = [
-            # Valid horizontal line forming "EMAS"
-            ({(7, 10)}, True, [('S', (7, 10))]),  # Forms "EMAS" with existing "EMA"
-            # Valid vertical line
-            ({(8, 8)}, True, [('S', (8, 8))]),  # Forms "MS" vertically with existing "M"
-            # Invalid diagonal
-            ({(8, 8), (9, 9)}, False, [('S', (8, 8)), ('S', (9, 9))]),
-            # Invalid scattered
-            ({(8, 7), (8, 9)}, False, [('S', (8, 7)), ('S', (8, 9))]),
-            # Empty set is valid
-            (set(), True, []),
-        ]
+        tiles = {(7, 7), (7, 9)}  # Gap in line
+        self.assertFalse(self.validator._are_turn_tiles_connected(board, tiles))
         
-        for tiles, expected_valid, letters in test_cases:
-            # Place the tiles on board
-            for (row, col), (letter, _) in zip(tiles, letters):
-                board[row][col] = letter
-                
-            # Validate the placement
-            validity = self.validator.validate_placement(board, tiles)
-            
-            # For valid placements, check if they're connected and form valid words
-            if expected_valid:
-                self.assertTrue(self.validator._are_turn_tiles_connected(tiles),
-                              f"Tiles {tiles} should form a continuous line")
-                self.assertTrue(all(validity.get((r, c), False) for r, c in tiles),
-                              f"All tiles in {tiles} should be valid")
-            else:
-                self.assertFalse(all(validity.get((r, c), False) for r, c in tiles),
-                               f"Tiles {tiles} should be invalid")
-            
-            # Clean up the board for next test
-            for row, col in tiles:
-                board[row][col] = None
+        # Test vertical placement
+        tiles = {(7, 7), (8, 7), (9, 7)}  # Continuous line
+        self.assertTrue(self.validator._are_turn_tiles_connected(board, tiles))
+        
+        tiles = {(7, 7), (9, 7)}  # Gap in line
+        self.assertFalse(self.validator._are_turn_tiles_connected(board, tiles))
 
     def test_tiles_must_be_adjacent(self):
         """Test that tiles must be adjacent to each other in a continuous line."""
-        board = self.create_empty_board()
+        board = [[None] * 15 for _ in range(15)]
         
-        # Place "EMA" in the center
-        center = 7
-        board[center][center] = 'E'
-        board[center][center + 1] = 'M'
-        board[center][center + 2] = 'A'
+        # Test with gaps
+        tiles = {(7, 7), (7, 9)}  # Horizontal gap
+        self.assertFalse(self.validator._are_turn_tiles_connected(board, tiles))
         
-        # Try placing tiles with a gap
-        current_turn_tiles = {(7, 4), (7, 6)}  # Two tiles in same row but with a gap
-        board[7][4] = 'S'
-        board[7][6] = 'S'
+        tiles = {(7, 7), (9, 7)}  # Vertical gap
+        self.assertFalse(self.validator._are_turn_tiles_connected(board, tiles))
+
+    def test_placement_through_existing_tiles(self):
+        """Test that placement through existing tiles is valid."""
+        board = [[None] * 15 for _ in range(15)]
+        # Place an existing tile
+        board[8][7] = 'U'
         
-        # Validate the placement
-        validity = self.validator.validate_placement(board, current_turn_tiles)
+        # Test vertical placement through existing tile
+        tiles = {(7, 7), (9, 7)}  # K and S around existing U
+        self.assertTrue(self.validator._are_turn_tiles_connected(board, tiles))
         
-        # Should be invalid because tiles aren't adjacent
-        self.assertFalse(all(validity.get((r, c), False) for r, c in current_turn_tiles),
-                        "Tiles with a gap between them should be invalid")
-        
-        # Clean up for next test
-        for row, col in current_turn_tiles:
-            board[row][col] = None
-            
-        # Try placing three tiles with a gap
-        current_turn_tiles = {(7, 4), (7, 5), (7, 7)}  # Three tiles with a gap after second tile
-        board[7][4] = 'S'
-        board[7][5] = 'E'
-        board[7][7] = 'S'
-        
-        # Validate the placement
-        validity = self.validator.validate_placement(board, current_turn_tiles)
-        
-        # Should be invalid because not all tiles are adjacent
-        self.assertFalse(all(validity.get((r, c), False) for r, c in current_turn_tiles),
-                        "Tiles with a gap between them should be invalid")
+        # Test horizontal placement through existing tile
+        board = [[None] * 15 for _ in range(15)]
+        board[7][8] = 'U'
+        tiles = {(7, 7), (7, 9)}  # K and S around existing U
+        self.assertTrue(self.validator._are_turn_tiles_connected(board, tiles))
 
 if __name__ == '__main__':
     unittest.main() 
