@@ -1,0 +1,88 @@
+import unittest
+from typing import List, Optional
+from game.word_validator import WordValidator
+from wordlist import WordList
+
+class TestWordValidator(unittest.TestCase):
+    def setUp(self):
+        # Create a simple wordlist for testing
+        self.wordlist = WordList()
+        # Add some test words
+        self.wordlist.words = {"ema", "maa", "kes", "sees"}
+        self.validator = WordValidator(self.wordlist)
+        
+    def create_empty_board(self) -> List[List[Optional[str]]]:
+        return [[None for _ in range(15)] for _ in range(15)]
+        
+    def test_disconnected_tile_placement(self):
+        """Test that disconnected tile placements are marked as invalid."""
+        board = self.create_empty_board()
+        
+        # Place "EMA" in the center
+        center = 7
+        board[center][center] = 'E'
+        board[center][center + 1] = 'M'
+        board[center][center + 2] = 'A'
+        
+        # Try placing disconnected tiles: 'K' away from "EMA" and 'ES' connected to "EMA"
+        current_turn_tiles = {(5, 5), (7, 9), (7, 10)}  # K at (5,5), ES at (7,9-10)
+        board[5][5] = 'K'
+        board[7][9] = 'E'
+        board[7][10] = 'S'
+        
+        # Validate the placement
+        validity = self.validator.validate_placement(board, current_turn_tiles)
+        
+        # All positions should be marked as invalid due to disconnected placement
+        self.assertFalse(validity[(5, 5)])  # K should be invalid
+        self.assertFalse(validity[(7, 9)])  # E should be invalid
+        self.assertFalse(validity[(7, 10)])  # S should be invalid
+        
+        # The overall placement should be invalid
+        self.assertFalse(self.validator.is_placement_valid())
+        
+    def test_continuous_line_validation(self):
+        """Test that tiles must form a continuous line."""
+        board = self.create_empty_board()
+        
+        # Place "EMA" in the center
+        center = 7
+        board[center][center] = 'E'
+        board[center][center + 1] = 'M'
+        board[center][center + 2] = 'A'
+        
+        # Test cases for current turn tile placements
+        test_cases = [
+            # Valid horizontal line
+            ({(7, 9), (7, 10)}, True),  # ES forming continuous line
+            # Valid vertical line
+            ({(8, 7), (9, 7)}, True),  # Two tiles in column
+            # Invalid diagonal
+            ({(8, 8), (9, 9)}, False),  # Diagonal placement
+            # Invalid scattered
+            ({(8, 7), (8, 9)}, False),  # Gap between tiles
+            # Single tile is valid
+            ({(8, 7)}, True),  # Single tile
+            # Empty set is valid
+            (set(), True),  # No tiles
+        ]
+        
+        for tiles, expected_valid in test_cases:
+            # Place the tiles on board
+            for row, col in tiles:
+                board[row][col] = 'S'  # Use any letter for testing
+                
+            # Validate the placement
+            validity = self.validator.validate_placement(board, tiles)
+            
+            # Check if validation matches expected
+            actual_valid = all(validity.get((r, c), False) for r, c in tiles)
+            self.assertEqual(actual_valid, expected_valid, 
+                           f"Failed for tiles {tiles}, expected {expected_valid}")
+            
+            # Clean up the board for next test
+            for row, col in tiles:
+                board[row][col] = None
+
+if __name__ == '__main__':
+    unittest.main() 
