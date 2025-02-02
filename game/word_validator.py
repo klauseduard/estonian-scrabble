@@ -61,14 +61,55 @@ class WordValidator:
                     return True
         return False
 
+    def _are_turn_tiles_connected(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]]) -> bool:
+        """Check if all tiles placed in current turn form a continuous line."""
+        if not current_turn_tiles:
+            return True
+        if len(current_turn_tiles) == 1:
+            return True
+            
+        # Find if tiles form a line (horizontal or vertical)
+        tiles = list(current_turn_tiles)
+        rows = [r for r, _ in tiles]
+        cols = [c for _, c in tiles]
+        
+        # Check if tiles are in same row
+        if len(set(rows)) == 1:
+            # All tiles in same row - check if continuous
+            cols = sorted(cols)
+            # Check each position between min and max col has either a current turn tile or existing tile
+            return all((rows[0], col) in current_turn_tiles or 
+                      (board[rows[0]][col] is not None and (rows[0], col) not in current_turn_tiles)
+                      for col in range(cols[0], cols[-1] + 1))
+            
+        # Check if tiles are in same column
+        if len(set(cols)) == 1:
+            # All tiles in same column - check if continuous
+            rows = sorted(rows)
+            # Check each position between min and max row has either a current turn tile or existing tile
+            return all((row, cols[0]) in current_turn_tiles or
+                      (board[row][cols[0]] is not None and (row, cols[0]) not in current_turn_tiles)
+                      for row in range(rows[0], rows[-1] + 1))
+            
+        # Tiles neither in same row nor column
+        return False
+
     def validate_placement(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]]) -> Dict[Tuple[int, int], bool]:
         """Validate all words formed by the current turn's tiles."""
         self.word_validity.clear()
         
-        # First check if tiles are connected
+        # First check if tiles are connected to existing tiles
         if not self._is_connected_to_existing(board, current_turn_tiles):
             self.logger.warning("Tiles are not connected to existing tiles")
-            # Mark all tiles as invalid if not connected
+            # Mark all tiles as invalid
+            for pos in current_turn_tiles:
+                self.word_validity[pos] = False
+            return self.word_validity
+
+        # Check if current turn tiles form a continuous line
+        if not self._are_turn_tiles_connected(board, current_turn_tiles):
+            self.logger.warning("Tiles placed this turn do not form a continuous line")
+            # Mark all tiles as invalid
             for pos in current_turn_tiles:
                 self.word_validity[pos] = False
             return self.word_validity

@@ -202,12 +202,32 @@ The project follows a modular architecture with clear separation of concerns:
    - `components.py`: Reusable UI components
    - Handles user input and visual feedback
 
+### Running Tests
+
+The project includes automated tests to verify game logic and behavior:
+
+```bash
+# Run all tests
+python3 -m unittest discover tests
+
+# Run specific test file
+python3 -m unittest tests/test_word_validator.py
+
+# Run tests with verbose output
+python3 -m unittest -v tests/test_word_validator.py
+```
+
+Key test areas:
+- Word validation and scoring
+- Tile placement rules
+- Game state management
+
 ### Adding New Features
 
 When adding new features:
 
 1. Determine which module should contain the new code
-2. Update relevant tests (when we add them)
+2. Add appropriate tests
 3. Follow the existing code style
 4. Update documentation
 
