@@ -4,34 +4,38 @@ LETTER_DISTRIBUTION = {
     'a': {'count': 10, 'points': 1},
     'e': {'count': 9, 'points': 1},
     'i': {'count': 9, 'points': 1},
-    'u': {'count': 5, 'points': 2},
-    'o': {'count': 5, 'points': 2},
-    
+    'o': {'count': 5, 'points': 1},
+    'u': {'count': 5, 'points': 1},
+
     # High-frequency consonants
     's': {'count': 8, 'points': 1},
     't': {'count': 7, 'points': 1},
-    'l': {'count': 6, 'points': 1},
-    'n': {'count': 6, 'points': 1},
-    'k': {'count': 6, 'points': 2},
-    'r': {'count': 6, 'points': 2},
+    'k': {'count': 5, 'points': 1},
+    'l': {'count': 5, 'points': 1},
     'd': {'count': 4, 'points': 2},
     'm': {'count': 4, 'points': 2},
-    'v': {'count': 4, 'points': 2},
-    
-    # Estonian special characters (vowels)
-    'ä': {'count': 4, 'points': 2},
-    'õ': {'count': 2, 'points': 3},
-    'ö': {'count': 2, 'points': 3},
-    'ü': {'count': 2, 'points': 3},
-    
-    # Low-frequency consonants (ordered by relative frequency)
-    'h': {'count': 3, 'points': 3},
-    'p': {'count': 3, 'points': 3},
+    'n': {'count': 4, 'points': 2},
+    'r': {'count': 2, 'points': 2},
+
+    # Medium-frequency consonants
+    'g': {'count': 2, 'points': 3},
+    'v': {'count': 2, 'points': 3},
+
+    # Low-frequency consonants
+    'b': {'count': 1, 'points': 4},
+    'h': {'count': 2, 'points': 4},
     'j': {'count': 2, 'points': 4},
-    'b': {'count': 2, 'points': 4},
-    'g': {'count': 2, 'points': 4},
+    'p': {'count': 2, 'points': 4},
+
+    # Estonian special characters (vowels)
+    'õ': {'count': 2, 'points': 4},
+    'ä': {'count': 2, 'points': 5},
+    'ü': {'count': 2, 'points': 5},
+    'ö': {'count': 2, 'points': 6},
+
+    # Rare letters
     'f': {'count': 1, 'points': 8},
-    'š': {'count': 1, 'points': 8},
+    'š': {'count': 1, 'points': 10},
     'z': {'count': 1, 'points': 10},
     'ž': {'count': 1, 'points': 10},
 }
@@ -51,7 +55,8 @@ DOUBLE_WORD_SCORE = [
     (10, 4), (10, 10),
     (11, 3), (11, 11),
     (12, 2), (12, 12),
-    (13, 1), (13, 13)
+    (13, 1), (13, 13),
+    (7, 7)
 ]
 
 TRIPLE_LETTER_SCORE = [

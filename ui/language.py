@@ -15,10 +15,10 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "player_2": "Mängija 2",
         "lang_button": "EN",  # Show what language you'll get when clicking
         # Premium square labels
-        "tws": "KSK",  # Kolmekordne sõna kokku
-        "dws": "KSK",  # Kahekordne sõna kokku
-        "tls": "KTK",  # Kolmekordne täht kokku
-        "dls": "KTK",  # Kahekordne täht kokku
+        "tws": "3×S",  # Kolmekordne sõna
+        "dws": "2×S",  # Kahekordne sõna
+        "tls": "3×T",  # Kolmekordne täht
+        "dls": "2×T",  # Kahekordne täht
     },
     "en": {
         "window_title": "Estonian Scrabble",
