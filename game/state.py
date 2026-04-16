@@ -62,21 +62,27 @@ class GameState:
         tiles_to_draw = min(count, len(self.tile_bag))
         if tiles_to_draw == 0:
             return []
-        
+
         new_tiles = self.tile_bag[:tiles_to_draw]
         self.tile_bag = self.tile_bag[tiles_to_draw:]
         player.add_tiles(new_tiles)
         return new_tiles
 
     def _get_letter_score(self, letter: str, row: int, col: int) -> int:
-        """Calculate score for a single letter considering premium squares."""
+        """Calculate score for a single letter considering premium squares.
+
+        Only applies letter premium multipliers to tiles placed this turn.
+        Tiles already on the board use their base point value.
+        """
         base_score = LETTER_DISTRIBUTION[letter.lower()]['points']
         pos = (row, col)
-        
-        if pos in TRIPLE_LETTER_SCORE:
-            return base_score * 3
-        elif pos in DOUBLE_LETTER_SCORE:
-            return base_score * 2
+
+        # Only apply letter premium squares for newly placed tiles
+        if pos in self.current_turn_tiles:
+            if pos in TRIPLE_LETTER_SCORE:
+                return base_score * 3
+            elif pos in DOUBLE_LETTER_SCORE:
+                return base_score * 2
         return base_score
 
     def _calculate_word_score(self, word_info: Tuple[str, List[Tuple[int, int]]]) -> int:
@@ -89,7 +95,7 @@ class GameState:
         for letter, (row, col) in zip(word, positions):
             word_score += self._get_letter_score(letter, row, col)
             pos = (row, col)
-            
+
             # Only apply premium squares for newly placed tiles
             if pos in self.current_turn_tiles:
                 if pos in TRIPLE_WORD_SCORE:
@@ -130,22 +136,31 @@ class GameState:
         if not self.word_validator.is_placement_valid():
             return False
 
-        # Calculate score for all words formed this turn
-        turn_score = 0
+        # Calculate score for all unique words formed this turn.
+        # Deduplicate by positions tuple so the same word is not scored
+        # multiple times when several turn tiles belong to it.
+        unique_words = {}
         for row, col in self.current_turn_tiles:
             words = self.word_validator.get_word_at_position(self.board, row, col)
             for word_info in words:
-                turn_score += self._calculate_word_score(word_info)
+                _, positions = word_info
+                key = tuple(positions)
+                if key not in unique_words:
+                    unique_words[key] = word_info
+
+        turn_score = 0
+        for word_info in unique_words.values():
+            turn_score += self._calculate_word_score(word_info)
 
         # Update player's score
         self.current_player.score += turn_score
 
         # Draw new tiles
         self._draw_tiles(self.current_player, len(self.current_turn_tiles))
-        
+
         # Clear current turn tiles
         self.current_turn_tiles.clear()
-        
+
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
         return True
@@ -157,14 +172,14 @@ class GameState:
             letter = self.board[row][col]
             self.board[row][col] = None
             self.current_player.rack.append(letter)
-        
+
         # Clear current turn tiles
         self.current_turn_tiles.clear()
-        
+
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
 
     def is_game_over(self) -> bool:
         """Check if the game is over."""
-        return (len(self.tile_bag) == 0 and 
-                any(len(player.rack) == 0 for player in self.players)) 
+        return (len(self.tile_bag) == 0 and
+                any(len(player.rack) == 0 for player in self.players))
