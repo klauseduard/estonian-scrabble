@@ -152,6 +152,10 @@ class GameState:
         for word_info in unique_words.values():
             turn_score += self._calculate_word_score(word_info)
 
+        # 50-point bingo bonus for using all 7 tiles in one turn
+        if len(self.current_turn_tiles) == 7:
+            turn_score += 50
+
         # Update player's score
         self.current_player.score += turn_score
 

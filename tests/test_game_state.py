@@ -146,5 +146,24 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(game.players[0].score, 6)
 
 
+    def test_bingo_bonus_for_seven_tiles(self):
+        """Using all 7 tiles in one turn awards a 50-point bonus."""
+        game = create_game_with_mock_wordlist(valid_words={"seitset"})
+        player = game.current_player
+        player.rack = ["s", "e", "i", "t", "s", "e", "t"]
+
+        # Place "seitset" horizontally through center (7,4)-(7,10)
+        for i in range(7):
+            game.place_tile(7, 4 + i, 0)
+
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # s(1)+e(1)+i(1)+t(1)+s(1)+e(1)+t(1) = 7
+        # (7,7) is center DWS => 7 * 2 = 14
+        # + 50 bingo bonus = 64
+        self.assertEqual(game.players[0].score, 64)
+
+
 if __name__ == "__main__":
     unittest.main()
