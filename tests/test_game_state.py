@@ -165,5 +165,52 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(game.players[0].score, 64)
 
 
+class TestEndGameAdjustment(unittest.TestCase):
+    """Tests for end-game score adjustment."""
+
+    def test_player_who_empties_rack_gets_bonus(self):
+        """When bag is empty and a player goes out, they get opponents' tile values."""
+        game = create_game_with_mock_wordlist(valid_words={"ema"})
+        game.tile_bag.clear()
+
+        # Set up scores
+        game.players[0].score = 50
+        game.players[1].score = 40
+
+        # Player 2 has remaining tiles: d(2) + ö(6) = 8
+        game.players[1].rack = ["d", "ö"]
+
+        # Player 1 places "ema" through center to empty rack
+        game.players[0].rack = ["e", "m", "a"]
+        game.place_tile(7, 6, 0)  # e
+        game.place_tile(7, 7, 0)  # m (center = DWS)
+        game.place_tile(7, 8, 0)  # a
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # Word score: e(1) + m(2) + a(1) = 4, x2 DWS = 8
+        # End-game: player 1 gets +8 (opponents' tiles), player 2 gets -8
+        self.assertEqual(game.players[0].score, 50 + 8 + 8)  # 66
+        self.assertEqual(game.players[1].score, 40 - 8)  # 32
+
+    def test_no_empty_rack_both_lose_tiles(self):
+        """When no player empties rack, both lose remaining tile values."""
+        game = create_game_with_mock_wordlist(valid_words=set())
+        game.tile_bag.clear()
+
+        game.players[0].score = 30
+        game.players[1].score = 25
+
+        # Player 1 has: s(1) + d(2) = 3
+        game.players[0].rack = ["s", "d"]
+        # Player 2 has: ä(5) + f(8) = 13
+        game.players[1].rack = ["ä", "f"]
+
+        game.apply_end_game_adjustment()
+
+        self.assertEqual(game.players[0].score, 27)  # 30 - 3
+        self.assertEqual(game.players[1].score, 12)   # 25 - 13
+
+
 if __name__ == "__main__":
     unittest.main()

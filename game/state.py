@@ -165,6 +165,10 @@ class GameState:
         # Clear current turn tiles
         self.current_turn_tiles.clear()
 
+        # Check for game over and apply end-game adjustment
+        if self.is_game_over():
+            self.apply_end_game_adjustment()
+
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
         return True
@@ -182,6 +186,36 @@ class GameState:
 
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
+
+    def apply_end_game_adjustment(self):
+        """Apply end-game score adjustment for remaining tiles.
+
+        The player who emptied their rack receives the sum of all opponents'
+        remaining tile values. Each player with tiles remaining has the total
+        point value of those tiles subtracted from their score. If no player
+        has an empty rack, each player simply loses their remaining tile values.
+        """
+        # Find the player(s) with empty racks
+        empty_rack_players = [p for p in self.players if len(p.rack) == 0]
+
+        # Calculate remaining tile values for each player
+        remaining_values: Dict[str, int] = {}
+        total_remaining = 0
+        for player in self.players:
+            value = sum(
+                LETTER_DISTRIBUTION[tile.lower()]["points"] for tile in player.rack
+            )
+            remaining_values[player.name] = value
+            total_remaining += value
+
+        # Subtract remaining tile values from each player who still has tiles
+        for player in self.players:
+            if len(player.rack) > 0:
+                player.score -= remaining_values[player.name]
+
+        # Add total remaining to the player who went out
+        if len(empty_rack_players) == 1:
+            empty_rack_players[0].score += total_remaining
 
     def is_game_over(self) -> bool:
         """Check if the game is over."""
