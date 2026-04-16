@@ -1,3 +1,4 @@
+import random
 from typing import List, Set, Tuple, Optional, Dict
 from dataclasses import dataclass
 from .word_validator import WordValidator
@@ -48,7 +49,6 @@ class GameState:
         tiles = []
         for letter, info in LETTER_DISTRIBUTION.items():
             tiles.extend([letter] * info['count'])
-        import random
         random.shuffle(tiles)
         return tiles
 
@@ -216,6 +216,53 @@ class GameState:
         # Add total remaining to the player who went out
         if len(empty_rack_players) == 1:
             empty_rack_players[0].score += total_remaining
+
+    def exchange_tiles(self, tile_indices: List[int]) -> bool:
+        """Exchange tiles from the current player's rack with the tile bag.
+
+        The player forfeits their turn. Exchange is only allowed when the bag
+        has at least 7 tiles and no tiles have been placed on the board this turn.
+
+        Args:
+            tile_indices: Indices into the current player's rack to exchange.
+
+        Returns:
+            True if the exchange succeeded, False otherwise.
+        """
+        if len(self.tile_bag) < 7:
+            return False
+
+        if self.current_turn_tiles:
+            return False
+
+        if not tile_indices:
+            return False
+
+        rack = self.current_player.rack
+        # Validate all indices
+        for idx in tile_indices:
+            if not (0 <= idx < len(rack)):
+                return False
+
+        # Check for duplicate indices
+        if len(set(tile_indices)) != len(tile_indices):
+            return False
+
+        # Remove tiles from rack in reverse order to preserve indices
+        old_tiles = []
+        for idx in sorted(tile_indices, reverse=True):
+            old_tiles.append(rack.pop(idx))
+
+        # Draw the same number of new tiles
+        self._draw_tiles(self.current_player, len(old_tiles))
+
+        # Return old tiles to the bag and shuffle
+        self.tile_bag.extend(old_tiles)
+        random.shuffle(self.tile_bag)
+
+        # Switch to next player
+        self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
+        return True
 
     def is_game_over(self) -> bool:
         """Check if the game is over."""

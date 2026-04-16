@@ -212,5 +212,73 @@ class TestEndGameAdjustment(unittest.TestCase):
         self.assertEqual(game.players[1].score, 12)   # 25 - 13
 
 
+class TestTileExchange(unittest.TestCase):
+    """Tests for tile exchange logic."""
+
+    def test_exchange_tiles_success(self):
+        """Exchange works when the bag has enough tiles."""
+        game = create_game_with_mock_wordlist()
+        player = game.current_player
+        player.rack = ["a", "b", "c", "d", "e"]
+        original_bag_size = len(game.tile_bag)
+
+        result = game.exchange_tiles([0, 2])  # exchange 'a' and 'c'
+
+        self.assertTrue(result)
+        # Rack should still have 5 tiles (3 kept + 2 drawn)
+        self.assertEqual(len(player.rack), 5)
+        # Bag size should stay the same (drew 2, returned 2)
+        self.assertEqual(len(game.tile_bag), original_bag_size)
+
+    def test_exchange_fails_when_bag_too_small(self):
+        """Exchange fails when the bag has fewer than 7 tiles."""
+        game = create_game_with_mock_wordlist()
+        player = game.current_player
+        player.rack = ["a", "b", "c"]
+        game.tile_bag = ["x", "y", "z"]  # only 3 tiles in bag
+
+        result = game.exchange_tiles([0])
+
+        self.assertFalse(result)
+        # Rack should be unchanged
+        self.assertEqual(player.rack, ["a", "b", "c"])
+
+    def test_exchange_switches_player(self):
+        """After a successful exchange, it becomes the next player's turn."""
+        game = create_game_with_mock_wordlist()
+        game.players[0].rack = ["a", "b", "c"]
+        self.assertEqual(game.current_player_idx, 0)
+
+        game.exchange_tiles([0])
+
+        self.assertEqual(game.current_player_idx, 1)
+
+    def test_exchange_fails_with_tiles_on_board(self):
+        """Exchange is not allowed if tiles have been placed this turn."""
+        game = create_game_with_mock_wordlist()
+        player = game.current_player
+        player.rack = ["a", "b", "c"]
+        game.place_tile(7, 7, 0)  # place 'a' on the board
+
+        result = game.exchange_tiles([0])
+
+        self.assertFalse(result)
+
+    def test_exchange_fails_with_invalid_indices(self):
+        """Exchange fails when tile indices are out of range."""
+        game = create_game_with_mock_wordlist()
+        game.current_player.rack = ["a", "b"]
+
+        self.assertFalse(game.exchange_tiles([5]))
+        self.assertFalse(game.exchange_tiles([-1]))
+
+    def test_exchange_fails_with_empty_indices(self):
+        """Exchange fails when no tile indices are provided."""
+        game = create_game_with_mock_wordlist()
+        game.current_player.rack = ["a", "b"]
+
+        self.assertFalse(game.exchange_tiles([]))
+
+
 if __name__ == "__main__":
     unittest.main()
