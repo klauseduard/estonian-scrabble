@@ -1,0 +1,150 @@
+import unittest
+from unittest.mock import patch, MagicMock
+from typing import List, Optional
+from game.state import GameState, Player
+from game.constants import LETTER_DISTRIBUTION, DOUBLE_LETTER_SCORE, TRIPLE_LETTER_SCORE
+
+
+class MockWordList:
+    """A mock wordlist that treats all words as valid."""
+
+    def __init__(self):
+        self.words = set()
+
+    def is_valid_word(self, word: str) -> bool:
+        return word.lower() in self.words
+
+
+def create_game_with_mock_wordlist(valid_words=None) -> GameState:
+    """Create a GameState with a mock wordlist and empty racks (no random draws)."""
+    with patch("game.state.WordList") as MockWL:
+        mock_wl = MockWordList()
+        if valid_words:
+            mock_wl.words = {w.lower() for w in valid_words}
+        MockWL.return_value = mock_wl
+        game = GameState()
+    # Clear racks so tests control tile placement exactly
+    for player in game.players:
+        game.tile_bag.extend(player.rack)
+        player.rack.clear()
+    return game
+
+
+class TestLetterDistribution(unittest.TestCase):
+    """Regression tests for the official Estonian Scrabble letter distribution."""
+
+    def test_total_tile_count(self):
+        """Total letter tiles should be 100 (official is 102 minus 2 blanks)."""
+        total = sum(info["count"] for info in LETTER_DISTRIBUTION.values())
+        self.assertEqual(total, 100)
+
+    def test_high_frequency_letters(self):
+        """Spot-check counts and points for common letters."""
+        cases = [
+            ("a", 10, 1),
+            ("e", 9, 1),
+            ("i", 9, 1),
+            ("s", 8, 1),
+            ("t", 7, 1),
+        ]
+        for letter, expected_count, expected_points in cases:
+            with self.subTest(letter=letter):
+                self.assertEqual(LETTER_DISTRIBUTION[letter]["count"], expected_count)
+                self.assertEqual(LETTER_DISTRIBUTION[letter]["points"], expected_points)
+
+    def test_estonian_special_characters(self):
+        """Spot-check Estonian-specific letters."""
+        cases = [
+            ("õ", 2, 4),
+            ("ä", 2, 5),
+            ("ö", 2, 6),
+            ("ü", 2, 5),
+            ("š", 1, 10),
+            ("ž", 1, 10),
+        ]
+        for letter, expected_count, expected_points in cases:
+            with self.subTest(letter=letter):
+                self.assertEqual(LETTER_DISTRIBUTION[letter]["count"], expected_count)
+                self.assertEqual(LETTER_DISTRIBUTION[letter]["points"], expected_points)
+
+
+class TestScoring(unittest.TestCase):
+    """Regression tests for scoring logic."""
+
+    def test_word_scored_once_for_multi_tile_placement(self):
+        """Placing 3 tiles forming one word should score the word exactly once."""
+        # "ema" = e(1) + m(2) + a(1) = 4, center DWS = 8
+        game = create_game_with_mock_wordlist(valid_words={"ema"})
+        player = game.current_player
+        player.rack = ["e", "m", "a"]
+
+        # Place "ema" horizontally through center
+        game.place_tile(7, 6, 0)  # e
+        game.place_tile(7, 7, 0)  # m (center = DWS)
+        game.place_tile(7, 8, 0)  # a
+        game.validate_current_placement()
+
+        self.assertTrue(game.commit_turn())
+        # e(1) + m(2) + a(1) = 4, ×2 for center DWS = 8
+        self.assertEqual(game.players[0].score, 8)
+
+    def test_letter_premium_not_reapplied_on_subsequent_turn(self):
+        """A tile on a DLS should not get the premium again in later turns."""
+        # (7, 3) is a DLS. Place "de" through center on turn 1 with 'd' on DLS.
+        # Turn 2: extend to "dem" — 'd' should NOT get DLS again.
+        game = create_game_with_mock_wordlist(valid_words={"dema", "adema"})
+
+        # Turn 1: place "dem" at (7,3)-(7,4)-(7,5) crossing through center area
+        # but we need center coverage — place at (7,3)-(7,7) = "dema?" — too complex.
+        # Simpler: place "dem" through center: (7,6)-(7,7)-(7,8)
+        # (7,7) is DWS (center). No DLS involved here. Let's use a different setup.
+
+        # Place "dem" at row 7: d at col 3 (DLS), e at col 4, m at col 5
+        # First move must go through center, so put a word through center first.
+        player1 = game.players[0]
+        player1.rack = ["d", "e", "m", "a"]
+        game.place_tile(7, 5, 0)  # d
+        game.place_tile(7, 6, 0)  # e
+        game.place_tile(7, 7, 0)  # m on center (DWS)
+        game.place_tile(7, 8, 0)  # a
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+        # d(2) + e(1) + m(2) + a(1) = 6, ×2 for center DWS = 12
+        self.assertEqual(game.players[0].score, 12)
+
+        # Turn 2: player 2 places 'a' at (7,4) extending to "adema"
+        # (7,3) is DLS but no tile there. (7,4) has no premium.
+        player2 = game.players[1]
+        player2.rack = ["a"]
+        game.place_tile(7, 4, 0)  # a at (7,4), no premium
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+        # "adema": a(1) + d(2) + e(1) + m(2) + a(1) = 7
+        # No premiums: (7,4) is plain, and (7,7) DWS was used on turn 1
+        self.assertEqual(game.players[1].score, 7)
+
+    def test_cross_words_scored_separately(self):
+        """Placing a tile that forms both a horizontal and vertical word scores both."""
+        # Use positions away from premium squares.
+        # (4,6) and (6,6) have no premiums. Place existing tiles there.
+        # Place 'm' at (5,6) — no premium — forming two "am" words.
+        game = create_game_with_mock_wordlist(valid_words={"am"})
+        game.board[7][7] = "x"  # not first move
+
+        game.board[4][6] = "a"  # above (5,6)
+        game.board[5][5] = "a"  # left of (5,6)
+
+        player = game.current_player
+        player.rack = ["m"]
+
+        game.place_tile(5, 6, 0)  # m at (5,6) — no premium
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+        # "am" vertical (4,6)-(5,6): a(1)+m(2) = 3
+        # "am" horizontal (5,5)-(5,6): a(1)+m(2) = 3
+        # total = 6
+        self.assertEqual(game.players[0].score, 6)
+
+
+if __name__ == "__main__":
+    unittest.main()
