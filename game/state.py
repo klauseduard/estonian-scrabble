@@ -167,14 +167,15 @@ class GameState:
         """Validate the current turn's word placements."""
         return self.word_validator.validate_placement(self.board, self.current_turn_tiles)
 
-    def commit_turn(self) -> bool:
-        """Commit the current turn if all words are valid."""
-        if not self.word_validator.is_placement_valid():
-            return False
+    def calculate_turn_score(self) -> List[Tuple[str, int]]:
+        """Calculate score breakdown for current placement without committing.
 
-        # Calculate score for all unique words formed this turn.
-        # Deduplicate by positions tuple so the same word is not scored
-        # multiple times when several turn tiles belong to it.
+        Returns a list of (word, score) pairs, plus a bingo bonus entry if
+        applicable. Returns an empty list if placement is invalid.
+        """
+        if not self.word_validator.is_placement_valid():
+            return []
+
         unique_words = {}
         for row, col in self.current_turn_tiles:
             words = self.word_validator.get_word_at_position(self.board, row, col)
@@ -184,13 +185,26 @@ class GameState:
                 if key not in unique_words:
                     unique_words[key] = word_info
 
-        turn_score = 0
+        breakdown = []
         for word_info in unique_words.values():
-            turn_score += self._calculate_word_score(word_info)
+            word, _ = word_info
+            score = self._calculate_word_score(word_info)
+            breakdown.append((word.upper(), score))
 
-        # 50-point bingo bonus for using all 7 tiles in one turn
         if len(self.current_turn_tiles) == 7:
-            turn_score += 50
+            breakdown.append(("BINGO", 50))
+
+        return breakdown
+
+    def commit_turn(self) -> bool:
+        """Commit the current turn if all words are valid."""
+        breakdown = self.calculate_turn_score()
+        if not breakdown and self.current_turn_tiles:
+            return False
+        if not self.current_turn_tiles:
+            return False
+
+        turn_score = sum(score for _, score in breakdown)
 
         # Update player's score
         self.current_player.score += turn_score
@@ -251,6 +265,9 @@ class GameState:
             return
         self._end_game_applied = True
 
+        # Store pre-adjustment scores for the game-over breakdown
+        self.end_game_details: List[Dict] = []
+
         # Find the player(s) with empty racks
         empty_rack_players = [p for p in self.players if len(p.rack) == 0]
 
@@ -265,14 +282,21 @@ class GameState:
             remaining_values[player.name] = value
             total_remaining += value
 
-        # Subtract remaining tile values from each player who still has tiles
         for player in self.players:
+            detail = {
+                "name": player.name,
+                "word_score": player.score,
+                "tile_deduction": 0,
+                "tile_bonus": 0,
+            }
             if len(player.rack) > 0:
+                detail["tile_deduction"] = -remaining_values[player.name]
                 player.score -= remaining_values[player.name]
-
-        # Add total remaining to the player who went out
-        if len(empty_rack_players) == 1:
-            empty_rack_players[0].score += total_remaining
+            if len(empty_rack_players) == 1 and player in empty_rack_players:
+                detail["tile_bonus"] = total_remaining
+                player.score += total_remaining
+            detail["final_score"] = player.score
+            self.end_game_details.append(detail)
 
     def exchange_tiles(self, tile_indices: List[int]) -> bool:
         """Exchange tiles from the current player's rack with the tile bag.

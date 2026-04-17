@@ -225,28 +225,62 @@ class ScrabbleUI:
         self.ready_button.draw(self.screen)
 
     def _draw_game_over(self):
-        """Draw the game-over screen showing final scores and the winner."""
+        """Draw the game-over screen with a score breakdown table."""
         overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
         overlay.fill((30, 30, 30))
         self.screen.blit(overlay, (0, 0))
 
         center_x = WINDOW_SIZE // 2
-        center_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
+        total_h = WINDOW_SIZE + RACK_HEIGHT
 
         # Title
         title = self.lang_manager.get_string("game_over")
         title_surface = self.title_font.render(title, True, WHITE)
-        self.screen.blit(title_surface, title_surface.get_rect(center=(center_x, center_y - 100)))
+        self.screen.blit(title_surface, title_surface.get_rect(center=(center_x, total_h // 4)))
 
-        # Sort players by score descending
-        ranked = sorted(self.game.players, key=lambda p: p.score, reverse=True)
+        details = getattr(self.game, "end_game_details", [])
+        if not details:
+            return
 
-        # Show each player's final score
-        for i, player in enumerate(ranked):
-            color = (255, 215, 0) if i == 0 else WHITE  # Gold for winner
-            line = f"{player.name}: {player.score}"
-            line_surface = self.font.render(line, True, color)
-            self.screen.blit(line_surface, line_surface.get_rect(center=(center_x, center_y - 30 + i * 40)))
+        # Sort by final score descending
+        ranked = sorted(details, key=lambda d: d["final_score"], reverse=True)
+
+        # Table header
+        header_y = total_h // 4 + 50
+        col_name = center_x - 250
+        col_words = center_x - 50
+        col_tiles = center_x + 70
+        col_final = center_x + 200
+        gray = (160, 160, 160)
+
+        for col_x, label in [
+            (col_name, self.lang_manager.get_string("player_1").split()[0]),
+            (col_words, self.lang_manager.get_string("score_words")),
+            (col_tiles, self.lang_manager.get_string("score_tiles")),
+            (col_final, self.lang_manager.get_string("score_final")),
+        ]:
+            hdr = self.button_font.render(label, True, gray)
+            self.screen.blit(hdr, (col_x, header_y))
+
+        # Table rows
+        for i, detail in enumerate(ranked):
+            y = header_y + 35 + i * 35
+            is_winner = i == 0
+            color = (255, 215, 0) if is_winner else WHITE
+
+            name_s = self.font.render(detail["name"], True, color)
+            self.screen.blit(name_s, (col_name, y))
+
+            words_s = self.font.render(str(detail["word_score"]), True, color)
+            self.screen.blit(words_s, (col_words, y))
+
+            adj = detail["tile_deduction"] + detail["tile_bonus"]
+            adj_str = f"{adj:+d}" if adj != 0 else "0"
+            tiles_s = self.font.render(adj_str, True, color)
+            self.screen.blit(tiles_s, (col_tiles, y))
+
+            final_s = self.font.render(str(detail["final_score"]), True, color)
+            self.screen.blit(final_s, (col_final, y))
 
     def _draw_blank_dialog(self):
         """Draw a modal overlay with a grid of letters for blank tile designation."""
@@ -398,6 +432,19 @@ class ScrabbleUI:
             True, SCORE_COLOR
         )
         self.screen.blit(bag_text, (PADDING, self.rack.y + TILE_SIZE + 5))
+
+        # Draw move score preview when tiles are placed
+        if self.game.current_turn_tiles:
+            breakdown = self.game.calculate_turn_score()
+            if breakdown:
+                parts = [f"{word} {score}" for word, score in breakdown]
+                total = sum(s for _, s in breakdown)
+                preview = " + ".join(parts) + f" = {total}"
+                preview_surface = self.button_font.render(preview, True, TURN_INDICATOR_COLOR)
+                preview_rect = preview_surface.get_rect(
+                    center=(WINDOW_SIZE // 2, self.rack.y - 12)
+                )
+                self.screen.blit(preview_surface, preview_rect)
 
     def run(self):
         while True:
