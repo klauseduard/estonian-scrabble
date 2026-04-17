@@ -38,6 +38,9 @@ LETTER_DISTRIBUTION = {
     'š': {'count': 1, 'points': 10},
     'z': {'count': 1, 'points': 10},
     'ž': {'count': 1, 'points': 10},
+
+    # Blank tiles (can represent any letter, worth 0 points)
+    '_': {'count': 2, 'points': 0},
 }
 
 # Board premium squares
