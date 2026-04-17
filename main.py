@@ -92,6 +92,19 @@ class ScrabbleUI:
         # Initialize score displays arranged across the top
         self._init_score_displays()
 
+        # Turn transition state
+        self.show_transition = False
+        self.transition_player_name = ""
+        self.transition_font = pygame.font.Font(None, 56)
+        ready_w, ready_h = 200, 60
+        ready_x = (WINDOW_SIZE - ready_w) // 2
+        ready_y = (WINDOW_SIZE + RACK_HEIGHT) // 2 + 20
+        self.ready_button = Button(
+            ready_x, ready_y, ready_w, ready_h,
+            self.lang_manager.get_string("ready"),
+            self.button_font,
+        )
+
         # UI state
         self.selected_tile = None
         self.dragging = False
@@ -187,6 +200,31 @@ class ScrabbleUI:
         self.submit_button.text = self.lang_manager.get_string("submit_turn")
         self.pass_button.text = self.lang_manager.get_string("pass_turn")
         self.lang_button.text = self.lang_manager.get_string("lang_button")
+        self.ready_button.text = self.lang_manager.get_string("ready")
+
+    def _start_transition(self):
+        """Activate the turn transition overlay for the current (already-switched) player."""
+        self.show_transition = True
+        self.transition_player_name = self.game.current_player.name
+
+    def _draw_transition(self):
+        """Draw an opaque overlay with 'Pass to: Player' text and a Ready button."""
+        overlay = pygame.Surface(
+            (WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT)
+        )
+        overlay.fill((30, 30, 30))
+        self.screen.blit(overlay, (0, 0))
+
+        text = self.lang_manager.get_string("pass_to_player").format(
+            player=self.transition_player_name
+        )
+        text_surface = self.transition_font.render(text, True, WHITE)
+        text_rect = text_surface.get_rect(
+            center=(WINDOW_SIZE // 2, (WINDOW_SIZE + RACK_HEIGHT) // 2 - 40)
+        )
+        self.screen.blit(text_surface, text_rect)
+
+        self.ready_button.draw(self.screen)
 
     def _draw_blank_dialog(self):
         """Draw a modal overlay with a grid of letters for blank tile designation."""
@@ -335,6 +373,12 @@ class ScrabbleUI:
                     pygame.quit()
                     sys.exit()
 
+                # --- Turn transition overlay is modal ---
+                if self.show_transition:
+                    if self.ready_button.handle_event(event):
+                        self.show_transition = False
+                    continue
+
                 # --- Blank tile dialog is modal ---
                 if self._pending_blank is not None:
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -358,11 +402,13 @@ class ScrabbleUI:
                 elif self.submit_button.handle_event(event):
                     if self.game.commit_turn():
                         self._update_submit_button()
+                        self._start_transition()
 
                 # Handle pass button
                 elif self.pass_button.handle_event(event):
                     self.game.next_player()
                     self._update_submit_button()
+                    self._start_transition()
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
@@ -412,6 +458,8 @@ class ScrabbleUI:
                 self.draw_dragged_tile()
             if self._pending_blank is not None:
                 self._draw_blank_dialog()
+            if self.show_transition:
+                self._draw_transition()
             pygame.display.flip()
 
 if __name__ == "__main__":

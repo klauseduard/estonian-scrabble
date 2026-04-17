@@ -24,6 +24,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "dls": "2×T",  # Kahekordne täht
         # Blank tile dialog
         "choose_letter": "Vali täht",
+        # Turn transition
+        "pass_to_player": "Anna edasi: {player}",
+        "ready": "Valmis",
     },
     "en": {
         "window_title": "Estonian Scrabble",
@@ -43,6 +46,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "dls": "DLS",  # Double Letter Score
         # Blank tile dialog
         "choose_letter": "Choose letter",
+        # Turn transition
+        "pass_to_player": "Pass to: {player}",
+        "ready": "Ready",
     }
 }
 
