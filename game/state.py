@@ -244,7 +244,13 @@ class GameState:
         remaining tile values. Each player with tiles remaining has the total
         point value of those tiles subtracted from their score. If no player
         has an empty rack, each player simply loses their remaining tile values.
+
+        Safe to call only once — guarded by ``_end_game_applied``.
         """
+        if getattr(self, "_end_game_applied", False):
+            return
+        self._end_game_applied = True
+
         # Find the player(s) with empty racks
         empty_rack_players = [p for p in self.players if len(p.rack) == 0]
 
