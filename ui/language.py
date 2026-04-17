@@ -28,6 +28,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "pass_to_player": "Anna edasi: {player}",
         "ready": "Valmis",
         "tiles_left": "Klotse kotis",
+        "game_over": "Mäng läbi!",
     },
     "en": {
         "window_title": "Estonian Scrabble",
@@ -51,6 +52,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "pass_to_player": "Pass to: {player}",
         "ready": "Ready",
         "tiles_left": "Tiles in bag",
+        "game_over": "Game Over!",
     }
 }
 

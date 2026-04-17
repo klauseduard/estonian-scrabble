@@ -38,6 +38,8 @@ class GameState:
         self.current_player_idx = 0
         self.current_turn_tiles: Set[Tuple[int, int]] = set()
         self.blank_designations: Dict[Tuple[int, int], str] = {}
+        self.consecutive_passes = 0
+        self.game_over = False
         self.wordlist = WordList()
         self.word_validator = WordValidator(self.wordlist)
         self.tile_bag = self._create_tile_bag()
@@ -199,8 +201,12 @@ class GameState:
         # Clear current turn tiles (blank designations persist on the board)
         self.current_turn_tiles.clear()
 
+        # A successful placement resets the consecutive pass counter
+        self.consecutive_passes = 0
+
         # Check for game over and apply end-game adjustment
         if self.is_game_over():
+            self.game_over = True
             self.apply_end_game_adjustment()
 
         # Switch to next player
@@ -208,7 +214,7 @@ class GameState:
         return True
 
     def next_player(self):
-        """Skip to the next player's turn."""
+        """Skip to the next player's turn (pass)."""
         # Return any placed tiles to the rack
         for row, col in self.current_turn_tiles:
             if (row, col) in self.blank_designations:
@@ -221,6 +227,12 @@ class GameState:
 
         # Clear current turn tiles
         self.current_turn_tiles.clear()
+
+        # Track consecutive passes — game ends if all players pass in a row
+        self.consecutive_passes += 1
+        if self.consecutive_passes >= len(self.players):
+            self.game_over = True
+            self.apply_end_game_adjustment()
 
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)

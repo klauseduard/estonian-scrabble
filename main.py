@@ -113,6 +113,7 @@ class ScrabbleUI:
         self.selected_tile = None
         self.dragging = False
         self.drag_pos = (0, 0)
+        self.show_game_over = False
         self._update_submit_button()
 
         # Letter choices for blank tile dialog (all real letters, no '_')
@@ -222,6 +223,30 @@ class ScrabbleUI:
         self.screen.blit(text_surface, text_rect)
 
         self.ready_button.draw(self.screen)
+
+    def _draw_game_over(self):
+        """Draw the game-over screen showing final scores and the winner."""
+        overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
+        overlay.fill((30, 30, 30))
+        self.screen.blit(overlay, (0, 0))
+
+        center_x = WINDOW_SIZE // 2
+        center_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
+
+        # Title
+        title = self.lang_manager.get_string("game_over")
+        title_surface = self.title_font.render(title, True, WHITE)
+        self.screen.blit(title_surface, title_surface.get_rect(center=(center_x, center_y - 100)))
+
+        # Sort players by score descending
+        ranked = sorted(self.game.players, key=lambda p: p.score, reverse=True)
+
+        # Show each player's final score
+        for i, player in enumerate(ranked):
+            color = (255, 215, 0) if i == 0 else WHITE  # Gold for winner
+            line = f"{player.name}: {player.score}"
+            line_surface = self.font.render(line, True, color)
+            self.screen.blit(line_surface, line_surface.get_rect(center=(center_x, center_y - 30 + i * 40)))
 
     def _draw_blank_dialog(self):
         """Draw a modal overlay with a grid of letters for blank tile designation."""
@@ -381,6 +406,10 @@ class ScrabbleUI:
                     pygame.quit()
                     sys.exit()
 
+                # --- Game over screen is modal (only quit exits) ---
+                if self.show_game_over:
+                    continue
+
                 # --- Turn transition overlay is modal ---
                 if self.show_transition:
                     if self.ready_button.handle_event(event):
@@ -410,13 +439,19 @@ class ScrabbleUI:
                 elif self.submit_button.handle_event(event):
                     if self.game.commit_turn():
                         self._update_submit_button()
-                        self._start_transition()
+                        if self.game.game_over:
+                            self.show_game_over = True
+                        else:
+                            self._start_transition()
 
                 # Handle pass button
                 elif self.pass_button.handle_event(event):
                     self.game.next_player()
                     self._update_submit_button()
-                    self._start_transition()
+                    if self.game.game_over:
+                        self.show_game_over = True
+                    else:
+                        self._start_transition()
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
@@ -468,6 +503,8 @@ class ScrabbleUI:
                 self._draw_blank_dialog()
             if self.show_transition:
                 self._draw_transition()
+            if self.show_game_over:
+                self._draw_game_over()
             pygame.display.flip()
 
 if __name__ == "__main__":
