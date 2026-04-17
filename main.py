@@ -4,11 +4,12 @@ from typing import Optional
 from game import GameState
 from game.constants import LETTER_DISTRIBUTION
 from ui import (
-    Tile, Board, Rack, Button, ScoreDisplay, TurnIndicator,
+    Tile, Board, Rack, Button, ScoreDisplay,
     WHITE, BLACK, BOARD_COLOR, BLANK_TILE_COLOR,
     PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
-    CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR
+    CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR,
+    TURN_INDICATOR_COLOR,
 )
 from ui.language import LanguageManager
 
@@ -35,26 +36,29 @@ class ScrabbleUI:
         self.font = pygame.font.Font(None, 36)  # Main font
         self.button_font = pygame.font.Font(None, BUTTON_TEXT_SIZE)  # Smaller font for buttons
         self.lang_button_font = pygame.font.Font(None, 20)  # Even smaller font for language button
-        
+        self.title_font = pygame.font.Font(None, 48)  # Title font for selection screen
+
+        # Show player selection screen first
+        num_players = self._show_player_selection()
+
         # Initialize game components
-        self.game = GameState(BOARD_SIZE)
+        self.game = GameState(BOARD_SIZE, num_players=num_players)
         # Set player names based on current language
-        self.game.players[0].name = self.lang_manager.get_string("player_1")
-        self.game.players[1].name = self.lang_manager.get_string("player_2")
+        self._set_player_names()
         board_start = (WINDOW_SIZE - (BOARD_SIZE * TILE_SIZE)) // 2
         self.board = Board(BOARD_SIZE, TILE_SIZE, board_start, self.font)
         self.rack = Rack(WINDOW_SIZE - PADDING, TILE_SIZE, self.font)
-        
+
         # Calculate rack width and position
         max_rack_tiles = 7
         rack_width = max_rack_tiles * TILE_SIZE
         rack_x = (WINDOW_SIZE - rack_width) // 2
-        
+
         # Initialize UI controls
         button_y = WINDOW_SIZE + RACK_HEIGHT - BUTTON_HEIGHT - PADDING
         total_width = (BUTTON_WIDTH * 2) + PADDING
         start_x = (WINDOW_SIZE - total_width) // 2
-        
+
         # Position Pass button on the left
         self.pass_button = Button(
             start_x,
@@ -64,7 +68,7 @@ class ScrabbleUI:
             self.lang_manager.get_string("pass_turn"),
             self.button_font
         )
-        
+
         # Position Submit button on the right
         self.submit_button = Button(
             start_x + BUTTON_WIDTH + PADDING,
@@ -84,17 +88,10 @@ class ScrabbleUI:
             self.lang_manager.get_string("lang_button"),
             self.lang_button_font
         )
-        
-        # Initialize score displays
-        score_y = PADDING
-        self.score_displays = [
-            ScoreDisplay(PADDING, score_y, self.font),
-            ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font)
-        ]
-        
-        # Initialize turn indicator
-        self.turn_indicator = TurnIndicator(WINDOW_SIZE // 2, score_y + 10, self.font)
-        
+
+        # Initialize score displays arranged across the top
+        self._init_score_displays()
+
         # UI state
         self.selected_tile = None
         self.dragging = False
@@ -108,6 +105,73 @@ class ScrabbleUI:
         # Pending blank placement (row, col, tile_idx) while dialog is open
         self._pending_blank: tuple = None
 
+    def _show_player_selection(self) -> int:
+        """Show a simple player count selection screen. Returns chosen count."""
+        selection_buttons = []
+        btn_width = 180
+        btn_height = 50
+        total_width = btn_width * 3 + PADDING * 2
+        start_x = (WINDOW_SIZE - total_width) // 2
+        btn_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
+
+        for i, count in enumerate((2, 3, 4)):
+            label = f"{count} {'Players' if self.lang_manager.get_current_language() == 'en' else 'Mängijat'}"
+            btn = Button(
+                start_x + i * (btn_width + PADDING),
+                btn_y,
+                btn_width,
+                btn_height,
+                label,
+                self.button_font,
+            )
+            selection_buttons.append((btn, count))
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                for btn, count in selection_buttons:
+                    if btn.handle_event(event):
+                        return count
+
+            self.screen.fill(WHITE)
+            # Draw title
+            title_text = self.lang_manager.get_string("select_players")
+            title_surface = self.title_font.render(title_text, True, BLACK)
+            title_rect = title_surface.get_rect(
+                center=(WINDOW_SIZE // 2, btn_y - 60)
+            )
+            self.screen.blit(title_surface, title_rect)
+
+            for btn, _ in selection_buttons:
+                btn.draw(self.screen)
+
+            pygame.display.flip()
+
+    def _set_player_names(self):
+        """Set player names based on the current language."""
+        name_keys = ["player_1", "player_2", "player_3", "player_4"]
+        for i, player in enumerate(self.game.players):
+            player.name = self.lang_manager.get_string(name_keys[i])
+
+    def _init_score_displays(self):
+        """Create score displays arranged evenly across the top."""
+        num = len(self.game.players)
+        score_y = PADDING
+        if num == 2:
+            self.score_displays = [
+                ScoreDisplay(PADDING, score_y, self.font),
+                ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font),
+            ]
+        else:
+            # Evenly space across the top
+            spacing = WINDOW_SIZE // num
+            self.score_displays = [
+                ScoreDisplay(spacing * i + PADDING, score_y, self.font)
+                for i in range(num)
+            ]
+
     def _update_submit_button(self):
         """Update submit button state based on word validity."""
         if len(self.game.current_turn_tiles) == 0:
@@ -119,11 +183,10 @@ class ScrabbleUI:
     def _update_ui_text(self):
         """Update all UI text elements after language change."""
         pygame.display.set_caption(self.lang_manager.get_string("window_title"))
-        self.game.players[0].name = self.lang_manager.get_string("player_1")
-        self.game.players[1].name = self.lang_manager.get_string("player_2")
+        self._set_player_names()
         self.submit_button.text = self.lang_manager.get_string("submit_turn")
         self.pass_button.text = self.lang_manager.get_string("pass_turn")
-        self.lang_button.text = self.lang_manager.get_string("lang_button")  # Update language button text
+        self.lang_button.text = self.lang_manager.get_string("lang_button")
 
     def _draw_blank_dialog(self):
         """Draw a modal overlay with a grid of letters for blank tile designation."""
@@ -249,7 +312,7 @@ class ScrabbleUI:
         self.pass_button.draw(self.screen)
         # Draw language toggle button
         self.lang_button.draw(self.screen)
-        
+
         # Draw player scores
         for i, player in enumerate(self.game.players):
             self.score_displays[i].draw(
@@ -258,9 +321,12 @@ class ScrabbleUI:
                 player.score,
                 i == self.game.current_player_idx
             )
-            
-        # Draw turn indicator
-        self.turn_indicator.draw(self.screen, self.game.current_player_idx == 0)
+
+        # Draw turn indicator (simple text showing current player name)
+        turn_text = f"{self.lang_manager.get_string('turn')}: {self.game.current_player.name}"
+        turn_surface = self.font.render(turn_text, True, TURN_INDICATOR_COLOR)
+        turn_rect = turn_surface.get_rect(center=(WINDOW_SIZE // 2, PADDING + 30))
+        self.screen.blit(turn_surface, turn_rect)
 
     def run(self):
         while True:

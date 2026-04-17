@@ -366,5 +366,103 @@ class TestBlankTiles(unittest.TestCase):
         self.assertEqual(LETTER_DISTRIBUTION["_"]["points"], 0)
 
 
+def create_multiplayer_game(num_players, valid_words=None) -> GameState:
+    """Create a GameState with a given number of players and a mock wordlist."""
+    with patch("game.state.WordList") as MockWL:
+        mock_wl = MockWordList()
+        if valid_words:
+            mock_wl.words = {w.lower() for w in valid_words}
+        MockWL.return_value = mock_wl
+        game = GameState(num_players=num_players)
+    for player in game.players:
+        game.tile_bag.extend(player.rack)
+        player.rack.clear()
+    return game
+
+
+class TestMultiPlayer(unittest.TestCase):
+    """Tests for 2-4 player support."""
+
+    def test_invalid_player_count(self):
+        """Creating a game with fewer than 2 or more than 4 players raises ValueError."""
+        for count in (0, 1, 5, 10):
+            with self.subTest(count=count):
+                with self.assertRaises(ValueError):
+                    create_multiplayer_game(count)
+
+    def test_three_player_turn_cycling(self):
+        """In a 3-player game, turns cycle through all three players."""
+        game = create_multiplayer_game(3)
+        self.assertEqual(len(game.players), 3)
+        self.assertEqual(game.current_player_idx, 0)
+
+        game.next_player()
+        self.assertEqual(game.current_player_idx, 1)
+
+        game.next_player()
+        self.assertEqual(game.current_player_idx, 2)
+
+        game.next_player()
+        self.assertEqual(game.current_player_idx, 0)
+
+    def test_four_player_turn_cycling(self):
+        """In a 4-player game, turns cycle through all four players."""
+        game = create_multiplayer_game(4)
+        self.assertEqual(len(game.players), 4)
+
+        for expected in [1, 2, 3, 0, 1]:
+            game.next_player()
+            self.assertEqual(game.current_player_idx, expected)
+
+    def test_three_player_end_game_adjustment(self):
+        """End-game adjustment works correctly with 3 players."""
+        game = create_multiplayer_game(3, valid_words={"ema"})
+        game.tile_bag.clear()
+
+        game.players[0].score = 50
+        game.players[1].score = 40
+        game.players[2].score = 30
+
+        # Player 2 and 3 have remaining tiles
+        game.players[1].rack = ["d", "ö"]  # d(2) + ö(6) = 8
+        game.players[2].rack = ["š"]  # š(10) = 10
+
+        # Player 1 empties rack by placing "ema"
+        game.players[0].rack = ["e", "m", "a"]
+        game.place_tile(7, 6, 0)  # e
+        game.place_tile(7, 7, 0)  # m (center = DWS)
+        game.place_tile(7, 8, 0)  # a
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # Word score: e(1) + m(2) + a(1) = 4, x2 DWS = 8
+        # End-game: player 1 gets +18 (8+10), player 2 gets -8, player 3 gets -10
+        self.assertEqual(game.players[0].score, 50 + 8 + 18)  # 76
+        self.assertEqual(game.players[1].score, 40 - 8)  # 32
+        self.assertEqual(game.players[2].score, 30 - 10)  # 20
+
+    def test_four_player_end_game_no_empty_rack(self):
+        """When no player empties rack with 4 players, all lose remaining tile values."""
+        game = create_multiplayer_game(4)
+        game.tile_bag.clear()
+
+        game.players[0].score = 40
+        game.players[1].score = 35
+        game.players[2].score = 30
+        game.players[3].score = 25
+
+        game.players[0].rack = ["a"]  # a(1) = 1
+        game.players[1].rack = ["d"]  # d(2) = 2
+        game.players[2].rack = ["õ"]  # õ(4) = 4
+        game.players[3].rack = ["ž"]  # ž(10) = 10
+
+        game.apply_end_game_adjustment()
+
+        self.assertEqual(game.players[0].score, 39)  # 40 - 1
+        self.assertEqual(game.players[1].score, 33)  # 35 - 2
+        self.assertEqual(game.players[2].score, 26)  # 30 - 4
+        self.assertEqual(game.players[3].score, 15)  # 25 - 10
+
+
 if __name__ == "__main__":
     unittest.main()
