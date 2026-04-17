@@ -471,18 +471,29 @@ class ScrabbleUI:
 
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1 and self.dragging:
-                        board_pos = self.board.get_board_position(event.pos)
-                        if board_pos and self.selected_tile is not None:
-                            row, col = board_pos
-                            letter = self.game.current_player.rack[self.selected_tile]
-                            if letter == "_":
-                                # Open blank tile dialog instead of placing immediately
-                                if self.game.board[row][col] is None:
-                                    self._pending_blank = (row, col, self.selected_tile)
-                            else:
-                                if self.game.place_tile(row, col, self.selected_tile):
-                                    self.game.validate_current_placement()
-                                    self._update_submit_button()
+                        dropped = False
+                        if self.selected_tile is not None:
+                            # Check if dropped on the rack — reorder tiles
+                            rack = self.game.current_player.rack
+                            drop_idx = self.rack.get_tile_index(event.pos, len(rack))
+                            if drop_idx is not None and drop_idx != self.selected_tile:
+                                tile = rack.pop(self.selected_tile)
+                                rack.insert(drop_idx, tile)
+                                dropped = True
+
+                            # Check if dropped on the board — place tile
+                            if not dropped:
+                                board_pos = self.board.get_board_position(event.pos)
+                                if board_pos:
+                                    row, col = board_pos
+                                    letter = rack[self.selected_tile]
+                                    if letter == "_":
+                                        if self.game.board[row][col] is None:
+                                            self._pending_blank = (row, col, self.selected_tile)
+                                    else:
+                                        if self.game.place_tile(row, col, self.selected_tile):
+                                            self.game.validate_current_placement()
+                                            self._update_submit_button()
                         self.dragging = False
                         self.selected_tile = None
 
