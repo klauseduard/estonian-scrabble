@@ -35,6 +35,7 @@ class GameState:
         self.players = [Player("Player 1"), Player("Player 2")]
         self.current_player_idx = 0
         self.current_turn_tiles: Set[Tuple[int, int]] = set()
+        self.blank_designations: Dict[Tuple[int, int], str] = {}
         self.wordlist = WordList()
         self.word_validator = WordValidator(self.wordlist)
         self.tile_bag = self._create_tile_bag()
@@ -73,9 +74,15 @@ class GameState:
 
         Only applies letter premium multipliers to tiles placed this turn.
         Tiles already on the board use their base point value.
+        Blank tiles always score 0 points regardless of premium squares.
         """
-        base_score = LETTER_DISTRIBUTION[letter.lower()]['points']
         pos = (row, col)
+
+        # Blank tiles always score 0, even on premium squares
+        if pos in self.blank_designations:
+            return 0
+
+        base_score = LETTER_DISTRIBUTION[letter.lower()]['points']
 
         # Only apply letter premium squares for newly placed tiles
         if pos in self.current_turn_tiles:
@@ -105,25 +112,50 @@ class GameState:
 
         return word_score * word_multiplier
 
-    def place_tile(self, row: int, col: int, tile_idx: int) -> bool:
-        """Place a tile from the current player's rack onto the board."""
+    def place_tile(
+        self, row: int, col: int, tile_idx: int, designated_letter: Optional[str] = None
+    ) -> bool:
+        """Place a tile from the current player's rack onto the board.
+
+        For blank tiles, *designated_letter* must be provided so the board
+        stores the chosen letter (for word validation) and the position is
+        recorded in ``blank_designations`` (for scoring at 0 points).
+        """
         if self.board[row][col] is not None:
             return False
 
         letter = self.current_player.rack[tile_idx]
-        self.board[row][col] = letter
+
+        if letter == "_":
+            if designated_letter is None:
+                return False
+            self.board[row][col] = designated_letter.lower()
+            self.blank_designations[(row, col)] = designated_letter.lower()
+        else:
+            self.board[row][col] = letter
+
         self.current_player.rack.pop(tile_idx)
         self.current_turn_tiles.add((row, col))
         return True
 
     def remove_tile(self, row: int, col: int) -> bool:
-        """Remove a tile from the board and return it to the current player's rack."""
+        """Remove a tile from the board and return it to the current player's rack.
+
+        If the tile is a blank, the original ``'_'`` token is returned to the
+        rack and the designation is cleaned up.
+        """
         if (row, col) not in self.current_turn_tiles:
             return False
 
-        letter = self.board[row][col]
+        if (row, col) in self.blank_designations:
+            # Return blank as '_' to the rack
+            self.current_player.rack.append("_")
+            del self.blank_designations[(row, col)]
+        else:
+            letter = self.board[row][col]
+            self.current_player.rack.append(letter)
+
         self.board[row][col] = None
-        self.current_player.rack.append(letter)
         self.current_turn_tiles.remove((row, col))
         return True
 
@@ -162,7 +194,7 @@ class GameState:
         # Draw new tiles
         self._draw_tiles(self.current_player, len(self.current_turn_tiles))
 
-        # Clear current turn tiles
+        # Clear current turn tiles (blank designations persist on the board)
         self.current_turn_tiles.clear()
 
         # Check for game over and apply end-game adjustment
@@ -177,9 +209,13 @@ class GameState:
         """Skip to the next player's turn."""
         # Return any placed tiles to the rack
         for row, col in self.current_turn_tiles:
-            letter = self.board[row][col]
+            if (row, col) in self.blank_designations:
+                self.current_player.rack.append("_")
+                del self.blank_designations[(row, col)]
+            else:
+                letter = self.board[row][col]
+                self.current_player.rack.append(letter)
             self.board[row][col] = None
-            self.current_player.rack.append(letter)
 
         # Clear current turn tiles
         self.current_turn_tiles.clear()
@@ -203,7 +239,8 @@ class GameState:
         total_remaining = 0
         for player in self.players:
             value = sum(
-                LETTER_DISTRIBUTION[tile.lower()]["points"] for tile in player.rack
+                LETTER_DISTRIBUTION[tile.lower() if tile != "_" else "_"]["points"]
+                for tile in player.rack
             )
             remaining_values[player.name] = value
             total_remaining += value

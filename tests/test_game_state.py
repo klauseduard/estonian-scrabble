@@ -2,7 +2,13 @@ import unittest
 from unittest.mock import patch, MagicMock
 from typing import List, Optional
 from game.state import GameState, Player
-from game.constants import LETTER_DISTRIBUTION, DOUBLE_LETTER_SCORE, TRIPLE_LETTER_SCORE
+from game.constants import (
+    LETTER_DISTRIBUTION,
+    DOUBLE_LETTER_SCORE,
+    TRIPLE_LETTER_SCORE,
+    DOUBLE_WORD_SCORE,
+    TRIPLE_WORD_SCORE,
+)
 
 
 class MockWordList:
@@ -34,9 +40,9 @@ class TestLetterDistribution(unittest.TestCase):
     """Regression tests for the official Estonian Scrabble letter distribution."""
 
     def test_total_tile_count(self):
-        """Total letter tiles should be 100 (official is 102 minus 2 blanks)."""
+        """Total tiles should be 102 (100 letters + 2 blanks)."""
         total = sum(info["count"] for info in LETTER_DISTRIBUTION.values())
-        self.assertEqual(total, 100)
+        self.assertEqual(total, 102)
 
     def test_high_frequency_letters(self):
         """Spot-check counts and points for common letters."""
@@ -278,6 +284,94 @@ class TestTileExchange(unittest.TestCase):
         game.current_player.rack = ["a", "b"]
 
         self.assertFalse(game.exchange_tiles([]))
+
+
+class TestBlankTiles(unittest.TestCase):
+    """Tests for blank tile scoring behaviour."""
+
+    def test_blank_tile_scores_zero_on_plain_square(self):
+        """A blank tile should score 0 points regardless of its designated letter."""
+        game = create_game_with_mock_wordlist(valid_words={"em"})
+        game.board[7][7] = "x"  # ensure not first move
+
+        game.board[5][5] = "e"  # existing tile to the left
+        player = game.current_player
+        player.rack = ["_"]
+
+        # Place blank designated as 'm' at (5,6) — no premium
+        game.place_tile(5, 6, 0, designated_letter="m")
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # "em": e(1) + blank-m(0) = 1
+        self.assertEqual(game.players[0].score, 1)
+
+    def test_blank_tile_no_letter_premium(self):
+        """A blank on a DLS/TLS should still score 0 (0 * multiplier = 0)."""
+        # (1, 5) is a TLS position
+        self.assertIn((1, 5), TRIPLE_LETTER_SCORE)
+        game = create_game_with_mock_wordlist(valid_words={"ea"})
+        game.board[7][7] = "x"  # not first move
+        game.board[1][4] = "e"  # existing tile adjacent
+
+        player = game.current_player
+        player.rack = ["_"]
+
+        # Place blank designated as 'a' on TLS at (1,5)
+        game.place_tile(1, 5, 0, designated_letter="a")
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # "ea": e(1) + blank-a(0, TLS ignored) = 1
+        self.assertEqual(game.players[0].score, 1)
+
+    def test_word_with_blank_still_gets_word_premium(self):
+        """DWS/TWS should still apply to the whole word even if a blank is in it."""
+        # (7,7) is DWS (center)
+        self.assertIn((7, 7), DOUBLE_WORD_SCORE)
+        game = create_game_with_mock_wordlist(valid_words={"ema"})
+
+        player = game.current_player
+        player.rack = ["e", "_", "a"]
+
+        # Place "ema" through center: e at (7,6), blank-m at (7,7) (DWS), a at (7,8)
+        game.place_tile(7, 6, 0)  # e
+        game.place_tile(7, 7, 0, designated_letter="m")  # blank as 'm' on DWS
+        game.place_tile(7, 8, 0)  # a
+
+        game.validate_current_placement()
+        self.assertTrue(game.commit_turn())
+
+        # e(1) + blank-m(0) + a(1) = 2, x2 DWS = 4
+        self.assertEqual(game.players[0].score, 4)
+
+    def test_blank_tile_returns_as_underscore_on_remove(self):
+        """Removing a placed blank should return '_' to the rack."""
+        game = create_game_with_mock_wordlist()
+        game.board[7][7] = "x"  # not first move
+
+        player = game.current_player
+        player.rack = ["_"]
+
+        game.place_tile(5, 5, 0, designated_letter="a")
+        self.assertEqual(player.rack, [])
+        self.assertEqual(game.board[5][5], "a")
+
+        game.remove_tile(5, 5)
+        self.assertEqual(player.rack, ["_"])
+        self.assertIsNone(game.board[5][5])
+        self.assertNotIn((5, 5), game.blank_designations)
+
+    def test_blank_tile_in_letter_distribution(self):
+        """The blank tile should exist in LETTER_DISTRIBUTION with count 2 and 0 points."""
+        self.assertIn("_", LETTER_DISTRIBUTION)
+        self.assertEqual(LETTER_DISTRIBUTION["_"]["count"], 2)
+        self.assertEqual(LETTER_DISTRIBUTION["_"]["points"], 0)
+
+    def test_total_tile_count_with_blanks(self):
+        """Total tiles should be 102 (100 letters + 2 blanks)."""
+        total = sum(info["count"] for info in LETTER_DISTRIBUTION.values())
+        self.assertEqual(total, 102)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,11 @@
 import pygame
 import sys
+from typing import Optional
 from game import GameState
+from game.constants import LETTER_DISTRIBUTION
 from ui import (
     Tile, Board, Rack, Button, ScoreDisplay, TurnIndicator,
-    WHITE, BLACK, BOARD_COLOR,
+    WHITE, BLACK, BOARD_COLOR, BLANK_TILE_COLOR,
     PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
     CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR
@@ -99,6 +101,13 @@ class ScrabbleUI:
         self.drag_pos = (0, 0)
         self._update_submit_button()
 
+        # Letter choices for blank tile dialog (all real letters, no '_')
+        self._blank_letters = sorted(
+            [k for k in LETTER_DISTRIBUTION.keys() if k != "_"]
+        )
+        # Pending blank placement (row, col, tile_idx) while dialog is open
+        self._pending_blank: tuple = None
+
     def _update_submit_button(self):
         """Update submit button state based on word validity."""
         if len(self.game.current_turn_tiles) == 0:
@@ -115,6 +124,77 @@ class ScrabbleUI:
         self.submit_button.text = self.lang_manager.get_string("submit_turn")
         self.pass_button.text = self.lang_manager.get_string("pass_turn")
         self.lang_button.text = self.lang_manager.get_string("lang_button")  # Update language button text
+
+    def _draw_blank_dialog(self):
+        """Draw a modal overlay with a grid of letters for blank tile designation."""
+        # Semi-transparent overlay
+        overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+
+        letters = self._blank_letters
+        cols = 7
+        rows = (len(letters) + cols - 1) // cols
+        cell_size = 50
+        grid_w = cols * cell_size
+        grid_h = rows * cell_size
+        title_h = 50
+        dialog_w = grid_w + 40
+        dialog_h = grid_h + title_h + 40
+        dx = (WINDOW_SIZE - dialog_w) // 2
+        dy = (WINDOW_SIZE + RACK_HEIGHT - dialog_h) // 2
+
+        # Dialog background
+        pygame.draw.rect(self.screen, WHITE, (dx, dy, dialog_w, dialog_h), border_radius=12)
+        pygame.draw.rect(self.screen, BLACK, (dx, dy, dialog_w, dialog_h), 2, border_radius=12)
+
+        # Title
+        title_text = self.lang_manager.get_string("choose_letter")
+        title_surf = self.font.render(title_text, True, BLACK)
+        title_rect = title_surf.get_rect(center=(dx + dialog_w // 2, dy + title_h // 2))
+        self.screen.blit(title_surf, title_rect)
+
+        # Letter grid
+        grid_x = dx + 20
+        grid_y = dy + title_h + 10
+        for idx, letter in enumerate(letters):
+            r = idx // cols
+            c = idx % cols
+            cx = grid_x + c * cell_size
+            cy = grid_y + r * cell_size
+            rect = pygame.Rect(cx, cy, cell_size, cell_size)
+            pygame.draw.rect(self.screen, (245, 235, 220), rect)
+            pygame.draw.rect(self.screen, BLACK, rect, 1)
+            ltr_surf = self.font.render(letter.upper(), True, BLACK)
+            ltr_rect = ltr_surf.get_rect(center=rect.center)
+            self.screen.blit(ltr_surf, ltr_rect)
+
+    def _handle_blank_dialog_click(self, pos) -> Optional[str]:
+        """Return the chosen letter if the click lands on one, else None."""
+        letters = self._blank_letters
+        cols = 7
+        rows = (len(letters) + cols - 1) // cols
+        cell_size = 50
+        grid_w = cols * cell_size
+        grid_h = rows * cell_size
+        title_h = 50
+        dialog_w = grid_w + 40
+        dialog_h = grid_h + title_h + 40
+        dx = (WINDOW_SIZE - dialog_w) // 2
+        dy = (WINDOW_SIZE + RACK_HEIGHT - dialog_h) // 2
+        grid_x = dx + 20
+        grid_y = dy + title_h + 10
+
+        mx, my = pos
+        if mx < grid_x or my < grid_y:
+            return None
+        c = (mx - grid_x) // cell_size
+        r = (my - grid_y) // cell_size
+        if 0 <= c < cols and 0 <= r < rows:
+            idx = r * cols + c
+            if idx < len(letters):
+                return letters[idx]
+        return None
 
     def draw_board(self):
         # Fill background
@@ -136,14 +216,20 @@ class ScrabbleUI:
                 tile = self.game.board[row][col]
                 if tile:
                     x, y = self.board.get_square_position(row, col)
-                    Tile(tile, TILE_SIZE, self.font).draw(self.screen, x, y)
+                    is_blank = (row, col) in self.game.blank_designations
+                    Tile(tile, TILE_SIZE, self.font, is_blank=is_blank).draw(
+                        self.screen, x, y
+                    )
 
     def draw_rack(self):
         rack_x = self.rack.get_rack_position(len(self.game.current_player.rack))
         for i, letter in enumerate(self.game.current_player.rack):
             if self.selected_tile != i or self.dragging:
                 x = rack_x + i * TILE_SIZE
-                Tile(letter, TILE_SIZE, self.font).draw(self.screen, x, self.rack.y)
+                is_blank = letter == "_"
+                Tile(letter, TILE_SIZE, self.font, is_blank=is_blank).draw(
+                    self.screen, x, self.rack.y
+                )
 
     def draw_dragged_tile(self):
         if self.dragging and self.selected_tile is not None:
@@ -151,7 +237,10 @@ class ScrabbleUI:
             x, y = self.drag_pos
             x -= TILE_SIZE // 2
             y -= TILE_SIZE // 2
-            Tile(letter, TILE_SIZE, self.font).draw(self.screen, x, y)
+            is_blank = letter == "_"
+            Tile(letter, TILE_SIZE, self.font, is_blank=is_blank).draw(
+                self.screen, x, y
+            )
 
     def draw_ui(self):
         # Draw submit button
@@ -179,22 +268,36 @@ class ScrabbleUI:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
-                
+
+                # --- Blank tile dialog is modal ---
+                if self._pending_blank is not None:
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        chosen = self._handle_blank_dialog_click(event.pos)
+                        if chosen is not None:
+                            row, col, tile_idx = self._pending_blank
+                            self._pending_blank = None
+                            if self.game.place_tile(row, col, tile_idx, designated_letter=chosen):
+                                self.game.validate_current_placement()
+                                self._update_submit_button()
+                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        self._pending_blank = None
+                    continue
+
                 # Handle language toggle button
                 if self.lang_button.handle_event(event):
                     self.lang_manager.toggle_language()
                     self._update_ui_text()
-                
+
                 # Handle submit button
                 elif self.submit_button.handle_event(event):
                     if self.game.commit_turn():
                         self._update_submit_button()
-                
+
                 # Handle pass button
                 elif self.pass_button.handle_event(event):
                     self.game.next_player()
                     self._update_submit_button()
-                
+
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
                         rack_idx = self.rack.get_tile_index(event.pos, len(self.game.current_player.rack))
@@ -202,7 +305,7 @@ class ScrabbleUI:
                             self.selected_tile = rack_idx
                             self.dragging = True
                             self.drag_pos = event.pos
-                    
+
                     elif event.button == 3:  # Right click
                         board_pos = self.board.get_board_position(event.pos)
                         if board_pos:
@@ -210,18 +313,24 @@ class ScrabbleUI:
                             if self.game.remove_tile(row, col):
                                 self.game.validate_current_placement()
                                 self._update_submit_button()
-                
+
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1 and self.dragging:
                         board_pos = self.board.get_board_position(event.pos)
                         if board_pos and self.selected_tile is not None:
                             row, col = board_pos
-                            if self.game.place_tile(row, col, self.selected_tile):
-                                self.game.validate_current_placement()
-                                self._update_submit_button()
+                            letter = self.game.current_player.rack[self.selected_tile]
+                            if letter == "_":
+                                # Open blank tile dialog instead of placing immediately
+                                if self.game.board[row][col] is None:
+                                    self._pending_blank = (row, col, self.selected_tile)
+                            else:
+                                if self.game.place_tile(row, col, self.selected_tile):
+                                    self.game.validate_current_placement()
+                                    self._update_submit_button()
                         self.dragging = False
                         self.selected_tile = None
-                
+
                 elif event.type == pygame.MOUSEMOTION:
                     if self.dragging:
                         self.drag_pos = event.pos
@@ -235,6 +344,8 @@ class ScrabbleUI:
             self.draw_ui()
             if self.dragging:
                 self.draw_dragged_tile()
+            if self._pending_blank is not None:
+                self._draw_blank_dialog()
             pygame.display.flip()
 
 if __name__ == "__main__":

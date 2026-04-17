@@ -19,6 +19,7 @@ CURRENT_TURN_COLOR = (200, 255, 200)     # Light green for current turn tiles
 VALID_WORD_COLOR = (144, 238, 144)       # Light green for valid words
 INVALID_WORD_COLOR = (255, 182, 193)     # Light red for invalid words
 TILE_COLOR = (255, 235, 205)             # Beige for tiles
+BLANK_TILE_COLOR = (220, 220, 200)       # Slightly grey for blank tiles
 BUTTON_COLOR = (70, 130, 180)            # Steel blue for buttons
 BUTTON_HOVER_COLOR = (100, 149, 237)     # Cornflower blue for button hover
 BUTTON_DISABLED_COLOR = (169, 169, 169)  # Dark gray for disabled buttons
@@ -155,17 +156,31 @@ class TurnIndicator:
             ]
 
 class Tile:
-    def __init__(self, letter: str, size: int, font: pygame.font.Font):
+    def __init__(self, letter: str, size: int, font: pygame.font.Font, is_blank: bool = False):
         self.letter = letter
         self.size = size
         self.font = font
+        self.is_blank = is_blank
 
     def draw(self, screen: pygame.Surface, x: int, y: int):
-        """Draw a single tile with letter."""
+        """Draw a single tile with letter.
+
+        Blank tiles on the rack are shown as empty. Blank tiles on the board
+        display the designated letter with a different background and no point
+        subscript (point subscript is not yet implemented for normal tiles, so
+        the visual difference is the background colour).
+        """
+        # Choose tile colour
+        bg_color = BLANK_TILE_COLOR if self.is_blank else TILE_COLOR
+
         # Draw tile background
-        pygame.draw.rect(screen, TILE_COLOR, 
+        pygame.draw.rect(screen, bg_color,
                         (x + 2, y + 2, self.size - 4, self.size - 4))
-        
+
+        # Blank tiles on the rack show no letter
+        if self.is_blank and self.letter == "_":
+            return
+
         # Draw letter
         text = self.font.render(self.letter.upper(), True, BLACK)
         text_rect = text.get_rect(center=(x + self.size // 2, y + self.size // 2))

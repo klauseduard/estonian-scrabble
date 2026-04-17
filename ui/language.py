@@ -19,6 +19,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "dws": "2×S",  # Kahekordne sõna
         "tls": "3×T",  # Kolmekordne täht
         "dls": "2×T",  # Kahekordne täht
+        # Blank tile dialog
+        "choose_letter": "Vali täht",
     },
     "en": {
         "window_title": "Estonian Scrabble",
@@ -33,6 +35,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "dws": "DWS",  # Double Word Score
         "tls": "TLS",  # Triple Letter Score
         "dls": "DLS",  # Double Letter Score
+        # Blank tile dialog
+        "choose_letter": "Choose letter",
     }
 }
 
