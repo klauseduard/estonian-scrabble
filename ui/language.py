@@ -63,7 +63,10 @@ class LanguageManager:
 
     @classmethod
     def get_string(cls, key: str) -> str:
-        return STRINGS[cls._current_language].get(key, key)
+        current = STRINGS[cls._current_language]
+        if key in current:
+            return current[key]
+        return STRINGS[Language.ESTONIAN].get(key, key)
 
     @classmethod
     def set_language(cls, language: str):
