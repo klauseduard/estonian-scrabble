@@ -90,38 +90,35 @@ class TestScoring(unittest.TestCase):
 
     def test_letter_premium_not_reapplied_on_subsequent_turn(self):
         """A tile on a DLS should not get the premium again in later turns."""
-        # (7, 3) is a DLS. Place "de" through center on turn 1 with 'd' on DLS.
-        # Turn 2: extend to "dem" — 'd' should NOT get DLS again.
-        game = create_game_with_mock_wordlist(valid_words={"dema", "adema"})
+        # (7,3) is a DLS. Place a 5-letter word spanning (7,3)-(7,7) so 'd'
+        # lands on the DLS and the word crosses center.
+        # Turn 2: extend the word so 'd' at (7,3) is part of the new word.
+        # Assert 'd' contributes only base 2, not DLS-doubled 4.
+        game = create_game_with_mock_wordlist(valid_words={"deima", "adeima"})
 
-        # Turn 1: place "dem" at (7,3)-(7,4)-(7,5) crossing through center area
-        # but we need center coverage — place at (7,3)-(7,7) = "dema?" — too complex.
-        # Simpler: place "dem" through center: (7,6)-(7,7)-(7,8)
-        # (7,7) is DWS (center). No DLS involved here. Let's use a different setup.
-
-        # Place "dem" at row 7: d at col 3 (DLS), e at col 4, m at col 5
-        # First move must go through center, so put a word through center first.
+        # Turn 1: place "deima" at (7,3)-(7,7)
+        # d at (7,3)=DLS, e at (7,4), i at (7,5), m at (7,6), a at (7,7)=DWS
         player1 = game.players[0]
-        player1.rack = ["d", "e", "m", "a"]
-        game.place_tile(7, 5, 0)  # d
-        game.place_tile(7, 6, 0)  # e
-        game.place_tile(7, 7, 0)  # m on center (DWS)
-        game.place_tile(7, 8, 0)  # a
+        player1.rack = ["d", "e", "i", "m", "a"]
+        game.place_tile(7, 3, 0)  # d on DLS
+        game.place_tile(7, 4, 0)  # e
+        game.place_tile(7, 5, 0)  # i
+        game.place_tile(7, 6, 0)  # m
+        game.place_tile(7, 7, 0)  # a on center (DWS)
         game.validate_current_placement()
         self.assertTrue(game.commit_turn())
-        # d(2) + e(1) + m(2) + a(1) = 6, ×2 for center DWS = 12
-        self.assertEqual(game.players[0].score, 12)
+        # d(2)×2(DLS) + e(1) + i(1) + m(2) + a(1) = 9, ×2 center DWS = 18
+        self.assertEqual(game.players[0].score, 18)
 
-        # Turn 2: player 2 places 'a' at (7,4) extending to "adema"
-        # (7,3) is DLS but no tile there. (7,4) has no premium.
+        # Turn 2: player 2 places 'a' at (7,2) extending to "adeima"
         player2 = game.players[1]
         player2.rack = ["a"]
-        game.place_tile(7, 4, 0)  # a at (7,4), no premium
+        game.place_tile(7, 2, 0)  # a at (7,2), no premium
         game.validate_current_placement()
         self.assertTrue(game.commit_turn())
-        # "adema": a(1) + d(2) + e(1) + m(2) + a(1) = 7
-        # No premiums: (7,4) is plain, and (7,7) DWS was used on turn 1
-        self.assertEqual(game.players[1].score, 7)
+        # "adeima": a(1) + d(2, base only — DLS used up) + e(1) + i(1) + m(2) + a(1) = 8
+        # No premiums reapplied
+        self.assertEqual(game.players[1].score, 8)
 
     def test_cross_words_scored_separately(self):
         """Placing a tile that forms both a horizontal and vertical word scores both."""
