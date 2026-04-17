@@ -33,10 +33,14 @@ class ScrabbleUI:
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
         self.lang_manager = LanguageManager()
         pygame.display.set_caption(self.lang_manager.get_string("window_title"))
-        self.font = pygame.font.Font(None, 36)  # Main font
-        self.button_font = pygame.font.Font(None, BUTTON_TEXT_SIZE)  # Smaller font for buttons
-        self.lang_button_font = pygame.font.Font(None, 20)  # Even smaller font for language button
-        self.title_font = pygame.font.Font(None, 48)  # Title font for selection screen
+        _font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        _bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        self.font = pygame.font.Font(_font_path, 22)
+        self.score_font = pygame.font.Font(_bold_path, 20)
+        self.button_font = pygame.font.Font(_font_path, 16)
+        self.lang_button_font = pygame.font.Font(_font_path, 13)
+        self.title_font = pygame.font.Font(_bold_path, 30)
+        self.turn_font = pygame.font.Font(_font_path, 18)
 
         # Show player selection screen first
         num_players = self._show_player_selection()
@@ -171,19 +175,12 @@ class ScrabbleUI:
     def _init_score_displays(self):
         """Create score displays arranged evenly across the top."""
         num = len(self.game.players)
-        score_y = PADDING
-        if num == 2:
-            self.score_displays = [
-                ScoreDisplay(PADDING, score_y, self.font),
-                ScoreDisplay(WINDOW_SIZE - 200, score_y, self.font),
-            ]
-        else:
-            # Evenly space across the top
-            spacing = WINDOW_SIZE // num
-            self.score_displays = [
-                ScoreDisplay(spacing * i + PADDING, score_y, self.font)
-                for i in range(num)
-            ]
+        score_y = 8
+        spacing = WINDOW_SIZE // num
+        self.score_displays = [
+            ScoreDisplay(spacing * i + PADDING, score_y, self.score_font)
+            for i in range(num)
+        ]
 
     def _update_submit_button(self):
         """Update submit button state based on word validity."""
@@ -363,10 +360,10 @@ class ScrabbleUI:
                 i == self.game.current_player_idx
             )
 
-        # Draw turn indicator (simple text showing current player name)
+        # Draw turn indicator below the score row
         turn_text = f"{self.lang_manager.get_string('turn')}: {self.game.current_player.name}"
-        turn_surface = self.font.render(turn_text, True, TURN_INDICATOR_COLOR)
-        turn_rect = turn_surface.get_rect(center=(WINDOW_SIZE // 2, PADDING + 30))
+        turn_surface = self.turn_font.render(turn_text, True, TURN_INDICATOR_COLOR)
+        turn_rect = turn_surface.get_rect(center=(WINDOW_SIZE // 2, 38))
         self.screen.blit(turn_surface, turn_rect)
 
         # Draw remaining tile count near the rack
