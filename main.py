@@ -9,7 +9,7 @@ from ui import (
     PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
     CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR,
-    TURN_INDICATOR_COLOR,
+    TURN_INDICATOR_COLOR, SCORE_COLOR,
 )
 from ui.language import LanguageManager
 
@@ -318,7 +318,8 @@ class ScrabbleUI:
                 if tile:
                     x, y = self.board.get_square_position(row, col)
                     is_blank = (row, col) in self.game.blank_designations
-                    Tile(tile, TILE_SIZE, self.font, is_blank=is_blank).draw(
+                    pts = 0 if is_blank else LETTER_DISTRIBUTION.get(tile.lower(), {}).get("points")
+                    Tile(tile, TILE_SIZE, self.font, is_blank=is_blank, points=pts).draw(
                         self.screen, x, y
                     )
 
@@ -328,7 +329,8 @@ class ScrabbleUI:
             if self.selected_tile != i or self.dragging:
                 x = rack_x + i * TILE_SIZE
                 is_blank = letter == "_"
-                Tile(letter, TILE_SIZE, self.font, is_blank=is_blank).draw(
+                pts = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points")
+                Tile(letter, TILE_SIZE, self.font, is_blank=is_blank, points=pts).draw(
                     self.screen, x, self.rack.y
                 )
 
@@ -339,7 +341,8 @@ class ScrabbleUI:
             x -= TILE_SIZE // 2
             y -= TILE_SIZE // 2
             is_blank = letter == "_"
-            Tile(letter, TILE_SIZE, self.font, is_blank=is_blank).draw(
+            pts = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points")
+            Tile(letter, TILE_SIZE, self.font, is_blank=is_blank, points=pts).draw(
                 self.screen, x, y
             )
 
@@ -365,6 +368,14 @@ class ScrabbleUI:
         turn_surface = self.font.render(turn_text, True, TURN_INDICATOR_COLOR)
         turn_rect = turn_surface.get_rect(center=(WINDOW_SIZE // 2, PADDING + 30))
         self.screen.blit(turn_surface, turn_rect)
+
+        # Draw remaining tile count near the rack
+        bag_count = len(self.game.tile_bag)
+        bag_text = self.lang_button_font.render(
+            f"{self.lang_manager.get_string('tiles_left')}: {bag_count}",
+            True, SCORE_COLOR
+        )
+        self.screen.blit(bag_text, (PADDING, self.rack.y + TILE_SIZE + 5))
 
     def run(self):
         while True:

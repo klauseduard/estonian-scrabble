@@ -27,6 +27,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         # Turn transition
         "pass_to_player": "Anna edasi: {player}",
         "ready": "Valmis",
+        "tiles_left": "Kotte jäänud",
     },
     "en": {
         "window_title": "Estonian Scrabble",
@@ -49,6 +50,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         # Turn transition
         "pass_to_player": "Pass to: {player}",
         "ready": "Ready",
+        "tiles_left": "Tiles left",
     }
 }
 

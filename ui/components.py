@@ -156,20 +156,20 @@ class TurnIndicator:
             ]
 
 class Tile:
-    def __init__(self, letter: str, size: int, font: pygame.font.Font, is_blank: bool = False):
+    _points_font: pygame.font.Font = None
+
+    def __init__(self, letter: str, size: int, font: pygame.font.Font,
+                 is_blank: bool = False, points: int = None):
         self.letter = letter
         self.size = size
         self.font = font
         self.is_blank = is_blank
+        self.points = points
+        if Tile._points_font is None:
+            Tile._points_font = pygame.font.Font(None, 16)
 
     def draw(self, screen: pygame.Surface, x: int, y: int):
-        """Draw a single tile with letter.
-
-        Blank tiles on the rack are shown as empty. Blank tiles on the board
-        display the designated letter with a different background and no point
-        subscript (point subscript is not yet implemented for normal tiles, so
-        the visual difference is the background colour).
-        """
+        """Draw a single tile with letter and point value subscript."""
         # Choose tile colour
         bg_color = BLANK_TILE_COLOR if self.is_blank else TILE_COLOR
 
@@ -181,10 +181,15 @@ class Tile:
         if self.is_blank and self.letter == "_":
             return
 
-        # Draw letter
+        # Draw letter (shifted slightly up-left to make room for subscript)
         text = self.font.render(self.letter.upper(), True, BLACK)
-        text_rect = text.get_rect(center=(x + self.size // 2, y + self.size // 2))
+        text_rect = text.get_rect(center=(x + self.size // 2 - 2, y + self.size // 2 - 2))
         screen.blit(text, text_rect)
+
+        # Draw point value as subscript in bottom-right corner
+        if self.points is not None and not self.is_blank:
+            pts_text = Tile._points_font.render(str(self.points), True, BLACK)
+            screen.blit(pts_text, (x + self.size - 14, y + self.size - 16))
 
 class Board:
     def __init__(self, size: int, tile_size: int, board_start: int, font: pygame.font.Font):
