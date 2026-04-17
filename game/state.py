@@ -239,7 +239,7 @@ class GameState:
         total_remaining = 0
         for player in self.players:
             value = sum(
-                LETTER_DISTRIBUTION[tile.lower() if tile != "_" else "_"]["points"]
+                LETTER_DISTRIBUTION[tile.lower()]["points"]
                 for tile in player.rack
             )
             remaining_values[player.name] = value

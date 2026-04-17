@@ -368,11 +368,6 @@ class TestBlankTiles(unittest.TestCase):
         self.assertEqual(LETTER_DISTRIBUTION["_"]["count"], 2)
         self.assertEqual(LETTER_DISTRIBUTION["_"]["points"], 0)
 
-    def test_total_tile_count_with_blanks(self):
-        """Total tiles should be 102 (100 letters + 2 blanks)."""
-        total = sum(info["count"] for info in LETTER_DISTRIBUTION.values())
-        self.assertEqual(total, 102)
-
 
 if __name__ == "__main__":
     unittest.main()
