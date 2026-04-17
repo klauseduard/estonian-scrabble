@@ -13,6 +13,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "turn": "Käik",
         "player_1": "Mängija 1",
         "player_2": "Mängija 2",
+        "player_3": "Mängija 3",
+        "player_4": "Mängija 4",
+        "select_players": "Vali mängijate arv",
         "lang_button": "EN",  # Show what language you'll get when clicking
         # Premium square labels
         "tws": "3×S",  # Kolmekordne sõna
@@ -29,6 +32,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "turn": "Turn",
         "player_1": "Player 1",
         "player_2": "Player 2",
+        "player_3": "Player 3",
+        "player_4": "Player 4",
+        "select_players": "Select number of players",
         "lang_button": "ET",  # Show what language you'll get when clicking
         # Premium square labels
         "tws": "TWS",  # Triple Word Score

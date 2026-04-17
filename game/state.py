@@ -29,10 +29,12 @@ class Player:
             self.rack.remove(tile)
 
 class GameState:
-    def __init__(self, board_size: int = 15):
+    def __init__(self, board_size: int = 15, num_players: int = 2):
+        if not 2 <= num_players <= 4:
+            raise ValueError("num_players must be between 2 and 4")
         self.board_size = board_size
         self.board: List[List[Optional[str]]] = [[None for _ in range(board_size)] for _ in range(board_size)]
-        self.players = [Player("Player 1"), Player("Player 2")]
+        self.players = [Player(f"Player {i + 1}") for i in range(num_players)]
         self.current_player_idx = 0
         self.current_turn_tiles: Set[Tuple[int, int]] = set()
         self.blank_designations: Dict[Tuple[int, int], str] = {}
