@@ -437,9 +437,12 @@ class ScrabbleUI:
         if self.game.current_turn_tiles:
             breakdown = self.game.calculate_turn_score()
             if breakdown:
-                parts = [f"{word} {score}" for word, score in breakdown]
+                parts = [f"{word}: {score}" for word, score in breakdown]
                 total = sum(s for _, s in breakdown)
-                preview = " + ".join(parts) + f" = {total}"
+                if len(parts) == 1:
+                    preview = parts[0]
+                else:
+                    preview = " + ".join(parts) + f" = {total}"
                 preview_surface = self.button_font.render(preview, True, TURN_INDICATOR_COLOR)
                 preview_rect = preview_surface.get_rect(
                     center=(WINDOW_SIZE // 2, self.rack.y - 12)
