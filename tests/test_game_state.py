@@ -133,6 +133,7 @@ class TestScoring(unittest.TestCase):
         # Place 'm' at (5,6) — no premium — forming two "am" words.
         game = create_game_with_mock_wordlist(valid_words={"am"})
         game.board[7][7] = "x"  # not first move
+        game.first_move = False
 
         game.board[4][6] = "a"  # above (5,6)
         game.board[5][5] = "a"  # left of (5,6)
@@ -290,6 +291,7 @@ class TestBlankTiles(unittest.TestCase):
         """A blank tile should score 0 points regardless of its designated letter."""
         game = create_game_with_mock_wordlist(valid_words={"em"})
         game.board[7][7] = "x"  # ensure not first move
+        game.first_move = False
 
         game.board[5][5] = "e"  # existing tile to the left
         player = game.current_player
@@ -309,6 +311,7 @@ class TestBlankTiles(unittest.TestCase):
         self.assertIn((1, 5), TRIPLE_LETTER_SCORE)
         game = create_game_with_mock_wordlist(valid_words={"ea"})
         game.board[7][7] = "x"  # not first move
+        game.first_move = False
         game.board[1][4] = "e"  # existing tile adjacent
 
         player = game.current_player
@@ -346,6 +349,7 @@ class TestBlankTiles(unittest.TestCase):
         """Removing a placed blank should return '_' to the rack."""
         game = create_game_with_mock_wordlist()
         game.board[7][7] = "x"  # not first move
+        game.first_move = False
 
         player = game.current_player
         player.rack = ["_"]

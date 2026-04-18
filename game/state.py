@@ -40,6 +40,7 @@ class GameState:
         self.blank_designations: Dict[Tuple[int, int], str] = {}
         self.consecutive_passes = 0
         self.game_over = False
+        self.first_move = True
         self.wordlist = WordList()
         self.word_validator = WordValidator(self.wordlist)
         self.tile_bag = self._create_tile_bag()
@@ -165,7 +166,7 @@ class GameState:
 
     def validate_current_placement(self) -> dict:
         """Validate the current turn's word placements."""
-        return self.word_validator.validate_placement(self.board, self.current_turn_tiles)
+        return self.word_validator.validate_placement(self.board, self.current_turn_tiles, self.first_move)
 
     def calculate_turn_score(self) -> List[Tuple[str, int]]:
         """Calculate score breakdown for current placement without committing.
@@ -217,6 +218,7 @@ class GameState:
 
         # A successful placement resets the consecutive pass counter
         self.consecutive_passes = 0
+        self.first_move = False
 
         # Check for game over and apply end-game adjustment
         if self.is_game_over():

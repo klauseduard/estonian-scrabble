@@ -38,14 +38,11 @@ class WordValidator:
 
         return words
 
-    def _is_connected_to_existing(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]]) -> bool:
+    def _is_connected_to_existing(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]], first_move: bool = False) -> bool:
         """Check if new tiles are connected to existing tiles on the board."""
-        # If this is the first move (board is empty), tiles must be placed through center
         center = len(board) // 2
-        is_first_move = all(board[i][j] is None or (i, j) in current_turn_tiles 
-                           for i in range(len(board)) for j in range(len(board[0])))
-        
-        if is_first_move:
+
+        if first_move:
             # For first move, check if any tile is on center
             return (center, center) in current_turn_tiles
         
@@ -94,12 +91,12 @@ class WordValidator:
         # Tiles neither in same row nor column
         return False
 
-    def validate_placement(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]]) -> Dict[Tuple[int, int], bool]:
+    def validate_placement(self, board: List[List[Optional[str]]], current_turn_tiles: Set[Tuple[int, int]], first_move: bool = False) -> Dict[Tuple[int, int], bool]:
         """Validate all words formed by the current turn's tiles."""
         self.word_validity.clear()
-        
+
         # First check if tiles are connected to existing tiles
-        if not self._is_connected_to_existing(board, current_turn_tiles):
+        if not self._is_connected_to_existing(board, current_turn_tiles, first_move):
             self.logger.warning("Tiles are not connected to existing tiles")
             # Mark all tiles as invalid
             for pos in current_turn_tiles:
