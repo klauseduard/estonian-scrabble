@@ -115,6 +115,7 @@ class ScrabbleUI:
         self.dragging = False
         self.drag_pos = (0, 0)
         self.show_game_over = False
+        self._cached_breakdown = []
         self._update_submit_button()
 
         # Letter choices for blank tile dialog (all real letters, no '_')
@@ -256,12 +257,13 @@ class ScrabbleUI:
         ]
 
     def _update_submit_button(self):
-        """Update submit button state based on word validity."""
+        """Update submit button state and cached score breakdown."""
         if len(self.game.current_turn_tiles) == 0:
             self.submit_button.enabled = False
+            self._cached_breakdown = []
         else:
-            # Enable only if all words are valid
             self.submit_button.enabled = self.game.word_validator.is_placement_valid()
+            self._cached_breakdown = self.game.calculate_turn_score()
 
     def _update_ui_text(self):
         """Update all UI text elements after language change."""
@@ -506,8 +508,8 @@ class ScrabbleUI:
         self.screen.blit(bag_text, (PADDING, self.rack.y + TILE_SIZE + 5))
 
         # Draw move score preview when tiles are placed
-        if self.game.current_turn_tiles:
-            breakdown = self.game.calculate_turn_score()
+        if self._cached_breakdown:
+            breakdown = self._cached_breakdown
             if breakdown:
                 parts = [f"{word}: {score}" for word, score in breakdown]
                 total = sum(s for _, s in breakdown)
