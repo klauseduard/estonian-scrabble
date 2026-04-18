@@ -33,7 +33,7 @@ class WordValidator:
                 curr_col += dx
 
             if len(word) > 1:
-                self.logger.info(f"Found word: '{word}' at positions {positions}")
+                self.logger.debug(f"Found word: '{word}' at positions {positions}")
                 words.append((word, positions))
 
         return words
@@ -123,7 +123,7 @@ class WordValidator:
                 if word not in all_words:
                     all_words.add(word)
                     is_valid = self.wordlist.is_valid_word(word)
-                    self.logger.info(f"Validating word '{word}': {'valid' if is_valid else 'invalid'}")
+                    self.logger.debug(f"Validating word '{word}': {'valid' if is_valid else 'invalid'}")
                     # Update validity for all positions in the word
                     for pos in positions:
                         self.word_validity[pos] = is_valid
