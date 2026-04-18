@@ -2,23 +2,25 @@
 
 ## Overview
 
-Estonian Scrabble follows the standard Scrabble rules with adaptations for the Estonian language and alphabet.
+Estonian Scrabble follows the standard Scrabble rules with adaptations for the Estonian language and alphabet. Supports 2–4 players.
 
 ## Game Components
 
 ### Board
 - 15x15 grid
+- Center square (7,7) is a Double Word Score
 - Premium squares for bonus scoring:
-  - Triple Word Score (TWS)
-  - Double Word Score (DWS)
-  - Triple Letter Score (TLS)
-  - Double Letter Score (DLS)
+  - Triple Word Score (3×S, red squares)
+  - Double Word Score (2×S, pink squares)
+  - Triple Letter Score (3×T, dark blue squares)
+  - Double Letter Score (2×T, light blue squares)
 
-### Letters
+### Tiles (102 total)
 Estonian Scrabble uses the following letter distribution:
 
 | Letter | Count | Points |
-|--------|--------|---------|
+|--------|-------|--------|
+| _ (blank) | 2 | 0 |
 | a | 10 | 1 |
 | e | 9 | 1 |
 | i | 9 | 1 |
@@ -50,33 +52,42 @@ Estonian Scrabble uses the following letter distribution:
 ## Game Play
 
 ### Setup
-1. Each player draws 7 tiles
-2. First player places a word through the center square
-3. Play continues clockwise
+1. Select number of players (2–4)
+2. Each player draws 7 tiles
+3. First player places a word through the center square
+4. Play continues clockwise
 
 ### Turn Actions
 Players can:
 1. Place new tiles to form words
 2. Remove incorrectly placed tiles (before committing turn)
-3. Pass their turn
-4. Exchange tiles
+3. Reorder tiles in the rack by dragging
+4. Pass their turn
+5. Exchange tiles with the bag (only when bag has ≥ 7 tiles)
+
+### Blank Tiles
+- Can represent any letter — player chooses when placing
+- Score 0 points regardless of the letter they represent
+- Do not activate letter premium squares (DLS/TLS)
+- Word premium squares (DWS/TWS) still apply to words containing blanks
 
 ### Word Formation
 1. Words must:
    - Connect to existing tiles
-   - Form valid Estonian words
+   - Form valid Estonian words (validated using Hunspell dictionary)
    - Read left-to-right or top-to-bottom
 
 2. All connected tiles must form valid words
 
 ### Scoring
 1. Letter Points:
-   - Each letter has a point value
-   - Premium squares multiply points
+   - Each letter has a point value shown as a subscript on the tile
+   - Premium squares multiply points for newly placed tiles only
+   - Premiums are "used up" — they do not apply to tiles from previous turns
 
 2. Premium Squares:
    - Triple Word Score (red squares)
-   - Double Word Score (pink squares)
+   - Double Word Score (pink squares, including center)
    - Triple Letter Score (dark blue squares)
    - Double Letter Score (light blue squares)
 
@@ -84,36 +95,37 @@ Players can:
    - Apply after letter premiums
    - Multiple word multipliers stack multiplicatively
 
+4. Bingo Bonus:
+   - Using all 7 tiles in one turn awards a 50-point bonus
+
+5. A live score preview is shown above the rack while tiles are placed
+
 ### Game End
 The game ends when:
-1. All tiles are drawn and one player uses all their tiles
-2. No more valid moves are possible
+1. The bag is empty and one player uses all their tiles
+2. All players pass consecutively (one full round of passes)
 
 Final score adjustments:
-- Subtract points for remaining tiles
-- Add points for opponent's remaining tiles
+- Subtract the point value of remaining tiles from each player's score
+- If a player emptied their rack, add the total value of all opponents' remaining tiles to their score
 
-## Special Rules
-
-### Valid Words
-- Must be in the Estonian dictionary
-- No abbreviations
-- No proper nouns
-- No hyphenated words
-
-### Challenges
-1. Players can challenge words
-2. Invalid words must be removed
-3. Challenger loses turn if word is valid
+A game-over screen shows the final score breakdown (word score, tile adjustment, total) for each player.
 
 ## User Interface
 
 ### Tile Placement
 1. Drag tiles from rack to board
-2. Right-click to remove tiles
-3. Visual feedback for valid/invalid words
+2. Right-click to remove placed tiles
+3. Drag tiles within the rack to reorder
+4. Visual feedback: green for valid words, red for invalid
 
 ### Turn Management
-1. Commit turn when satisfied
+1. Commit turn when all words are valid (button enables automatically)
 2. Pass turn if no moves possible
-3. Exchange tiles with bag 
+3. A transition screen hides tiles between players
+
+### Display
+- Point values shown on each tile
+- Remaining tile count displayed below the rack
+- Player scores and turn indicator at the top
+- Language toggle (Estonian/English) in the bottom-right corner
