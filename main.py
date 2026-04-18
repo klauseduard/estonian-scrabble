@@ -175,10 +175,21 @@ class ScrabbleUI:
         names = [""] * num_players
         active_idx = 0
 
+        # Layout: center the whole block (title + fields + button) vertically
+        field_h = 40
+        field_gap = 50
+        total_h = WINDOW_SIZE + RACK_HEIGHT
+        block_h = 50 + num_players * field_gap + 70  # title + fields + gap + button
+        block_top = (total_h - block_h) // 2
+        title_y = block_top
+        first_field_y = block_top + 60
+        btn_y = first_field_y + num_players * field_gap + 20
+        field_x = WINDOW_SIZE // 2 - 120
+        field_w = 240
+
         start_label = self.lang_manager.get_string("start_game")
         start_btn = Button(
-            (WINDOW_SIZE - 200) // 2,
-            (WINDOW_SIZE + RACK_HEIGHT) // 2 + 80,
+            (WINDOW_SIZE - 200) // 2, btn_y,
             200, 50, start_label, self.button_font,
         )
 
@@ -192,11 +203,9 @@ class ScrabbleUI:
                     return [n if n else defaults[i] for i, n in enumerate(names)]
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    # Click on a name field to focus it
                     for i in range(num_players):
-                        field_y = (WINDOW_SIZE + RACK_HEIGHT) // 2 - 40 + i * 50
-                        field_x = WINDOW_SIZE // 2 - 120
-                        if field_x <= event.pos[0] <= field_x + 240 and field_y <= event.pos[1] <= field_y + 35:
+                        fy = first_field_y + i * field_gap
+                        if field_x <= event.pos[0] <= field_x + field_w and fy <= event.pos[1] <= fy + field_h:
                             active_idx = i
 
                 if event.type == pygame.KEYDOWN:
@@ -213,20 +222,19 @@ class ScrabbleUI:
             title = self.lang_manager.get_string("enter_names")
             title_surface = self.title_font.render(title, True, BLACK)
             self.screen.blit(title_surface, title_surface.get_rect(
-                center=(WINDOW_SIZE // 2, (WINDOW_SIZE + RACK_HEIGHT) // 2 - 120)
+                center=(WINDOW_SIZE // 2, title_y + 20)
             ))
 
             # Name fields
             for i in range(num_players):
-                field_y = (WINDOW_SIZE + RACK_HEIGHT) // 2 - 40 + i * 50
-                field_x = WINDOW_SIZE // 2 - 120
+                fy = first_field_y + i * field_gap
                 border_color = TURN_INDICATOR_COLOR if i == active_idx else (180, 180, 180)
-                pygame.draw.rect(self.screen, border_color, (field_x, field_y, 240, 35), 2)
+                pygame.draw.rect(self.screen, border_color, (field_x, fy, field_w, field_h), 2)
 
                 display_text = names[i] if names[i] else defaults[i]
                 text_color = BLACK if names[i] else (180, 180, 180)
                 text_surface = self.font.render(display_text, True, text_color)
-                self.screen.blit(text_surface, (field_x + 8, field_y + 6))
+                self.screen.blit(text_surface, (field_x + 8, fy + 8))
 
             start_btn.draw(self.screen)
             pygame.display.flip()
