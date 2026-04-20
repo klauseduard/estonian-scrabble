@@ -9,7 +9,7 @@ from ui import (
     PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
     PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
     CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR,
-    TURN_INDICATOR_COLOR, SCORE_COLOR,
+    TURN_INDICATOR_COLOR, SCORE_COLOR, SELECTED_COLOR,
 )
 from ui.language import LanguageManager
 
@@ -61,7 +61,7 @@ class ScrabbleUI:
 
         # Initialize UI controls
         button_y = WINDOW_SIZE + RACK_HEIGHT - BUTTON_HEIGHT - PADDING
-        total_width = (BUTTON_WIDTH * 2) + PADDING
+        total_width = (BUTTON_WIDTH * 3) + (PADDING * 2)
         start_x = (WINDOW_SIZE - total_width) // 2
 
         # Position Pass button on the left
@@ -74,9 +74,19 @@ class ScrabbleUI:
             self.button_font
         )
 
+        # Position Exchange button in the middle
+        self.exchange_button = Button(
+            start_x + BUTTON_WIDTH + PADDING,
+            button_y,
+            BUTTON_WIDTH,
+            BUTTON_HEIGHT,
+            self.lang_manager.get_string("exchange"),
+            self.button_font
+        )
+
         # Position Submit button on the right
         self.submit_button = Button(
-            start_x + BUTTON_WIDTH + PADDING,
+            start_x + (BUTTON_WIDTH + PADDING) * 2,
             button_y,
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
@@ -116,7 +126,10 @@ class ScrabbleUI:
         self.drag_pos = (0, 0)
         self.show_game_over = False
         self._cached_breakdown = []
+        self.exchange_mode = False
+        self.exchange_selected: set = set()  # Indices of tiles selected for exchange
         self._update_submit_button()
+        self._update_exchange_button()
 
         # Letter choices for blank tile dialog (all real letters, no '_')
         self._blank_letters = sorted(
@@ -265,12 +278,25 @@ class ScrabbleUI:
             self.submit_button.enabled = self.game.word_validator.is_placement_valid()
             self._cached_breakdown = self.game.calculate_turn_score()
 
+    def _update_exchange_button(self):
+        """Update exchange button enabled state based on game conditions."""
+        self.exchange_button.enabled = (
+            len(self.game.tile_bag) >= 7
+            and len(self.game.current_turn_tiles) == 0
+        )
+
+    def _exit_exchange_mode(self):
+        """Exit exchange mode and clear selection."""
+        self.exchange_mode = False
+        self.exchange_selected.clear()
+
     def _update_ui_text(self):
         """Update all UI text elements after language change."""
         pygame.display.set_caption(self.lang_manager.get_string("window_title"))
         self._set_player_names()
         self.submit_button.text = self.lang_manager.get_string("submit_turn")
         self.pass_button.text = self.lang_manager.get_string("pass_turn")
+        self.exchange_button.text = self.lang_manager.get_string("exchange")
         self.lang_button.text = self.lang_manager.get_string("lang_button")
         self.ready_button.text = self.lang_manager.get_string("ready")
 
@@ -463,6 +489,11 @@ class ScrabbleUI:
                 Tile(letter, TILE_SIZE, self.font, is_blank=is_blank, points=pts).draw(
                     self.screen, x, self.rack.y
                 )
+                # Draw selection highlight for exchange mode
+                if self.exchange_mode and i in self.exchange_selected:
+                    highlight = pygame.Surface((TILE_SIZE - 4, TILE_SIZE - 4), pygame.SRCALPHA)
+                    highlight.fill(SELECTED_COLOR)
+                    self.screen.blit(highlight, (x + 2, self.rack.y + 2))
 
     def draw_dragged_tile(self):
         if self.dragging and self.selected_tile is not None:
@@ -481,6 +512,8 @@ class ScrabbleUI:
         self.submit_button.draw(self.screen)
         # Draw pass button
         self.pass_button.draw(self.screen)
+        # Draw exchange button
+        self.exchange_button.draw(self.screen)
         # Draw language toggle button
         self.lang_button.draw(self.screen)
 
@@ -562,16 +595,38 @@ class ScrabbleUI:
                 # Handle submit button
                 elif self.submit_button.handle_event(event):
                     if self.game.commit_turn():
+                        self._exit_exchange_mode()
                         self._update_submit_button()
+                        self._update_exchange_button()
                         if self.game.game_over:
                             self.show_game_over = True
                         else:
                             self._start_transition()
 
+                # Handle exchange button
+                elif self.exchange_button.handle_event(event):
+                    if self.exchange_mode and self.exchange_selected:
+                        # Perform the exchange
+                        indices = sorted(self.exchange_selected)
+                        if self.game.exchange_tiles(indices):
+                            self._exit_exchange_mode()
+                            self._update_submit_button()
+                            self._update_exchange_button()
+                            if self.game.game_over:
+                                self.show_game_over = True
+                            else:
+                                self._start_transition()
+                    else:
+                        # Toggle exchange mode
+                        self.exchange_mode = not self.exchange_mode
+                        self.exchange_selected.clear()
+
                 # Handle pass button
                 elif self.pass_button.handle_event(event):
+                    self._exit_exchange_mode()
                     self.game.next_player()
                     self._update_submit_button()
+                    self._update_exchange_button()
                     if self.game.game_over:
                         self.show_game_over = True
                     else:
@@ -579,11 +634,20 @@ class ScrabbleUI:
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
-                        rack_idx = self.rack.get_tile_index(event.pos, len(self.game.current_player.rack))
+                        rack_idx = self.rack.get_tile_index(
+                            event.pos, len(self.game.current_player.rack)
+                        )
                         if rack_idx is not None:
-                            self.selected_tile = rack_idx
-                            self.dragging = True
-                            self.drag_pos = event.pos
+                            if self.exchange_mode:
+                                # Toggle tile selection for exchange
+                                if rack_idx in self.exchange_selected:
+                                    self.exchange_selected.discard(rack_idx)
+                                else:
+                                    self.exchange_selected.add(rack_idx)
+                            else:
+                                self.selected_tile = rack_idx
+                                self.dragging = True
+                                self.drag_pos = event.pos
 
                     elif event.button == 3:  # Right click
                         board_pos = self.board.get_board_position(event.pos)
@@ -592,6 +656,7 @@ class ScrabbleUI:
                             if self.game.remove_tile(row, col):
                                 self.game.validate_current_placement()
                                 self._update_submit_button()
+                                self._update_exchange_button()
 
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1 and self.dragging:
@@ -618,6 +683,7 @@ class ScrabbleUI:
                                         if self.game.place_tile(row, col, self.selected_tile):
                                             self.game.validate_current_placement()
                                             self._update_submit_button()
+                                            self._update_exchange_button()
                         self.dragging = False
                         self.selected_tile = None
 
@@ -627,6 +693,7 @@ class ScrabbleUI:
                     # Update button hover states
                     self.submit_button.handle_event(event)
                     self.pass_button.handle_event(event)
+                    self.exchange_button.handle_event(event)
                     self.lang_button.handle_event(event)
 
             self.draw_board()

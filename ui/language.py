@@ -34,6 +34,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "score_words": "Sõnad",
         "score_tiles": "Klotsid",
         "score_final": "Kokku",
+        "exchange": "Vaheta",
     },
     "en": {
         "window_title": "Estonian Scrabble",
@@ -63,6 +64,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "score_words": "Words",
         "score_tiles": "Tiles",
         "score_final": "Total",
+        "exchange": "Exchange",
     }
 }
 
