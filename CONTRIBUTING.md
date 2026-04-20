@@ -53,10 +53,16 @@ The game module handles all game logic and state management:
 The UI module handles all visual elements and user interaction:
 
 #### `components.py`
-- `Tile`: Individual letter tile rendering
+- `Tile`: Individual letter tile rendering (with point value subscripts)
 - `Board`: Game board rendering and interaction
 - `Rack`: Player rack rendering and interaction
+- `Button`: Clickable UI button
+- `ScoreDisplay`: Player scores display
+- `TurnIndicator`: Current player turn indicator
 - Color constants and visual settings
+
+#### `language.py`
+- `LanguageManager`: Singleton for Estonian/English i18n with Estonian fallback for missing keys
 
 ## Adding New Features
 
@@ -92,13 +98,20 @@ The UI module handles all visual elements and user interaction:
    - Update README.md if adding major features
    - Comment complex logic
 
-## Testing (Future)
+## Testing
 
-When tests are added:
-1. Write unit tests for new features
-2. Ensure all tests pass before submitting PR
-3. Add integration tests for UI components
-4. Test edge cases and error conditions
+Tests use Python's `unittest` framework with mock wordlists for isolated testing.
+
+1. Run all tests:
+   ```bash
+   python3 -m unittest discover tests
+   ```
+2. Test files:
+   - `tests/test_game_state.py` — Game state, scoring, and turn management tests
+   - `tests/test_word_validator.py` — Word validation and placement rule tests
+3. Write unit tests for new features
+4. Ensure all tests pass before submitting PR
+5. Test edge cases and error conditions
 
 ## Common Tasks
 
@@ -129,7 +142,7 @@ Follow these style guidelines:
 
 1. **PEP 8**
    - 4 spaces for indentation
-   - Maximum line length of 88 characters
+   - Maximum line length of 100 characters
    - Use meaningful variable names
 
 2. **Documentation**

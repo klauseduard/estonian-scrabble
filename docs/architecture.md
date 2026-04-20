@@ -19,11 +19,15 @@ The central controller for game mechanics:
 
 ```python
 class GameState:
-    def __init__(self, board_size: int = 15):
+    def __init__(self, board_size: int = 15, num_players: int = 2):
         self.board: List[List[Optional[str]]]  # Game board
         self.players: List[Player]             # Player list
         self.current_player_idx: int           # Current player
         self.current_turn_tiles: Set[Tuple]    # Tiles placed this turn
+        self.blank_designations: Dict[Tuple, str]  # Blank tile letter assignments
+        self.consecutive_passes: int           # Tracks consecutive passes for game-over
+        self.game_over: bool                   # Whether the game has ended
+        self.first_move: bool                  # Whether no tiles have been committed yet
 ```
 
 #### Word Validator (`word_validator.py`)
@@ -31,7 +35,7 @@ Handles word validation and scoring:
 - Detects words formed on the board
 - Validates words against dictionary
 - Provides real-time feedback
-- Will handle scoring calculations
+- Handles scoring calculations (premium squares, bingo bonus, end-game adjustment)
 
 ```python
 class WordValidator:
@@ -50,9 +54,21 @@ Game configuration and constants:
 
 #### Components (`components.py`)
 Reusable UI elements:
-- `Tile`: Letter tile visualization
+- `Tile`: Letter tile visualization (with point value subscripts)
 - `Board`: Game board rendering
 - `Rack`: Player rack display
+- `Button`: Clickable UI button
+- `ScoreDisplay`: Player scores display
+- `TurnIndicator`: Current player turn indicator
+
+#### Language (`language.py`)
+- `LanguageManager`: Singleton for Estonian/English i18n with Estonian fallback for missing keys
+
+### 4. Word List (`wordlist.py`)
+Dictionary integration:
+- `WordList`: Uses the official LibreOffice Estonian Hunspell dictionary (et_EE) via the `spylls` library
+- Supports full morphological word validation including all inflected forms
+- Dictionary files are downloaded on first run
 
 ```python
 class Board:
@@ -99,6 +115,10 @@ Coordinates between UI and game logic:
 - Dragging state
 - Visual feedback
 - Animation states
+- Blank tile dialog state (letter selection for blank tiles)
+- Turn transition state (screen between player turns)
+- Game over state (final score breakdown display)
+- Cached score breakdown (avoids recalculating every frame)
 
 ## Future Considerations
 
@@ -135,7 +155,7 @@ Coordinates between UI and game logic:
 1. Identify the appropriate module
 2. Maintain separation of concerns
 3. Update documentation
-4. Add tests (when implemented)
+4. Add tests
 
 ### Code Organization
 1. Keep modules focused

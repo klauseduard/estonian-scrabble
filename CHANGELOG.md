@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Premium square layout
 - Right-click to remove tiles
 - Real-time word validation
+- Estonian Hunspell dictionary via spylls library for full morphological word validation
+- Full scoring system with premium squares, bingo bonus, and end-game score adjustment
+- Unit tests for game state, scoring, and word validation
+- 2-4 player support with player count selection screen
+- Player name entry screen
+- Blank tile support with letter selection dialog
+- Tile exchange (swap tiles with the bag when bag has 7+ tiles)
+- Turn transition screen to hide tiles between players
+- Score preview above rack during tile placement
+- Game-over screen with score breakdown (word score, tile adjustment, total)
+- Estonian/English language toggle (LanguageManager singleton)
+- Rack reordering via drag-and-drop
+- Logging system
 
 ### Changed
 - Refactored code into modular structure
@@ -23,11 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved documentation
 
 ### Todo
-- Implement proper Estonian wordlist
-- Add scoring system
 - Add game save/load functionality
 - Add network multiplayer
-- Add unit tests
 - Add AI opponent
 
 ## [0.1.0] - 2024-03-19

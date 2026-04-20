@@ -2,9 +2,9 @@
 
 Scrabble'i mängu rakendus, mis toetab eesti tähestikku ja kasutab eesti sõnastikku.
 
-> **Tõlke märkus**: See dokumentatsioon on tõlgitud inglise keelest eesti keelde kasutades tehisintellekti (Claude-3.5-Sonnet) ja pole inimese poolt üle kontrollitud. Kui leiate tõlkevigu, andke palun teada!
+> **Tõlke märkus**: See dokumentatsioon on tõlgitud inglise keelest eesti keelde. Kui leiate tõlkevigu, andke palun teada!
 
-> **Arenduse märkus**: See projekt arendati eksperimendina tehisintellekti-toetatud programmeerimises, kasutades Cursor IDE agendi režiimi Claude-3.5-Sonnet mudeliga. Kogu arendusprotsess viidi läbi "YOLO režiimis", kus tehisintellekti agent osales aktiivselt koodi kirjutamises, vigade parandamises ja dokumentatsiooni koostamises.
+> **Märkus**: See projekt loodi algselt tehisintellekti abil (Cursor IDE + Claude). Sellest ajast alates on arendaja seda oluliselt edasi arendanud ja täiustanud.
 
 ## Eeldused
 
@@ -35,8 +35,8 @@ Enne alustamist veenduge, et teil on installitud:
    - Laadige see repositoorium alla ZIP-failina ja pakkige lahti
    - Või kui olete tuttav git-iga:
      ```bash
-     git clone [repositooriumi-url]
-     cd scrabble
+     git clone https://github.com/klauseduard/estonian-scrabble.git
+     cd estonian-scrabble
      ```
 
 2. **Avage Terminal/Käsurida**
@@ -63,18 +63,18 @@ Enne alustamist veenduge, et teil on installitud:
 
 1. **Mängu alustamine**
    - Käivitage mäng ülaltoodud käsuga
+   - Valige mängijate arv (2-4) ja sisestage mängijate nimed
    - Avaneb mänguaken tühja mängulauaga
-   - Kaks mängijat mängivad kordamööda
 
 2. **Mängu juhtimine**
    - **Hiire juhtimine:**
      - Vajutage ja hoidke vasakut hiireklahvi, et lohistada tähti oma restilt lauale
      - Vabastage vasak hiireklahv tähe asetamiseks
      - Paremklõpsake laual olevat tähte, et see tagasi restile tuua
-     - Vasakklõpsake nuppe ("Kinnita", "Jäta vahele", "Vaheta") toimingute sooritamiseks
-   - Klõpsake "Kinnita", kui olete oma sõna asetamisega rahul
+     - Vasakklõpsake nuppe ("Kinnita käik", "Jäta vahele") toimingute sooritamiseks
+     - Lohistage tähti restil nende järjekorra muutmiseks
+   - Klõpsake "Kinnita käik", kui olete oma sõna asetamisega rahul
    - Klõpsake "Jäta vahele" käigu vahele jätmiseks
-   - Klõpsake "Vaheta" tähtede vahetamiseks (loetakse käiguna)
 
 3. **Esimene käik**
    - Tähed tuleb asetada läbi keskvälja
@@ -87,6 +87,8 @@ Enne alustamist veenduge, et teil on installitud:
    - Sõnad loetakse vasakult paremale või ülevalt alla
 
 ## Ekraanipildid
+
+> *Märkus: Ekraanipildid näitavad mängu varasemat versiooni. Praegune versioon sisaldab mängijate arvu valikut (2-4), nimede sisestamist, käiguvahetuse ekraani ja muid täiendusi.*
 
 ### Mängu liides
 ![Mängu algus](screenshots/game_start.png)
@@ -153,23 +155,28 @@ Probleemide korral:
 - Tähtede lohistamine ja asetamine
 - Reaalajas sõnade valideerimine
 - Preemiumruutude punktisüsteem
-- Kahe mängija tugi
+- 2-4 mängija tugi
 
 ## Projekti struktuur
 
 ```
-scrabble/
 ├── game/                   # Mängu loogika ja oleku haldamine
 │   ├── __init__.py        # Paketi eksport
 │   ├── constants.py       # Mängu konstandid (tähtede jaotus, preemiumruudud)
-│   ├── state.py          # Põhiline mängu oleku haldamine
+│   ├── state.py           # Põhiline mängu oleku haldamine
 │   └── word_validator.py  # Sõnade valideerimise loogika
 ├── ui/                    # Kasutajaliidese komponendid
-│   ├── __init__.py       # Paketi eksport
-│   └── components.py     # UI komponendid (Laud, Täht, Rest)
-├── main.py               # Mängu põhiprogramm
-├── requirements.txt      # Pythoni sõltuvused
-└── README.md            # See fail
+│   ├── __init__.py        # Paketi eksport
+│   ├── components.py      # UI komponendid (Laud, Täht, Rest, Punktinäit)
+│   └── language.py        # Keelehaldur eesti/inglise keele vahetuseks
+├── tests/                 # Ühiktestid
+│   ├── test_game_state.py
+│   └── test_word_validator.py
+├── docs/                  # Lisadokumentatsioon
+├── main.py                # Mängu põhiprogramm
+├── wordlist.py            # Hunspelli sõnastiku integratsioon (spylls)
+├── requirements.txt       # Pythoni sõltuvused
+└── README.md              # Dokumentatsioon
 ```
 
 ## Mängureeglid
@@ -222,47 +229,44 @@ Uute funktsioonide lisamisel:
 > _Märkus: Järgnevad täiendused pakkus välja tehisintellekti agent arenduse käigus. Inimesest arendaja keskendus peamiselt põhilise mängu tööle saamisele! Tundke end vabalt neid funktsioone implementeerida, kui olete huvitatud._
 
 ✅ Implementeeritud:
-- Eesti sõnastiku integratsioon
-- Põhiline punktisüsteem preemiumruutudega
-- Reaalajas sõnade valideerimine
+- Eesti Hunspelli sõnastik morfoloogilise valideerimisega (spylls)
+- Punktisüsteem preemiumruutude ja 50-punktilise bingoboonusega
+- Reaalajas sõnade valideerimine ja punktide eelvaade
+- 2-4 mängija tugi nimede sisestamise ekraaniga
+- Tühjade klotside tugi tähevaliku dialoogiga
+- Käiguvahetuse ekraan mängijate vahel
+- Mängu lõpu ekraan punktide jaotusega
+- Eesti/inglise keelevahetuse nupp
+- Resti ümberjärjestamine lohistamisega
+- Tähtede vahetamine (mänguloogika olemas, UI nupp puudub)
+- Ühiktestid mängu oleku ja sõnade valideerimise jaoks
+- Logimissüsteem
 
-🚀 Tehisintellekti soovide nimekiri:
-1. **Täiustatud sõnade valideerimine**:
-   - Liitsõnade toe lisamine
-   - Sõnade vaidlustamise süsteemi implementeerimine mängijate vahel
-   - Valideeritud sõnade vahemällu salvestamine jõudluse parandamiseks
-
-2. **Mängu funktsioonid**:
+🚀 Ideed edasiseks arenduseks:
+1. **Mängu funktsioonid**:
+   - Tähtede vahetamise UI nupp
    - Mängu oleku salvestamine/laadimine
    - Käikude tagasivõtmine/uuesti tegemine
-   - Mängu taasesituse funktsioon
    - Turniirirežiim ajalimiitidega
    - Statistika jälgimine (kõrgeimad punktid, pikimad sõnad jne)
 
-3. **Mitmikmäng**:
+2. **Mitmikmäng**:
    - Võrgu kaudu mängimise tugi
-   - Eesruum vastaste leidmiseks
-   - Vestlusfunktsioon
    - Mängijate edetabel
 
-4. **Tehisintellekti funktsioonid**:
+3. **Tehisintellekti funktsioonid**:
    - Tehisintellekti vastane reguleeritava raskusastmega
    - Tehisintellekti käigusoovitused õppimiseks
-   - Mängitud mängude analüüs
 
-5. **Tehnilised täiendused**:
-   - Ühiktestide katvus
-   - Jõudluse optimeerimine
-   - Korralik logimissüsteem
-   - Seadistatavad mängureeglid
-   - Platvormideülene pakkimine
-
-6. **Kasutajaliidese täiendused**:
+4. **Kasutajaliidese täiendused**:
    - Animatsioonid tähtede asetamisel
    - Heliefektid
    - Tumeda/heleda teema tugi
-   - Mobiilisõbralik kohanduv disain
    - Ligipääsetavuse funktsioonid
+
+5. **Tehnilised täiendused**:
+   - Seadistatavad mängureeglid
+   - Platvormideülene pakkimine
 
 ## Litsents
 

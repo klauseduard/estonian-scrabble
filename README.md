@@ -4,7 +4,7 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Estonian](https://img.shields.io/badge/language-Estonian-green.svg)](https://en.wikipedia.org/wiki/Estonian_language)
 
-> **Important Note**: This documentation is AI-generated. The entire project, including all documentation files, README guides, and development notes, was created through AI-assisted programming using Cursor IDE's agent mode with Claude-3.5-Sonnet model. The development process was conducted as an experiment in "YOLO mode" where the AI agent was responsible for code generation, documentation writing, and debugging assistance.
+> **Note**: This project was originally bootstrapped using AI-assisted programming (Cursor IDE + Claude). It has since been significantly extended and refined by the developer.
 
 A Python-based implementation of the classic Scrabble board game, specifically designed for the Estonian language. Features include Estonian alphabet support (õ, ä, ö, ü, š, ž), Estonian wordlist validation, and a modern graphical user interface.
 
@@ -71,18 +71,18 @@ Before you begin, ensure you have the following installed:
 
 1. **Starting the Game**
    - Run the game using the command above
+   - Select the number of players (2-4) and enter player names
    - The game window will open with an empty board
-   - Two players take turns
 
 2. **Game Controls**
    - **Mouse Controls:**
      - Left-click and hold to drag tiles from your rack to the board
      - Release left mouse button to place a tile
      - Right-click a tile on the board to return it to your rack
-     - Left-click buttons ("Commit", "Pass", "Exchange") to perform actions
-   - Click "Commit" to end your turn when you're satisfied with your word placement
-   - Click "Pass" to skip your turn
-   - Click "Exchange" to swap tiles (counts as your turn)
+     - Left-click buttons ("Submit Turn", "Pass Turn") to perform actions
+     - Drag tiles within the rack to reorder them
+   - Click "Submit Turn" to end your turn when you're satisfied with your word placement
+   - Click "Pass Turn" to skip your turn
 
 3. **First Move**
    - Must place tiles through the center square
@@ -95,6 +95,8 @@ Before you begin, ensure you have the following installed:
    - Words read left-to-right or top-to-bottom
 
 ## Screenshots
+
+> *Note: Screenshots show an earlier version of the game. The current version includes player count selection (2-4), name entry, turn transitions, and other improvements.*
 
 ### Game Interface
 ![Game Start](screenshots/game_start.png)
@@ -161,23 +163,28 @@ If you encounter any issues:
 - Drag-and-drop tile placement
 - Real-time word validation
 - Premium square scoring system
-- Support for two players
+- Support for 2-4 players
 
 ## Project Structure
 
 ```
-scrabble/
 ├── game/                   # Game logic and state management
 │   ├── __init__.py        # Package exports
 │   ├── constants.py       # Game constants (letter distribution, premium squares)
-│   ├── state.py          # Core game state management
+│   ├── state.py           # Core game state management
 │   └── word_validator.py  # Word validation logic
 ├── ui/                    # User interface components
-│   ├── __init__.py       # Package exports
-│   └── components.py     # UI components (Board, Tile, Rack)
-├── main.py               # Main game entry point
-├── requirements.txt      # Python dependencies
-└── README.md            # This file
+│   ├── __init__.py        # Package exports
+│   ├── components.py      # UI components (Board, Tile, Rack, ScoreDisplay)
+│   └── language.py        # LanguageManager for Estonian/English i18n
+├── tests/                 # Unit tests
+│   ├── test_game_state.py
+│   └── test_word_validator.py
+├── docs/                  # Additional documentation
+├── main.py                # Main game entry point
+├── wordlist.py            # Hunspell dictionary integration (spylls)
+├── requirements.txt       # Python dependencies
+└── README.md              # This file
 ```
 
 ## Game Rules
@@ -250,47 +257,44 @@ When adding new features:
 > _Note: The following improvements were suggested by the AI agent during development. The human developer was mostly focused on getting the basic game working! Feel free to implement any of these if you're interested._
 
 ✅ Implemented:
-- Estonian wordlist integration
-- Basic scoring system with premium squares
-- Real-time word validation
+- Estonian Hunspell dictionary with full morphological validation (via spylls)
+- Scoring with premium squares and 50-point bingo bonus
+- Real-time word validation and score preview
+- 2-4 player support with name entry screen
+- Blank tile support with letter selection dialog
+- Turn transition screen between players
+- Game-over screen with score breakdown
+- Estonian/English language toggle
+- Rack reordering via drag
+- Tile exchange (game logic only, no UI button yet)
+- Unit tests for game state and word validation
+- Logging system
 
-🚀 AI's Wishlist:
-1. **Enhanced Word Validation**:
-   - Add support for compound words
-   - Implement word challenges between players
-   - Cache validated words for performance
-
-2. **Game Features**:
+🚀 Ideas for future development:
+1. **Game Features**:
+   - Tile exchange UI button
    - Save/load game state
    - Undo/redo moves
-   - Game replay functionality
    - Tournament mode with time limits
    - Statistics tracking (highest scores, longest words, etc.)
 
-3. **Multiplayer**:
+2. **Multiplayer**:
    - Network play support
-   - Lobby system for finding opponents
-   - Chat functionality
    - Player rankings
 
-4. **AI Features**:
+3. **AI Features**:
    - AI opponent with adjustable difficulty
    - AI move suggestions for learning
-   - Analysis of played games
 
-5. **Technical Improvements**:
-   - Unit test coverage
-   - Performance optimizations
-   - Proper logging system
-   - Configurable game rules
-   - Cross-platform packaging
-
-6. **UI Enhancements**:
+4. **UI Enhancements**:
    - Animations for tile placement
    - Sound effects
    - Dark/light theme support
-   - Mobile-friendly responsive design
    - Accessibility features
+
+5. **Technical Improvements**:
+   - Configurable game rules
+   - Cross-platform packaging
 
 ## License
 
