@@ -22,7 +22,11 @@ class ScrabbleWebSocket {
       this.#url = url;
     } else {
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      this.#url = `${protocol}//${location.host}/ws`;
+      /* Derive WebSocket path from current page location so it works
+         both at root (/) and behind a reverse proxy subdirectory (/scrabble/). */
+      let basePath = location.pathname.replace(/\/[^/]*$/, "");
+      if (!basePath.endsWith("/")) basePath += "/";
+      this.#url = `${protocol}//${location.host}${basePath}ws`;
     }
   }
 
