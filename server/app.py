@@ -326,8 +326,8 @@ async def _handle_remove_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
     await room.broadcast_game_state()
 
 
-async def _handle_commit_turn(ws: WebSocket, room: Room):
-    """Commit the current turn (submit words)."""
+async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
+    """Shared commit logic for normal and forced commits."""
     game = room.game
     if game is None or game.game_over:
         await _send_error(ws, "Game not active")
@@ -341,19 +341,23 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
     # Capture move details before commit (commit clears current_turn_tiles)
     player_name = game.players[player_index].name
     placed_positions = [{"row": r, "col": c} for r, c in game.current_turn_tiles]
-    score_breakdown = game.calculate_turn_score()
+    if force:
+        score_breakdown = game.force_calculate_turn_score()
+    else:
+        score_breakdown = game.calculate_turn_score()
     words = [{"word": w, "score": s} for w, s in score_breakdown]
     total_score = sum(s for _, s in score_breakdown)
 
     # Save snapshot for potential challenge undo
     room.save_snapshot(player_name)
 
-    success = game.commit_turn()
+    success = game.commit_turn(force=force)
     if not success:
         room.clear_challenge()
         await _send_error(ws, "Invalid placement — cannot commit")
         return
 
+    forced_label = " [sunnitud]" if force else ""
     room.last_move = {
         "action": "word",
         "player_name": player_name,
@@ -361,11 +365,12 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
         "total_score": total_score,
         "tiles": placed_positions,
         "challengeable": True,
+        "forced": force,
     }
 
     # Post move to chat with score breakdown
     word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
-    chat_text = " + ".join(word_parts) + f" = {total_score} p."
+    chat_text = " + ".join(word_parts) + f" = {total_score} p.{forced_label}"
     await room.broadcast({
         "type": "chat",
         "player_name": "Süsteem",
@@ -376,6 +381,16 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
         await room.broadcast_game_over()
     else:
         await room.broadcast_game_state()
+
+
+async def _handle_commit_turn(ws: WebSocket, room: Room):
+    """Commit the current turn if all words are valid."""
+    await _do_commit(ws, room, force=False)
+
+
+async def _handle_force_commit(ws: WebSocket, room: Room):
+    """Force-commit the current turn, bypassing word validation."""
+    await _do_commit(ws, room, force=True)
 
 
 async def _handle_pass_turn(ws: WebSocket, room: Room):
@@ -655,6 +670,9 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif action == "commit_turn":
                 await _handle_commit_turn(ws, room)
+
+            elif action == "force_commit":
+                await _handle_force_commit(ws, room)
 
             elif action == "pass_turn":
                 await _handle_pass_turn(ws, room)

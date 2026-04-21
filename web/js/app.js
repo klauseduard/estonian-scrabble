@@ -75,6 +75,7 @@ const rackContainer = document.getElementById("rack-container");
 const submitBtn = document.getElementById("submit-btn");
 const passBtn = document.getElementById("pass-btn");
 const exchangeBtn = document.getElementById("exchange-btn");
+const forceSubmitBtn = document.getElementById("force-submit-btn");
 const challengeBtn = document.getElementById("challenge-btn");
 const challengePrompt = document.getElementById("challenge-prompt");
 const challengeText = document.getElementById("challenge-text");
@@ -588,6 +589,11 @@ function _renderControls(isMyTurn) {
   exchangeBtn.disabled =
     !isMyTurn || gameState.tiles_remaining < 7 || hasTilesPlaced;
 
+  /* Show "Sunni läbi" when tiles are placed but words are invalid */
+  const showForce = isMyTurn && hasTilesPlaced && !hasValidWords;
+  forceSubmitBtn.classList.toggle("hidden", !showForce);
+  forceSubmitBtn.disabled = !showForce;
+
   /* Show challenge button when the last move is challengeable and it's not my move */
   const lastMove = gameState.last_move;
   const canChallenge = lastMove && lastMove.challengeable &&
@@ -883,6 +889,10 @@ copyCodeBtn.addEventListener("click", () => {
 
 submitBtn.addEventListener("click", () => {
   ws.commitTurn();
+});
+
+forceSubmitBtn.addEventListener("click", () => {
+  ws.forceCommit();
 });
 
 passBtn.addEventListener("click", () => {

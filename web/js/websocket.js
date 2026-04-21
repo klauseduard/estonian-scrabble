@@ -136,6 +136,11 @@ class ScrabbleWebSocket {
     this.send({ action: "commit_turn" });
   }
 
+  /** Force-commit bypassing word validation. */
+  forceCommit() {
+    this.send({ action: "force_commit" });
+  }
+
   passTurn() {
     this.send({ action: "pass_turn" });
   }

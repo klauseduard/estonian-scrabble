@@ -197,9 +197,59 @@ class GameState:
 
         return breakdown
 
-    def commit_turn(self) -> bool:
-        """Commit the current turn if all words are valid."""
-        breakdown = self.calculate_turn_score()
+    def force_calculate_turn_score(self) -> List[Tuple[str, int]]:
+        """Calculate score breakdown ignoring word validity.
+
+        Same as ``calculate_turn_score`` but skips the validity check.
+        Used for forced commits when players agree to override the dictionary.
+        Returns an empty list only if placement rules are structurally broken
+        (no tiles placed, not connected, etc.).
+        """
+        validation = self.word_validator.validate_placement(
+            self.board, self.current_turn_tiles, self.first_move
+        )
+        # Check structural rules but not word validity
+        if not validation.get("center_square", True) and self.first_move:
+            return []
+        if not validation.get("connected", True) and not self.first_move:
+            return []
+        if not validation.get("continuous_line", True):
+            return []
+        if not self.current_turn_tiles:
+            return []
+
+        unique_words = {}
+        for row, col in self.current_turn_tiles:
+            words = self.word_validator.get_word_at_position(self.board, row, col)
+            for word_info in words:
+                _, positions = word_info
+                key = tuple(positions)
+                if key not in unique_words:
+                    unique_words[key] = word_info
+
+        breakdown = []
+        for word_info in unique_words.values():
+            word, _ = word_info
+            score = self._calculate_word_score(word_info)
+            breakdown.append((word.upper(), score))
+
+        if len(self.current_turn_tiles) == 7:
+            breakdown.append(("BINGO", 50))
+
+        return breakdown
+
+    def commit_turn(self, force: bool = False) -> bool:
+        """Commit the current turn.
+
+        Args:
+            force: If True, bypass word validity checks (players agreed
+                   to override the dictionary). Structural placement rules
+                   (connectivity, center square) are still enforced.
+        """
+        if force:
+            breakdown = self.force_calculate_turn_score()
+        else:
+            breakdown = self.calculate_turn_score()
         if not breakdown and self.current_turn_tiles:
             return False
         if not self.current_turn_tiles:
