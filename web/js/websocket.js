@@ -23,8 +23,12 @@ class ScrabbleWebSocket {
     } else {
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
       /* Derive WebSocket path from current page location so it works
-         both at root (/) and behind a reverse proxy subdirectory (/scrabble/). */
-      let basePath = location.pathname.replace(/\/[^/]*$/, "");
+         both at root (/) and behind a reverse proxy subdirectory (/scrabble/).
+         Strip any filename (index.html) but keep the directory path. */
+      let basePath = location.pathname;
+      if (basePath.endsWith(".html")) {
+        basePath = basePath.replace(/\/[^/]*$/, "");
+      }
       if (!basePath.endsWith("/")) basePath += "/";
       this.#url = `${protocol}//${location.host}${basePath}ws`;
     }
