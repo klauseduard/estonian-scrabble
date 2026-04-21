@@ -73,9 +73,15 @@
         <div id="score-preview" class="score-preview"></div>
       </main>
 
-      <!-- Right: game info -->
+      <!-- Right: game info + chat -->
       <aside id="game-info-panel" class="panel game-info-panel">
         <div id="tiles-remaining" class="tiles-remaining"></div>
+        <h3 class="chat-heading">Vestlus</h3>
+        <div id="chat-messages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" class="input chat-input" maxlength="200" placeholder="Kirjuta sõnum..." autocomplete="off">
+          <button id="chat-send" class="btn btn--primary btn--small">Saada</button>
+        </div>
       </aside>
     </div>
 
@@ -86,20 +92,6 @@
         <button id="submit-btn" class="btn btn--primary" disabled>Kinnita käik</button>
         <button id="pass-btn" class="btn btn--danger" disabled>Jäta vahele</button>
         <button id="exchange-btn" class="btn btn--secondary" disabled>Vaheta</button>
-      </div>
-    </div>
-
-    <!-- Chat panel -->
-    <div id="chat-panel" class="chat-panel chat-panel--collapsed">
-      <button id="chat-toggle" class="chat-toggle">
-        Vestlus <span id="chat-badge" class="chat-badge hidden">0</span>
-      </button>
-      <div class="chat-panel__body">
-        <div id="chat-messages" class="chat-messages"></div>
-        <div class="chat-input-row">
-          <input type="text" id="chat-input" class="input chat-input" maxlength="200" placeholder="Kirjuta sõnum..." autocomplete="off">
-          <button id="chat-send" class="btn btn--primary btn--small">Saada</button>
-        </div>
       </div>
     </div>
 

@@ -87,9 +87,6 @@ const playAgainBtn = document.getElementById("play-again-btn");
 const leaveBtn = document.getElementById("leave-btn");
 
 /* Chat elements */
-const chatPanel = document.getElementById("chat-panel");
-const chatToggle = document.getElementById("chat-toggle");
-const chatBadge = document.getElementById("chat-badge");
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSendBtn = document.getElementById("chat-send");
@@ -225,9 +222,6 @@ function _onGameOver(msg) {
   _renderGameOver(msg.scores);
 }
 
-/** @type {number} Unread chat message count. */
-let chatUnreadCount = 0;
-
 function _onChat(msg) {
   const div = document.createElement("div");
   div.className = "chat-message";
@@ -246,13 +240,6 @@ function _onChat(msg) {
 
   /* Auto-scroll to bottom */
   chatMessages.scrollTop = chatMessages.scrollHeight;
-
-  /* Update badge if panel is collapsed */
-  if (chatPanel.classList.contains("chat-panel--collapsed")) {
-    chatUnreadCount++;
-    chatBadge.textContent = String(chatUnreadCount);
-    chatBadge.classList.remove("hidden");
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -777,16 +764,6 @@ roomCodeInput.addEventListener("input", () => {
 
 /* ---- Chat controls ---- */
 
-chatToggle.addEventListener("click", () => {
-  chatPanel.classList.toggle("chat-panel--collapsed");
-  if (!chatPanel.classList.contains("chat-panel--collapsed")) {
-    chatUnreadCount = 0;
-    chatBadge.classList.add("hidden");
-    chatInput.focus();
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-});
-
 function _sendChatMessage() {
   const text = chatInput.value.trim();
   if (!text || !ws) return;
@@ -826,9 +803,6 @@ function _resetClientState() {
   }
 
   /* Reset chat */
-  chatUnreadCount = 0;
-  chatBadge.classList.add("hidden");
-  chatPanel.classList.add("chat-panel--collapsed");
   while (chatMessages.firstChild) {
     chatMessages.removeChild(chatMessages.firstChild);
   }
