@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from game.state import GameState
@@ -20,6 +21,139 @@ async def health_check():
     return {"status": "ok"}
 
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+
+
+@app.get("/stats")
+async def server_stats():
+    """Live server metrics derived from active rooms."""
+    rooms_list = []
+    players_total = 0
+    rooms_waiting = 0
+    rooms_playing = 0
+
+    for room in room_manager.rooms.values():
+        status = "playing" if room.started else "waiting"
+        if room.started:
+            rooms_playing += 1
+        else:
+            rooms_waiting += 1
+        players_total += room.player_count
+        rooms_list.append({
+            "code": room.code,
+            "players": room.player_count,
+            "status": status,
+        })
+
+    return {
+        "rooms_total": len(rooms_list),
+        "rooms_waiting": rooms_waiting,
+        "rooms_playing": rooms_playing,
+        "players_connected": players_total,
+        "rooms": rooms_list,
+    }
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page():
+    """Minimal self-refreshing admin dashboard."""
+    return """<!DOCTYPE html>
+<html lang="et">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Eesti Scrabble — Admin</title>
+<style>
+  body {
+    font-family: "Noto Sans", system-ui, sans-serif;
+    background: #2C3E50; color: #E8E8E8;
+    margin: 0; padding: 24px;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #889; font-size: 13px; margin-bottom: 24px; }
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+  .card {
+    background: #3D5266; border: 1px solid #4A6378;
+    border-radius: 10px; padding: 20px 28px; min-width: 140px;
+    text-align: center;
+  }
+  .card__value { font-size: 36px; font-weight: 700; }
+  .card__label { font-size: 12px; color: #AAB; margin-top: 4px; }
+  .card--gold .card__value { color: #FFD700; }
+  .card--green .card__value { color: #66BB6A; }
+  .card--blue .card__value { color: #4A90D9; }
+  table {
+    width: 100%; max-width: 600px; border-collapse: collapse;
+    background: #3D5266; border-radius: 8px; overflow: hidden;
+  }
+  th { background: #4A6378; text-align: left; padding: 10px 14px; font-size: 13px; }
+  td { padding: 10px 14px; border-top: 1px solid #4A6378; font-size: 14px; }
+  .status-playing { color: #66BB6A; }
+  .status-waiting { color: #FFD700; }
+  .code { font-family: monospace; font-weight: 700; letter-spacing: 3px; }
+  #updated { color: #667; font-size: 11px; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <h1>Eesti Scrabble</h1>
+  <p class="subtitle">Serveri seis &mdash; uuendab iga 10 sekundi tagant</p>
+  <div class="cards">
+    <div class="card card--gold">
+      <div class="card__value" id="v-players">-</div>
+      <div class="card__label">M&auml;ngijaid</div>
+    </div>
+    <div class="card card--green">
+      <div class="card__value" id="v-playing">-</div>
+      <div class="card__label">M&auml;nge k&auml;imas</div>
+    </div>
+    <div class="card card--blue">
+      <div class="card__value" id="v-waiting">-</div>
+      <div class="card__label">Ootavad tube</div>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Toa kood</th><th>M&auml;ngijaid</th><th>Staatus</th></tr></thead>
+    <tbody id="room-rows"><tr><td colspan="3">Laen...</td></tr></tbody>
+  </table>
+  <div id="updated"></div>
+<script>
+function esc(s) { const d = document.createElement("span"); d.textContent = s; return d.innerHTML; }
+async function refresh() {
+  try {
+    const r = await fetch("/stats");
+    const d = await r.json();
+    document.getElementById("v-players").textContent = d.players_connected;
+    document.getElementById("v-playing").textContent = d.rooms_playing;
+    document.getElementById("v-waiting").textContent = d.rooms_waiting;
+    const tbody = document.getElementById("room-rows");
+    while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+    if (d.rooms.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 3; td.style.color = "#667"; td.textContent = "Tube pole";
+      tr.appendChild(td); tbody.appendChild(tr);
+    } else {
+      d.rooms.forEach(function(rm) {
+        const tr = document.createElement("tr");
+        const tdCode = document.createElement("td");
+        tdCode.className = "code"; tdCode.textContent = rm.code;
+        const tdPlayers = document.createElement("td");
+        tdPlayers.textContent = rm.players;
+        const tdStatus = document.createElement("td");
+        tdStatus.className = "status-" + rm.status;
+        tdStatus.textContent = rm.status === "playing" ? "M\\u00e4ngib" : "Ootab";
+        tr.appendChild(tdCode); tr.appendChild(tdPlayers); tr.appendChild(tdStatus);
+        tbody.appendChild(tr);
+      });
+    }
+    document.getElementById("updated").textContent =
+      "Uuendatud: " + new Date().toLocaleTimeString("et-EE");
+  } catch(e) { /* ignore transient errors */ }
+}
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>"""
 
 
 async def _send_error(ws: WebSocket, message: str):
