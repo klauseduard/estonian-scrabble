@@ -249,7 +249,7 @@ export function updateRack(rack) {
   if (exchangeMode) {
     const confirmBtn = document.createElement("button");
     confirmBtn.className = "btn btn--exchange-confirm";
-    confirmBtn.textContent = `Exchange ${exchangeSelection.size} tile${exchangeSelection.size !== 1 ? "s" : ""}`;
+    confirmBtn.textContent = `Vaheta ${exchangeSelection.size} täh${exchangeSelection.size !== 1 ? "te" : "t"}`;
     confirmBtn.disabled = exchangeSelection.size === 0;
     confirmBtn.addEventListener("click", () => {
       if (onExchangeConfirm && exchangeSelection.size > 0) {
@@ -260,7 +260,7 @@ export function updateRack(rack) {
 
     const cancelBtn = document.createElement("button");
     cancelBtn.className = "btn btn--exchange-cancel";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = "Tühista";
     cancelBtn.addEventListener("click", () => {
       setExchangeMode(false);
     });

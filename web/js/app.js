@@ -44,7 +44,7 @@ let prevCurrentPlayerIdx = null;
 /** @type {boolean} Whether the game has started (to suppress initial notification). */
 let gameHasStarted = false;
 
-const DEFAULT_TITLE = "Estonian Scrabble";
+const DEFAULT_TITLE = "Eesti Scrabble";
 
 /* ------------------------------------------------------------------ */
 /*  DOM references                                                     */
@@ -141,7 +141,7 @@ function handleServerMessage(msg) {
       showError(msg.message);
       break;
     case "connection_lost":
-      showError("Connection lost. Please refresh the page.");
+      showError("Ühendus katkes. Palun värskenda lehte.");
       break;
     default:
       console.warn("Unknown message type:", msg.type);
@@ -156,7 +156,7 @@ function _onRoomCreated(msg) {
   roomCode = msg.room_code;
   myPlayerIndex = msg.player_index;
   isHost = true;
-  waitingPlayers = [nameInput.value.trim() || "Player 1"];
+  waitingPlayers = [nameInput.value.trim() || "Mängija 1"];
   _showWaitingRoom();
 }
 
@@ -165,7 +165,7 @@ function _onRoomJoined(msg) {
   myPlayerIndex = msg.player_index;
   isHost = false;
   /* We don't know the full player list yet; add our name */
-  waitingPlayers.push(nameInput.value.trim() || "Player");
+  waitingPlayers.push(nameInput.value.trim() || "Mängija");
   _showWaitingRoom();
 }
 
@@ -217,13 +217,13 @@ function _renderWaitingPlayers() {
     if (i === 0) {
       const badge = document.createElement("span");
       badge.className = "badge";
-      badge.textContent = "host";
+      badge.textContent = "looja";
       li.appendChild(badge);
     }
     if (i === myPlayerIndex) {
       const badge = document.createElement("span");
       badge.className = "badge badge--you";
-      badge.textContent = "you";
+      badge.textContent = "sina";
       li.appendChild(badge);
     }
     waitingPlayerList.appendChild(li);
@@ -279,7 +279,7 @@ function _playTurnSound() {
 /** Update browser tab title based on turn state. */
 function _updateTabTitle(isMyTurn) {
   document.title = isMyTurn
-    ? `Your turn! - ${DEFAULT_TITLE}`
+    ? `Sinu käik! - ${DEFAULT_TITLE}`
     : DEFAULT_TITLE;
 }
 
@@ -292,12 +292,12 @@ function _showLastMoveBanner(lastMove) {
   let text = "";
   if (lastMove.action === "word") {
     const words = (lastMove.words || []).map((w) => w.word.toUpperCase()).join(", ");
-    text = `${lastMove.player_name} played ${words} for ${lastMove.total_score} points`;
+    text = `${lastMove.player_name} mängis ${words} — ${lastMove.total_score} punkti`;
   } else if (lastMove.action === "pass") {
-    text = `${lastMove.player_name} passed`;
+    text = `${lastMove.player_name} jättis käigu vahele`;
   } else if (lastMove.action === "exchange") {
     const n = lastMove.tile_count || 0;
-    text = `${lastMove.player_name} exchanged ${n} tile${n !== 1 ? "s" : ""}`;
+    text = `${lastMove.player_name} vahetas ${n} tähe${n !== 1 ? "d" : ""}`;
   }
 
   if (!text) return;
@@ -403,7 +403,7 @@ function _renderScorePanel() {
   }
 
   const heading = document.createElement("h2");
-  heading.textContent = "Scores";
+  heading.textContent = "Skoor";
   scorePanel.appendChild(heading);
 
   (gameState.players || []).forEach((player, i) => {
@@ -433,13 +433,13 @@ function _renderScorePanel() {
 function _renderGameInfo(isMyTurn) {
   const currentPlayer = gameState.players[gameState.current_player_index];
   if (isMyTurn) {
-    turnIndicator.textContent = "Your turn";
+    turnIndicator.textContent = "Sinu käik";
     turnIndicator.className = "turn-indicator turn-indicator--your-turn";
   } else {
-    turnIndicator.textContent = `Waiting for ${currentPlayer ? currentPlayer.name : "..."}`;
+    turnIndicator.textContent = `Ootab: ${currentPlayer ? currentPlayer.name : "..."}`;
     turnIndicator.className = "turn-indicator turn-indicator--waiting";
   }
-  tilesRemaining.textContent = `Tiles in bag: ${gameState.tiles_remaining}`;
+  tilesRemaining.textContent = `Tähti kotis: ${gameState.tiles_remaining}`;
 }
 
 function _renderControls(isMyTurn) {
@@ -481,7 +481,7 @@ function _renderScorePreview() {
 
   const text = document.createElement("span");
   text.className = "score-preview__text";
-  text.textContent = parts.join(" + ") + ` = ${total} points`;
+  text.textContent = parts.join(" + ") + ` = ${total} punkti`;
   scorePreview.appendChild(text);
 }
 
@@ -498,7 +498,7 @@ function _renderGameOver(scores) {
   }
 
   const heading = document.createElement("h2");
-  heading.textContent = "Game Over";
+  heading.textContent = "Mäng läbi";
   gameOverScores.appendChild(heading);
 
   /* Find winner */
@@ -513,9 +513,9 @@ function _renderGameOver(scores) {
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
   const thName = document.createElement("th");
-  thName.textContent = "Player";
+  thName.textContent = "Mängija";
   const thScore = document.createElement("th");
-  thScore.textContent = "Score";
+  thScore.textContent = "Skoor";
   headerRow.appendChild(thName);
   headerRow.appendChild(thScore);
   thead.appendChild(headerRow);
@@ -636,7 +636,7 @@ function showError(message) {
 createBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   if (!name) {
-    lobbyError.textContent = "Please enter your name.";
+    lobbyError.textContent = "Palun sisesta oma nimi.";
     return;
   }
   lobbyError.textContent = "";
@@ -648,11 +648,11 @@ joinBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   const code = roomCodeInput.value.trim().toUpperCase();
   if (!name) {
-    lobbyError.textContent = "Please enter your name.";
+    lobbyError.textContent = "Palun sisesta oma nimi.";
     return;
   }
   if (!code || code.length !== 4) {
-    lobbyError.textContent = "Please enter a 4-letter room code.";
+    lobbyError.textContent = "Palun sisesta 4-täheline toa kood.";
     return;
   }
   lobbyError.textContent = "";
@@ -667,9 +667,9 @@ startGameBtn.addEventListener("click", () => {
 copyCodeBtn.addEventListener("click", () => {
   if (roomCode) {
     navigator.clipboard.writeText(roomCode).then(() => {
-      copyCodeBtn.textContent = "Copied!";
+      copyCodeBtn.textContent = "Kopeeritud!";
       setTimeout(() => {
-        copyCodeBtn.textContent = "Copy";
+        copyCodeBtn.textContent = "Kopeeri";
       }, 2000);
     });
   }

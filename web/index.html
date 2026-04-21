@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estonian Scrabble</title>
+  <title>Eesti Scrabble</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Noto+Sans:wght@400;600;700&display=swap" rel="stylesheet">
@@ -16,29 +16,29 @@
   <!-- ===== LOBBY VIEW ===== -->
   <div id="lobby-view" class="view lobby">
     <div class="lobby__card">
-      <h1 class="lobby__title">Estonian Scrabble</h1>
-      <p class="lobby__subtitle">Multiplayer word game</p>
+      <h1 class="lobby__title">Eesti Scrabble</h1>
+      <p class="lobby__subtitle">Mitme mängijaga sõnamäng</p>
 
       <div class="lobby__section">
-        <label for="player-name" class="label">Your name</label>
-        <input type="text" id="player-name" class="input" maxlength="20" placeholder="Enter your name" autocomplete="off">
+        <label for="player-name" class="label">Sinu nimi</label>
+        <input type="text" id="player-name" class="input" maxlength="20" placeholder="Sisesta oma nimi" autocomplete="off">
       </div>
 
       <div class="lobby__section">
-        <button id="create-btn" class="btn btn--primary btn--full">Create New Game</button>
+        <button id="create-btn" class="btn btn--primary btn--full">Loo uus mäng</button>
       </div>
 
       <div class="lobby__divider">
-        <span>or join existing</span>
+        <span>või liitu olemasolevaga</span>
       </div>
 
       <div class="lobby__section">
-        <label for="room-code-input" class="label">Room code</label>
+        <label for="room-code-input" class="label">Toa kood</label>
         <input type="text" id="room-code-input" class="input input--code" maxlength="4" placeholder="ABCD" autocomplete="off">
       </div>
 
       <div class="lobby__section">
-        <button id="join-btn" class="btn btn--primary btn--full">Join Game</button>
+        <button id="join-btn" class="btn btn--primary btn--full">Liitu mänguga</button>
       </div>
 
       <p id="lobby-error" class="error-text" aria-live="polite"></p>
@@ -48,15 +48,15 @@
   <!-- ===== WAITING ROOM VIEW ===== -->
   <div id="waiting-view" class="view waiting hidden">
     <div class="waiting__card">
-      <h2>Waiting Room</h2>
+      <h2>Ootesaal</h2>
       <div class="waiting__code-row">
-        <span class="label">Room Code:</span>
+        <span class="label">Toa kood:</span>
         <span id="waiting-room-code" class="waiting__code"></span>
-        <button id="copy-code-btn" class="btn btn--small">Copy</button>
+        <button id="copy-code-btn" class="btn btn--small">Kopeeri</button>
       </div>
-      <h3>Players</h3>
+      <h3>Mängijad</h3>
       <ul id="waiting-player-list" class="waiting__players"></ul>
-      <button id="start-game-btn" class="btn btn--primary btn--full hidden" disabled>Start Game</button>
+      <button id="start-game-btn" class="btn btn--primary btn--full hidden" disabled>Alusta mängu</button>
     </div>
   </div>
 
@@ -83,9 +83,9 @@
     <div class="game__bottom">
       <div id="rack-container" class="rack-container"></div>
       <div class="game__controls">
-        <button id="submit-btn" class="btn btn--primary" disabled>Submit Turn</button>
-        <button id="pass-btn" class="btn btn--danger" disabled>Pass Turn</button>
-        <button id="exchange-btn" class="btn btn--secondary" disabled>Exchange</button>
+        <button id="submit-btn" class="btn btn--primary" disabled>Kinnita käik</button>
+        <button id="pass-btn" class="btn btn--danger" disabled>Jäta vahele</button>
+        <button id="exchange-btn" class="btn btn--secondary" disabled>Vaheta</button>
       </div>
     </div>
 
@@ -98,8 +98,8 @@
     <div class="game-over-overlay__card">
       <div id="game-over-scores"></div>
       <div class="game-over-overlay__actions">
-        <button id="play-again-btn" class="btn btn--primary">Play Again</button>
-        <button id="leave-btn" class="btn btn--danger">Leave</button>
+        <button id="play-again-btn" class="btn btn--primary">Mängi uuesti</button>
+        <button id="leave-btn" class="btn btn--danger">Lahku</button>
       </div>
     </div>
   </div>
