@@ -746,6 +746,72 @@ body {
 
 /* ---- Chat panel ---- */
 
+.info-btn {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 100;
+  transition: border-color 0.15s, color 0.15s;
+}
+.info-btn:hover {
+  border-color: var(--btn-primary);
+  color: var(--btn-primary);
+}
+
+.info-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+.info-modal__card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 460px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: var(--text-light);
+}
+.info-modal__card h2 {
+  margin-bottom: 16px;
+}
+.info-modal__card h3 {
+  font-size: 14px;
+  margin: 16px 0 6px;
+  color: var(--text-gold);
+}
+.info-modal__card ul {
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.info-modal__card p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+.info-modal__card a {
+  color: var(--btn-primary);
+}
+.info-modal__card button {
+  margin-top: 16px;
+}
+
 /* Chat is integrated into .game-info-panel — see styles above */
 
 /* ---- Animations ---- */

@@ -113,6 +113,32 @@
       </div>
     </div>
 
+    <!-- Info button -->
+    <button id="info-btn" class="info-btn" title="Abi / Info">?</button>
+
+    <!-- Info modal -->
+    <div id="info-modal" class="info-modal hidden">
+      <div class="info-modal__card">
+        <h2>Eesti Scrabble</h2>
+        <h3>Kuidas mängida</h3>
+        <ul>
+          <li>Vali täht riiulist ja klõpsa laual, kuhu soovid asetada</li>
+          <li>Arvutis saad tähti ka lohistada</li>
+          <li>Paremklõps eemaldab käigul asetatud tähe</li>
+          <li>Riiulis saad tähti ümber järjestada lohistades</li>
+          <li><strong>Kinnita käik</strong> — esita sõna</li>
+          <li><strong>Sunni läbi</strong> — esita sõna mis ei ole sõnastikus</li>
+          <li><strong>Vaheta</strong> — vaheta tähti kotist (kui kotis on 7+ tähte)</li>
+          <li><strong>Vaidlusta</strong> — vaidlusta vastase viimane käik</li>
+        </ul>
+        <h3>Sõnastik</h3>
+        <p>Kasutame LibreOffice eesti keele Hunspelli sõnastikku. See ei sisalda kõiki sõnu — seetõttu saab kasutada "Sunni läbi" nuppu ja vastased saavad sõna vaidlustada.</p>
+        <h3>Vead ja ettepanekud</h3>
+        <p>Kirjuta: <a href="mailto:klaus.eduard@gmail.com">klaus.eduard@gmail.com</a></p>
+        <button id="info-close" class="btn btn--primary btn--full">Sulge</button>
+      </div>
+    </div>
+
     <!-- Error toast -->
     <div id="error-toast" class="error-toast hidden" aria-live="assertive"></div>
   </div>

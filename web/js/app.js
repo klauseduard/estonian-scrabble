@@ -94,6 +94,9 @@ const errorToast = document.getElementById("error-toast");
 
 /* Game over elements */
 const gameOverScores = document.getElementById("game-over-scores");
+const infoBtn = document.getElementById("info-btn");
+const infoModal = document.getElementById("info-modal");
+const infoClose = document.getElementById("info-close");
 const playAgainBtn = document.getElementById("play-again-btn");
 const leaveBtn = document.getElementById("leave-btn");
 
@@ -972,6 +975,17 @@ leaveBtn.addEventListener("click", () => {
   showView(lobbyView);
   if (ws) ws.close();
   _resetClientState();
+});
+
+/* Info / Help modal */
+infoBtn.addEventListener("click", () => {
+  infoModal.classList.remove("hidden");
+});
+infoClose.addEventListener("click", () => {
+  infoModal.classList.add("hidden");
+});
+infoModal.addEventListener("click", (e) => {
+  if (e.target === infoModal) infoModal.classList.add("hidden");
 });
 
 /* Force uppercase on room code input */
