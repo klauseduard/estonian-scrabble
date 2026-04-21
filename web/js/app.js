@@ -74,6 +74,11 @@ const rackContainer = document.getElementById("rack-container");
 const submitBtn = document.getElementById("submit-btn");
 const passBtn = document.getElementById("pass-btn");
 const exchangeBtn = document.getElementById("exchange-btn");
+const challengeBtn = document.getElementById("challenge-btn");
+const challengePrompt = document.getElementById("challenge-prompt");
+const challengeText = document.getElementById("challenge-text");
+const challengeAcceptBtn = document.getElementById("challenge-accept-btn");
+const challengeRefuseBtn = document.getElementById("challenge-refuse-btn");
 const scorePanel = document.getElementById("score-panel");
 const gameInfoPanel = document.getElementById("game-info-panel");
 const turnIndicator = document.getElementById("turn-indicator");
@@ -158,6 +163,12 @@ function handleServerMessage(msg) {
     case "chat":
       _onChat(msg);
       break;
+    case "challenge":
+      _onChallenge(msg);
+      break;
+    case "challenge_resolved":
+      _onChallengeResolved(msg);
+      break;
     case "error":
       showError(msg.message);
       break;
@@ -238,6 +249,48 @@ function _onGameState(msg) {
 
 function _onGameOver(msg) {
   _renderGameOver(msg.scores);
+}
+
+function _onChallenge(msg) {
+  const myName = _getMyName();
+  if (myName === msg.challenged) {
+    /* I'm being challenged — show accept/refuse prompt */
+    challengeText.textContent = `${msg.challenger} vaidlustab sinu käigu. Kas võtad tagasi?`;
+    challengePrompt.classList.remove("hidden");
+  } else {
+    /* Someone else is challenging — just show notification */
+    _showLastMoveBanner({
+      action: "challenge_pending",
+      player_name: msg.challenger,
+      challenged: msg.challenged,
+    });
+  }
+}
+
+function _onChallengeResolved(msg) {
+  challengePrompt.classList.add("hidden");
+  if (msg.result === "accepted") {
+    _showLastMoveBanner({
+      action: "challenge_accepted",
+      player_name: msg.challenged,
+      challenger: msg.challenger,
+    });
+    _playTurnSound();
+  } else {
+    _showLastMoveBanner({
+      action: "challenge_refused",
+      player_name: msg.challenged,
+      challenger: msg.challenger,
+    });
+  }
+}
+
+/** Get the current player's name. */
+function _getMyName() {
+  if (gameState && gameState.players && myPlayerIndex !== null) {
+    return gameState.players[myPlayerIndex]?.name;
+  }
+  return null;
 }
 
 function _onChat(msg) {
@@ -372,6 +425,12 @@ function _showLastMoveBanner(lastMove) {
     text = `${lastMove.player_name} katkestas ühenduse`;
   } else if (lastMove.action === "reconnected_other") {
     text = `${lastMove.player_name} ühines uuesti`;
+  } else if (lastMove.action === "challenge_pending") {
+    text = `${lastMove.player_name} vaidlustab mängija ${lastMove.challenged} käigu`;
+  } else if (lastMove.action === "challenge_accepted") {
+    text = `${lastMove.player_name} võttis käigu tagasi`;
+  } else if (lastMove.action === "challenge_refused") {
+    text = `${lastMove.player_name} keeldus käiku tagasi võtmast`;
   }
 
   if (!text) return;
@@ -527,6 +586,13 @@ function _renderControls(isMyTurn) {
   passBtn.disabled = !isMyTurn;
   exchangeBtn.disabled =
     !isMyTurn || gameState.tiles_remaining < 7 || hasTilesPlaced;
+
+  /* Show challenge button when the last move is challengeable and it's not my move */
+  const lastMove = gameState.last_move;
+  const canChallenge = lastMove && lastMove.challengeable &&
+    lastMove.player_name !== _getMyName();
+  challengeBtn.classList.toggle("hidden", !canChallenge);
+  challengeBtn.disabled = !canChallenge;
 
   /* Disable board interaction when not our turn */
   const board = document.querySelector(".board");
@@ -825,6 +891,20 @@ exchangeBtn.addEventListener("click", () => {
   } else {
     setExchangeMode(true);
   }
+});
+
+challengeBtn.addEventListener("click", () => {
+  ws.challenge();
+});
+
+challengeAcceptBtn.addEventListener("click", () => {
+  ws.challengeAccept();
+  challengePrompt.classList.add("hidden");
+});
+
+challengeRefuseBtn.addEventListener("click", () => {
+  ws.challengeRefuse();
+  challengePrompt.classList.add("hidden");
 });
 
 playAgainBtn.addEventListener("click", () => {

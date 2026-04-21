@@ -1,5 +1,6 @@
 """Room management for multiplayer Scrabble over WebSockets."""
 
+import copy
 import random
 import string
 from typing import Any, Dict, List, Optional
@@ -30,6 +31,10 @@ class Room:
         self.game: Optional[GameState] = None
         self.started: bool = False
         self.last_move: Optional[Dict[str, Any]] = None
+        # Challenge support: snapshot of game state before last commit
+        self._pre_commit_snapshot: Optional[GameState] = None
+        self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged
+        self._challenge_pending: Optional[Dict[str, Any]] = None  # active challenge info
 
     @property
     def player_count(self) -> int:
@@ -88,6 +93,29 @@ class Room:
             ws = player["ws"]
             if ws is not None and ws is not exclude:
                 await ws.send_json(message)
+
+    def save_snapshot(self, player_name: str):
+        """Save a deep copy of the game state before a commit, for challenge undo."""
+        if self.game is not None:
+            self._pre_commit_snapshot = copy.deepcopy(self.game)
+            self._challengeable_player = player_name
+            self._challenge_pending = None
+
+    def restore_snapshot(self) -> bool:
+        """Restore game state from the pre-commit snapshot. Returns True on success."""
+        if self._pre_commit_snapshot is None:
+            return False
+        self.game = self._pre_commit_snapshot
+        self._pre_commit_snapshot = None
+        self._challengeable_player = None
+        self._challenge_pending = None
+        return True
+
+    def clear_challenge(self):
+        """Clear challenge state (e.g. when the next move is made)."""
+        self._pre_commit_snapshot = None
+        self._challengeable_player = None
+        self._challenge_pending = None
 
     async def broadcast_game_state(self):
         """Send each player a personalised game-state snapshot (own rack only)."""

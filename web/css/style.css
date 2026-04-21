@@ -609,6 +609,45 @@ body {
   font-weight: 700;
 }
 
+.btn--warning {
+  background: #D4A017;
+  color: var(--text-dark);
+}
+.btn--warning:hover:not(:disabled) {
+  background: #E0B030;
+}
+
+.challenge-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.challenge-prompt__card {
+  background: var(--panel-bg);
+  border: 2px solid #D4A017;
+  border-radius: 12px;
+  padding: 24px 32px;
+  text-align: center;
+  max-width: 400px;
+}
+
+.challenge-prompt__card p {
+  font-size: 16px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.challenge-prompt__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
 .game-over-note {
   font-size: 12px;
   color: #AAB;

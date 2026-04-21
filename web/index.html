@@ -92,6 +92,18 @@
         <button id="submit-btn" class="btn btn--primary" disabled>Kinnita käik</button>
         <button id="pass-btn" class="btn btn--danger" disabled>Jäta vahele</button>
         <button id="exchange-btn" class="btn btn--secondary" disabled>Vaheta</button>
+        <button id="challenge-btn" class="btn btn--warning hidden" disabled>Vaidlusta</button>
+      </div>
+    </div>
+
+    <!-- Challenge prompt (shown to challenged player) -->
+    <div id="challenge-prompt" class="challenge-prompt hidden">
+      <div class="challenge-prompt__card">
+        <p id="challenge-text"></p>
+        <div class="challenge-prompt__actions">
+          <button id="challenge-accept-btn" class="btn btn--danger">Võta tagasi</button>
+          <button id="challenge-refuse-btn" class="btn btn--primary">Keeldu</button>
+        </div>
       </div>
     </div>
 

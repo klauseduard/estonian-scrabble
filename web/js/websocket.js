@@ -163,6 +163,21 @@ class ScrabbleWebSocket {
   sendChat(text) {
     this.send({ action: "chat", text });
   }
+
+  /** Challenge the last committed word. */
+  challenge() {
+    this.send({ action: "challenge" });
+  }
+
+  /** Accept a challenge (undo your last move). */
+  challengeAccept() {
+    this.send({ action: "challenge_accept" });
+  }
+
+  /** Refuse a challenge (keep your move). */
+  challengeRefuse() {
+    this.send({ action: "challenge_refuse" });
+  }
 }
 
 export default ScrabbleWebSocket;

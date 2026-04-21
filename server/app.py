@@ -287,6 +287,8 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Missing row, col, or tile_idx")
         return
 
+    room.clear_challenge()  # Next player is acting, challenge window closed
+
     designated_letter = data.get("designated_letter")
     success = game.place_tile(row, col, tile_idx, designated_letter=designated_letter)
     if not success:
@@ -343,8 +345,12 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
     words = [{"word": w, "score": s} for w, s in score_breakdown]
     total_score = sum(s for _, s in score_breakdown)
 
+    # Save snapshot for potential challenge undo
+    room.save_snapshot(player_name)
+
     success = game.commit_turn()
     if not success:
+        room.clear_challenge()
         await _send_error(ws, "Invalid placement — cannot commit")
         return
 
@@ -354,6 +360,7 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
         "words": words,
         "total_score": total_score,
         "tiles": placed_positions,
+        "challengeable": True,
     }
 
     if game.game_over:
@@ -375,6 +382,7 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         return
 
     player_name = game.players[player_index].name
+    room.clear_challenge()
     game.next_player()
 
     room.last_move = {
@@ -407,6 +415,7 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
 
     player_name = game.players[player_index].name
     count = len(tile_indices)
+    room.clear_challenge()
 
     success = game.exchange_tiles(tile_indices)
     if not success:
@@ -479,6 +488,110 @@ async def _handle_chat(ws: WebSocket, room: Room, data: Dict[str, Any]):
     })
 
 
+async def _handle_challenge(ws: WebSocket, room: Room):
+    """A player challenges the last committed word. Asks the challenged player to undo."""
+    game = room.game
+    if game is None or game.game_over:
+        await _send_error(ws, "Game not active")
+        return
+
+    if room._challengeable_player is None or room._pre_commit_snapshot is None:
+        await _send_error(ws, "Nothing to challenge")
+        return
+
+    challenger_index = room.get_player_index(ws)
+    challenger_name = room.players[challenger_index]["name"]
+
+    # Can't challenge your own move
+    if challenger_name == room._challengeable_player:
+        await _send_error(ws, "You cannot challenge your own move")
+        return
+
+    # Already a pending challenge
+    if room._challenge_pending is not None:
+        await _send_error(ws, "A challenge is already pending")
+        return
+
+    room._challenge_pending = {
+        "challenger": challenger_name,
+        "challenged": room._challengeable_player,
+    }
+
+    await room.broadcast({
+        "type": "challenge",
+        "challenger": challenger_name,
+        "challenged": room._challengeable_player,
+    })
+
+
+async def _handle_challenge_accept(ws: WebSocket, room: Room):
+    """The challenged player accepts — undo their last move."""
+    if room._challenge_pending is None:
+        await _send_error(ws, "No pending challenge")
+        return
+
+    player_index = room.get_player_index(ws)
+    player_name = room.players[player_index]["name"]
+
+    if player_name != room._challenge_pending["challenged"]:
+        await _send_error(ws, "Only the challenged player can accept")
+        return
+
+    challenger = room._challenge_pending["challenger"]
+    challenged = room._challenge_pending["challenged"]
+
+    if not room.restore_snapshot():
+        await _send_error(ws, "Cannot undo — no snapshot available")
+        return
+
+    room.last_move = {
+        "action": "challenge_accepted",
+        "challenger": challenger,
+        "challenged": challenged,
+    }
+
+    await room.broadcast({
+        "type": "challenge_resolved",
+        "result": "accepted",
+        "challenger": challenger,
+        "challenged": challenged,
+    })
+    await room.broadcast_game_state()
+
+
+async def _handle_challenge_refuse(ws: WebSocket, room: Room):
+    """The challenged player refuses — game continues as-is."""
+    if room._challenge_pending is None:
+        await _send_error(ws, "No pending challenge")
+        return
+
+    player_index = room.get_player_index(ws)
+    player_name = room.players[player_index]["name"]
+
+    if player_name != room._challenge_pending["challenged"]:
+        await _send_error(ws, "Only the challenged player can refuse")
+        return
+
+    challenger = room._challenge_pending["challenger"]
+    challenged = room._challenge_pending["challenged"]
+
+    room.clear_challenge()
+
+    room.last_move = {
+        "action": "challenge_refused",
+        "challenger": challenger,
+        "challenged": challenged,
+    }
+
+    await room.broadcast({
+        "type": "challenge_resolved",
+        "result": "refused",
+        "challenger": challenger,
+        "challenged": challenged,
+    })
+    await room.broadcast_game_state()
+
+
 # ---- WebSocket endpoint ----
 
 @app.websocket("/ws")
@@ -524,6 +637,15 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif action == "chat":
                 await _handle_chat(ws, room, data)
+
+            elif action == "challenge":
+                await _handle_challenge(ws, room)
+
+            elif action == "challenge_accept":
+                await _handle_challenge_accept(ws, room)
+
+            elif action == "challenge_refuse":
+                await _handle_challenge_refuse(ws, room)
 
             else:
                 await _send_error(ws, f"Unknown action: {action}")
