@@ -167,7 +167,7 @@ function _onRoomCreated(msg) {
   roomCode = msg.room_code;
   myPlayerIndex = msg.player_index;
   isHost = true;
-  waitingPlayers = [nameInput.value.trim() || "Mängija 1"];
+  waitingPlayers = msg.players || [nameInput.value.trim() || "Mängija 1"];
   _showWaitingRoom();
 }
 
@@ -175,8 +175,7 @@ function _onRoomJoined(msg) {
   roomCode = msg.room_code;
   myPlayerIndex = msg.player_index;
   isHost = false;
-  /* We don't know the full player list yet; add our name */
-  waitingPlayers.push(nameInput.value.trim() || "Mängija");
+  waitingPlayers = msg.players || [nameInput.value.trim() || "Mängija"];
   _showWaitingRoom();
 }
 

@@ -170,6 +170,7 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Room:
         "type": "room_created",
         "room_code": room.code,
         "player_index": player_index,
+        "players": [p["name"] for p in room.players],
     })
     return room
 
@@ -197,6 +198,7 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
         "type": "room_joined",
         "room_code": room.code,
         "player_index": player_index,
+        "players": [p["name"] for p in room.players],
     })
     await room.broadcast(
         {
