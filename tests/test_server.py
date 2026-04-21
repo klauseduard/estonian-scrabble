@@ -233,8 +233,9 @@ class TestWebSocketFlow(unittest.TestCase):
         msg = ws.send_json.call_args[0][0]
         self.assertEqual(msg["type"], "error")
 
+    @patch("server.app.random.shuffle")
     @patch("server.app.GameState")
-    def test_start_game_creates_game_state(self, MockGS):
+    def test_start_game_creates_game_state(self, MockGS, _mock_shuffle):
         """Starting a game with 2 players should create a GameState."""
         mock_game = MagicMock()
         mock_game.game_over = False
@@ -273,7 +274,8 @@ class TestWebSocketFlow(unittest.TestCase):
         room = self._run(self.create_room(ws1, {"player_name": "Alice"}))
         self._run(self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
 
-        with patch("server.app.GameState") as MockGS:
+        with patch("server.app.GameState") as MockGS, \
+             patch("server.app.random.shuffle"):
             mock_game = MagicMock()
             mock_game.game_over = False
             mock_game.current_player_idx = 0
@@ -298,7 +300,8 @@ class TestWebSocketFlow(unittest.TestCase):
         room = self._run(self.create_room(ws1, {"player_name": "Alice"}))
         self._run(self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
 
-        with patch("server.app.GameState") as MockGS:
+        with patch("server.app.GameState") as MockGS, \
+             patch("server.app.random.shuffle"):
             mock_game = MagicMock()
             mock_game.game_over = False
             mock_game.current_player_idx = 0

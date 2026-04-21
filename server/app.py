@@ -1,5 +1,6 @@
 """FastAPI application with WebSocket endpoint for multiplayer Estonian Scrabble."""
 
+import random
 from pathlib import Path
 from typing import Any, Dict
 
@@ -221,12 +222,20 @@ async def _handle_start_game(ws: WebSocket, room: Room):
         await _send_error(ws, "Need at least 2 players to start")
         return
 
+    # Randomize player order
+    random.shuffle(room.players)
+
     room.game = GameState(num_players=room.player_count)
     # Overwrite default player names with the ones chosen in the lobby
     for i, player_info in enumerate(room.players):
         room.game.players[i].name = player_info["name"]
 
     room.started = True
+    first_player_name = room.game.players[0].name
+    await room.broadcast({
+        "type": "game_started",
+        "first_player": first_player_name,
+    })
     await room.broadcast_game_state()
 
 

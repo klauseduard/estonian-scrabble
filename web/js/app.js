@@ -139,6 +139,9 @@ function handleServerMessage(msg) {
     case "player_left":
       _onPlayerLeft(msg);
       break;
+    case "game_started":
+      _onGameStarted(msg);
+      break;
     case "game_state":
       _onGameState(msg);
       break;
@@ -192,8 +195,21 @@ function _onPlayerLeft(msg) {
   _renderWaitingPlayers();
 }
 
+function _onGameStarted(msg) {
+  const name = msg.first_player || "?";
+  _showLastMoveBanner({
+    action: "started",
+    player_name: name,
+  });
+  _playTurnSound();
+}
+
 function _onGameState(msg) {
   gameState = msg;
+  /* Update player index — may change after shuffle at game start */
+  if (msg.your_player_index !== undefined) {
+    myPlayerIndex = msg.your_player_index;
+  }
   if (gameView.classList.contains("hidden")) {
     showView(gameView);
   }
@@ -338,6 +354,8 @@ function _showLastMoveBanner(lastMove) {
   } else if (lastMove.action === "exchange") {
     const n = lastMove.tile_count || 0;
     text = `${lastMove.player_name} vahetas ${n} tähe${n !== 1 ? "d" : ""}`;
+  } else if (lastMove.action === "started") {
+    text = `Mäng algas! ${lastMove.player_name} alustab.`;
   }
 
   if (!text) return;

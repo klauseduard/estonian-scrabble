@@ -63,6 +63,7 @@ class Room:
             return
         for i, player in enumerate(self.players):
             state = serialize_game_state(self.game, i, last_move=self.last_move)
+            state["your_player_index"] = i
             await player["ws"].send_json(state)
 
     async def broadcast_game_over(self):
