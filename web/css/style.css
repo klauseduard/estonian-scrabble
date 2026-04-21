@@ -472,6 +472,19 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
+.last-move-toast {
+  background: var(--panel-bg);
+  border: 1px solid #E8A030;
+  color: var(--text-light);
+  bottom: 120px;
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 /* ---- Game over overlay ---- */
 
 .game-over-overlay {

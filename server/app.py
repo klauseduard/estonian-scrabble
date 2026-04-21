@@ -163,10 +163,25 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
         await _send_error(ws, "Not your turn")
         return
 
+    # Capture move details before commit (commit clears current_turn_tiles)
+    player_name = game.players[player_index].name
+    placed_positions = [{"row": r, "col": c} for r, c in game.current_turn_tiles]
+    score_breakdown = game.calculate_turn_score()
+    words = [{"word": w, "score": s} for w, s in score_breakdown]
+    total_score = sum(s for _, s in score_breakdown)
+
     success = game.commit_turn()
     if not success:
         await _send_error(ws, "Invalid placement — cannot commit")
         return
+
+    room.last_move = {
+        "action": "word",
+        "player_name": player_name,
+        "words": words,
+        "total_score": total_score,
+        "tiles": placed_positions,
+    }
 
     if game.game_over:
         await room.broadcast_game_over()
@@ -186,7 +201,13 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         await _send_error(ws, "Not your turn")
         return
 
+    player_name = game.players[player_index].name
     game.next_player()
+
+    room.last_move = {
+        "action": "pass",
+        "player_name": player_name,
+    }
 
     if game.game_over:
         await room.broadcast_game_over()
@@ -211,10 +232,19 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         await _send_error(ws, "Missing tile_indices")
         return
 
+    player_name = game.players[player_index].name
+    count = len(tile_indices)
+
     success = game.exchange_tiles(tile_indices)
     if not success:
         await _send_error(ws, "Cannot exchange tiles")
         return
+
+    room.last_move = {
+        "action": "exchange",
+        "player_name": player_name,
+        "tile_count": count,
+    }
 
     await room.broadcast_game_state()
 

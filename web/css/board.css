@@ -124,6 +124,17 @@
   border-width: 2px;
 }
 
+.board-tile--last-move {
+  border-color: #E8A030;
+  border-width: 2px;
+  animation: lastMoveGlow 2s ease-out;
+}
+
+@keyframes lastMoveGlow {
+  0% { box-shadow: 0 0 8px 3px rgba(232, 160, 48, 0.7); }
+  100% { box-shadow: none; }
+}
+
 .board-tile__letter {
   font-size: 20px;
   font-weight: 700;

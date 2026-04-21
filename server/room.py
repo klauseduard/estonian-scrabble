@@ -24,6 +24,7 @@ class Room:
         self.players: List[Dict[str, Any]] = []  # {"name": str, "ws": WebSocket}
         self.game: Optional[GameState] = None
         self.started: bool = False
+        self.last_move: Optional[Dict[str, Any]] = None
 
     @property
     def player_count(self) -> int:
@@ -61,7 +62,7 @@ class Room:
         if self.game is None:
             return
         for i, player in enumerate(self.players):
-            state = serialize_game_state(self.game, i)
+            state = serialize_game_state(self.game, i, last_move=self.last_move)
             await player["ws"].send_json(state)
 
     async def broadcast_game_over(self):

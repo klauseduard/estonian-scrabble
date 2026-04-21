@@ -38,7 +38,11 @@ def serialize_players(game: GameState) -> List[Dict[str, Any]]:
     ]
 
 
-def serialize_game_state(game: GameState, player_index: int) -> Dict[str, Any]:
+def serialize_game_state(
+    game: GameState,
+    player_index: int,
+    last_move: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Build the full game-state payload for a specific player.
 
     Only the requesting player's rack is included (hidden information).
@@ -51,6 +55,9 @@ def serialize_game_state(game: GameState, player_index: int) -> Dict[str, Any]:
         "tiles_remaining": len(game.tile_bag),
         "game_over": game.game_over,
     }
+
+    if last_move is not None:
+        data["last_move"] = last_move
 
     # Only send the player's own rack
     if 0 <= player_index < len(game.players):

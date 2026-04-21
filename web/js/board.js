@@ -105,6 +105,10 @@ export function updateBoard(state) {
     state.currentTurnTiles.map((t) => `${t.row},${t.col}`)
   );
 
+  const lastMoveTileSet = new Set(
+    (state.lastMoveTiles || []).map((t) => `${t.row},${t.col}`)
+  );
+
   const cells = boardEl.querySelectorAll(".cell");
   cells.forEach((cell) => {
     const row = parseInt(cell.dataset.row, 10);
@@ -128,6 +132,9 @@ export function updateBoard(state) {
       tile.className = "board-tile";
       if (turnTileSet.has(key)) {
         tile.classList.add("board-tile--current-turn");
+      }
+      if (lastMoveTileSet.has(key)) {
+        tile.classList.add("board-tile--last-move");
       }
 
       const letterSpan = document.createElement("span");

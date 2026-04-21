@@ -38,6 +38,14 @@ let gameState = null;
 /** @type {string[]} Player names in the waiting room. */
 let waitingPlayers = [];
 
+/** @type {number|null} Previous current_player_index — used to detect turn changes. */
+let prevCurrentPlayerIdx = null;
+
+/** @type {boolean} Whether the game has started (to suppress initial notification). */
+let gameHasStarted = false;
+
+const DEFAULT_TITLE = "Estonian Scrabble";
+
 /* ------------------------------------------------------------------ */
 /*  DOM references                                                     */
 /* ------------------------------------------------------------------ */
@@ -231,6 +239,115 @@ function _renderWaitingPlayers() {
 /*  Game rendering                                                     */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Turn notifications                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Play a short notification tone using the Web Audio API.
+ * No external audio files needed.
+ */
+function _playTurnSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587, ctx.currentTime);       // D5
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+    // Second tone for a pleasant chime
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+    gain2.gain.setValueAtTime(0.12, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 0.55);
+  } catch {
+    /* Audio not available — ignore silently */
+  }
+}
+
+/** Update browser tab title based on turn state. */
+function _updateTabTitle(isMyTurn) {
+  document.title = isMyTurn
+    ? `Your turn! - ${DEFAULT_TITLE}`
+    : DEFAULT_TITLE;
+}
+
+/**
+ * Show a last-move banner above the board.
+ * @param {object} lastMove - from server
+ */
+function _showLastMoveBanner(lastMove) {
+  if (!lastMove) return;
+  let text = "";
+  if (lastMove.action === "word") {
+    const words = (lastMove.words || []).map((w) => w.word.toUpperCase()).join(", ");
+    text = `${lastMove.player_name} played ${words} for ${lastMove.total_score} points`;
+  } else if (lastMove.action === "pass") {
+    text = `${lastMove.player_name} passed`;
+  } else if (lastMove.action === "exchange") {
+    const n = lastMove.tile_count || 0;
+    text = `${lastMove.player_name} exchanged ${n} tile${n !== 1 ? "s" : ""}`;
+  }
+
+  if (!text) return;
+
+  /* Reuse the error-toast element for general notifications */
+  const toast = document.getElementById("error-toast");
+  toast.textContent = text;
+  toast.className = "error-toast last-move-toast";
+  toast.classList.remove("hidden");
+
+  setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 4000);
+}
+
+/**
+ * Check for turn changes and fire notifications.
+ * @param {boolean} isMyTurn
+ */
+function _handleTurnChange(isMyTurn) {
+  const currentIdx = gameState.current_player_index;
+
+  if (!gameHasStarted) {
+    /* First state after game start — don't notify */
+    gameHasStarted = true;
+    prevCurrentPlayerIdx = currentIdx;
+    _updateTabTitle(isMyTurn);
+    return;
+  }
+
+  const turnChanged = prevCurrentPlayerIdx !== null && prevCurrentPlayerIdx !== currentIdx;
+  prevCurrentPlayerIdx = currentIdx;
+
+  if (turnChanged) {
+    /* Show what the last player did */
+    if (gameState.last_move) {
+      _showLastMoveBanner(gameState.last_move);
+    }
+
+    /* Notify if it's now our turn */
+    if (isMyTurn) {
+      _playTurnSound();
+    }
+  }
+
+  _updateTabTitle(isMyTurn);
+}
+
+/* ------------------------------------------------------------------ */
+
 let boardInitialized = false;
 let rackInitialized = false;
 
@@ -255,9 +372,19 @@ function _renderGame() {
 
   const isMyTurn = gameState.current_player_index === myPlayerIndex;
 
+  /* Detect turn changes and fire notifications */
+  _handleTurnChange(isMyTurn);
+
+  /* Extract last move tile positions for board highlighting */
+  const lastMoveTiles =
+    gameState.last_move && gameState.last_move.tiles
+      ? gameState.last_move.tiles
+      : [];
+
   updateBoard({
     board: gameState.board,
     currentTurnTiles: gameState.current_turn_tiles || [],
+    lastMoveTiles,
     isMyTurn,
   });
 
@@ -592,6 +719,9 @@ function _resetClientState() {
   boardInitialized = false;
   rackInitialized = false;
   resetRackOrder();
+  prevCurrentPlayerIdx = null;
+  gameHasStarted = false;
+  document.title = DEFAULT_TITLE;
   ws = null;
 
   /* Clear board and rack containers */
