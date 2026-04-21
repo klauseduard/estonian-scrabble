@@ -121,7 +121,7 @@ async def admin_page():
 function esc(s) { const d = document.createElement("span"); d.textContent = s; return d.innerHTML; }
 async function refresh() {
   try {
-    const r = await fetch("/stats");
+    const r = await fetch("stats");
     const d = await r.json();
     document.getElementById("v-players").textContent = d.players_connected;
     document.getElementById("v-playing").textContent = d.rooms_playing;
