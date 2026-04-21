@@ -42,3 +42,4 @@ estonian_words.txt  # Legacy word list
 dict/               # Downloaded Hunspell dictionary files
 crash-course/       # Python crash course HTML files
 .claude/            # Claude Code working files
+deploy/             # Deployment notes and credentials
