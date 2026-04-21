@@ -86,6 +86,14 @@ const gameOverScores = document.getElementById("game-over-scores");
 const playAgainBtn = document.getElementById("play-again-btn");
 const leaveBtn = document.getElementById("leave-btn");
 
+/* Chat elements */
+const chatPanel = document.getElementById("chat-panel");
+const chatToggle = document.getElementById("chat-toggle");
+const chatBadge = document.getElementById("chat-badge");
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const chatSendBtn = document.getElementById("chat-send");
+
 /* ------------------------------------------------------------------ */
 /*  View routing                                                       */
 /* ------------------------------------------------------------------ */
@@ -136,6 +144,9 @@ function handleServerMessage(msg) {
       break;
     case "game_over":
       _onGameOver(msg);
+      break;
+    case "chat":
+      _onChat(msg);
       break;
     case "error":
       showError(msg.message);
@@ -192,6 +203,36 @@ function _onGameState(msg) {
 
 function _onGameOver(msg) {
   _renderGameOver(msg.scores);
+}
+
+/** @type {number} Unread chat message count. */
+let chatUnreadCount = 0;
+
+function _onChat(msg) {
+  const div = document.createElement("div");
+  div.className = "chat-message";
+
+  const nameSpan = document.createElement("span");
+  nameSpan.className = "chat-message__name";
+  nameSpan.textContent = msg.player_name;
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "chat-message__text";
+  textSpan.textContent = msg.text;
+
+  div.appendChild(nameSpan);
+  div.appendChild(textSpan);
+  chatMessages.appendChild(div);
+
+  /* Auto-scroll to bottom */
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  /* Update badge if panel is collapsed */
+  if (chatPanel.classList.contains("chat-panel--collapsed")) {
+    chatUnreadCount++;
+    chatBadge.textContent = String(chatUnreadCount);
+    chatBadge.classList.remove("hidden");
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -710,6 +751,34 @@ roomCodeInput.addEventListener("input", () => {
   roomCodeInput.value = roomCodeInput.value.toUpperCase().replace(/[^A-Z]/g, "");
 });
 
+/* ---- Chat controls ---- */
+
+chatToggle.addEventListener("click", () => {
+  chatPanel.classList.toggle("chat-panel--collapsed");
+  if (!chatPanel.classList.contains("chat-panel--collapsed")) {
+    chatUnreadCount = 0;
+    chatBadge.classList.add("hidden");
+    chatInput.focus();
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+});
+
+function _sendChatMessage() {
+  const text = chatInput.value.trim();
+  if (!text || !ws) return;
+  ws.sendChat(text);
+  chatInput.value = "";
+}
+
+chatSendBtn.addEventListener("click", _sendChatMessage);
+
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    _sendChatMessage();
+  }
+});
+
 function _resetClientState() {
   myPlayerIndex = null;
   roomCode = null;
@@ -730,6 +799,14 @@ function _resetClientState() {
   }
   while (rackContainer.firstChild) {
     rackContainer.removeChild(rackContainer.firstChild);
+  }
+
+  /* Reset chat */
+  chatUnreadCount = 0;
+  chatBadge.classList.add("hidden");
+  chatPanel.classList.add("chat-panel--collapsed");
+  while (chatMessages.firstChild) {
+    chatMessages.removeChild(chatMessages.firstChild);
   }
 }
 

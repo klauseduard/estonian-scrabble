@@ -284,6 +284,28 @@ async def _handle_designate_blank(ws: WebSocket, room: Room, data: Dict[str, Any
     await room.broadcast_game_state()
 
 
+async def _handle_chat(ws: WebSocket, room: Room, data: Dict[str, Any]):
+    """Broadcast a chat message from a player to everyone in the room."""
+    player_index = room.get_player_index(ws)
+    if player_index is None:
+        return
+
+    if room.game is not None:
+        player_name = room.game.players[player_index].name
+    else:
+        player_name = room.players[player_index]["name"]
+
+    text = data.get("text", "")[:200]
+    if not text.strip():
+        return
+
+    await room.broadcast({
+        "type": "chat",
+        "player_name": player_name,
+        "text": text,
+    })
+
+
 # ---- WebSocket endpoint ----
 
 @app.websocket("/ws")
@@ -326,6 +348,9 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif action == "designate_blank":
                 await _handle_designate_blank(ws, room, data)
+
+            elif action == "chat":
+                await _handle_chat(ws, room, data)
 
             else:
                 await _send_error(ws, f"Unknown action: {action}")

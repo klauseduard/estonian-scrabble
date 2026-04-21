@@ -155,6 +155,14 @@ class ScrabbleWebSocket {
   designateBlank(row, col, letter) {
     this.send({ action: "designate_blank", row, col, letter });
   }
+
+  /**
+   * Send a chat message.
+   * @param {string} text
+   */
+  sendChat(text) {
+    this.send({ action: "chat", text });
+  }
 }
 
 export default ScrabbleWebSocket;
