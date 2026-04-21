@@ -357,7 +357,6 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
         await _send_error(ws, "Invalid placement — cannot commit")
         return
 
-    forced_label = " [sunnitud]" if force else ""
     room.last_move = {
         "action": "word",
         "player_name": player_name,
@@ -370,12 +369,19 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
 
     # Post move to chat with score breakdown
     word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
-    chat_text = " + ".join(word_parts) + f" = {total_score} p.{forced_label}"
+    chat_text = " + ".join(word_parts) + f" = {total_score} p."
     await room.broadcast({
         "type": "chat",
         "player_name": "Süsteem",
         "text": f"{player_name}: {chat_text}",
     })
+    if force:
+        forced_words = ", ".join(w["word"].upper() for w in words)
+        await room.broadcast({
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"Sõna {forced_words} ei ole sõnastikus — vajab teiste mängijate heakskiitu.",
+        })
 
     if game.game_over:
         await room.broadcast_game_over()
