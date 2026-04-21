@@ -14,6 +14,7 @@ import {
   setExchangeMode,
   isExchangeMode,
   resetRackOrder,
+  localToServerIdx,
 } from "./rack.js";
 
 /* ------------------------------------------------------------------ */
@@ -733,22 +734,23 @@ function _renderGameOver(scores) {
  * Handle a tile dragged from the rack and dropped on a board cell.
  * Uses the dragged tile index directly (not the selection state).
  */
-function _handleBoardTileDrop(row, col, tileIdx) {
+function _handleBoardTileDrop(row, col, localIdx) {
   if (!gameState || gameState.current_player_index !== myPlayerIndex) return;
   if (isExchangeMode()) return;
   if (gameState.board[row][col] !== null) return;
 
-  const rack = gameState.rack || [];
-  if (tileIdx < 0 || tileIdx >= rack.length) return;
+  const serverRack = gameState.rack || [];
+  const serverIdx = localToServerIdx(localIdx, serverRack);
+  if (serverIdx < 0 || serverIdx >= serverRack.length) return;
 
-  const letter = rack[tileIdx];
+  const letter = serverRack[serverIdx];
   if (letter === "_") {
     showBlankPicker((chosenLetter) => {
-      ws.placeTile(row, col, tileIdx, chosenLetter);
+      ws.placeTile(row, col, serverIdx, chosenLetter);
       clearSelection();
     });
   } else {
-    ws.placeTile(row, col, tileIdx);
+    ws.placeTile(row, col, serverIdx);
     clearSelection();
   }
 }
@@ -766,21 +768,23 @@ function _handleBoardCellClick(row, col) {
   }
 
   /* If a tile is selected in the rack, place it */
-  const tileIdx = getSelectedTileIdx();
-  if (tileIdx === null) return;
+  const localIdx = getSelectedTileIdx();
+  if (localIdx === null) return;
 
   /* If the board cell is already occupied, ignore */
   if (gameState.board[row][col] !== null) return;
 
+  const serverRack = gameState.rack || [];
+  const serverIdx = localToServerIdx(localIdx, serverRack);
   const letter = getSelectedTileLetter();
   if (letter === "_") {
     /* Blank tile — show picker */
     showBlankPicker((chosenLetter) => {
-      ws.placeTile(row, col, tileIdx, chosenLetter);
+      ws.placeTile(row, col, serverIdx, chosenLetter);
       clearSelection();
     });
   } else {
-    ws.placeTile(row, col, tileIdx);
+    ws.placeTile(row, col, serverIdx);
     clearSelection();
   }
 }

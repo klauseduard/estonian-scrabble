@@ -283,11 +283,56 @@ export function updateRack(rack) {
  * @param {number} toIdx
  */
 function _reorderTile(fromIdx, toIdx) {
+  /* FLIP animation: record positions before DOM rebuild */
+  const oldPositions = [];
+  if (rackEl) {
+    rackEl.querySelectorAll(".rack-tile").forEach((el, i) => {
+      oldPositions[i] = el.getBoundingClientRect();
+    });
+  }
+
   const tile = localRackOrder.splice(fromIdx, 1)[0];
   localRackOrder.splice(toIdx, 0, tile);
   selectedTileIdx = null;
   currentRack = localRackOrder;
   updateRack(currentRack);
+
+  /* FLIP animation: compute deltas and animate */
+  if (rackEl && oldPositions.length > 0) {
+    const newTiles = rackEl.querySelectorAll(".rack-tile");
+    /* Build mapping: new visual index -> old visual index */
+    const mapping = [];
+    for (let i = 0; i < newTiles.length; i++) {
+      if (i === toIdx) {
+        mapping[i] = fromIdx;
+      } else if (fromIdx < toIdx && i >= fromIdx && i < toIdx) {
+        mapping[i] = i + 1;
+      } else if (fromIdx > toIdx && i > toIdx && i <= fromIdx) {
+        mapping[i] = i - 1;
+      } else {
+        mapping[i] = i;
+      }
+    }
+
+    newTiles.forEach((el, newI) => {
+      const oldI = mapping[newI];
+      if (oldI !== undefined && oldI < oldPositions.length && oldI !== newI) {
+        const newRect = el.getBoundingClientRect();
+        const dx = oldPositions[oldI].left - newRect.left;
+        if (Math.abs(dx) > 1) {
+          el.style.transform = `translateX(${dx}px)`;
+          el.style.transition = "none";
+          requestAnimationFrame(() => {
+            el.style.transition = "transform 0.2s ease";
+            el.style.transform = "";
+            el.addEventListener("transitionend", () => {
+              el.style.transition = "";
+            }, { once: true });
+          });
+        }
+      }
+    });
+  }
 }
 
 /**
@@ -327,6 +372,43 @@ export function setExchangeMode(enabled) {
 /** Reset local rack ordering (call when starting a new game). */
 export function resetRackOrder() {
   localRackOrder = [];
+}
+
+/**
+ * Translate a local (visual) rack index to the server rack index.
+ *
+ * After local reordering, the visual position of a tile differs from its
+ * position in the server's rack array.  This finds the matching tile in
+ * the server rack so the correct index is sent to the server.
+ *
+ * @param {number} localIdx - index in the locally ordered rack
+ * @param {string[]} serverRack - the rack as received from the server
+ * @returns {number} index into serverRack, or localIdx as fallback
+ */
+export function localToServerIdx(localIdx, serverRack) {
+  if (!serverRack || localIdx < 0 || localIdx >= currentRack.length) {
+    return localIdx;
+  }
+  const letter = currentRack[localIdx];
+
+  /* Count how many times this letter appears before localIdx in the local rack
+     so we can pick the correct duplicate in the server rack. */
+  let occurrence = 0;
+  for (let i = 0; i < localIdx; i++) {
+    if (currentRack[i] === letter) occurrence++;
+  }
+
+  /* Find the nth occurrence in the server rack */
+  let count = 0;
+  for (let i = 0; i < serverRack.length; i++) {
+    if (serverRack[i] === letter) {
+      if (count === occurrence) return i;
+      count++;
+    }
+  }
+
+  /* Fallback — should not happen if racks are in sync */
+  return localIdx;
 }
 
 /** @returns {boolean} */
