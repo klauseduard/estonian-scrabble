@@ -185,6 +185,11 @@ function _onRoomJoined(msg) {
 function _onPlayerJoined(msg) {
   waitingPlayers.push(msg.player_name);
   _renderWaitingPlayers();
+  _playTurnSound();
+  _showLastMoveBanner({
+    action: "joined",
+    player_name: msg.player_name,
+  });
 }
 
 function _onPlayerLeft(msg) {
@@ -356,6 +361,8 @@ function _showLastMoveBanner(lastMove) {
     text = `${lastMove.player_name} vahetas ${n} tähe${n !== 1 ? "d" : ""}`;
   } else if (lastMove.action === "started") {
     text = `Mäng algas! ${lastMove.player_name} alustab.`;
+  } else if (lastMove.action === "joined") {
+    text = `${lastMove.player_name} liitus mänguga`;
   }
 
   if (!text) return;
