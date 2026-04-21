@@ -13,6 +13,12 @@ from .room import Room, RoomManager
 app = FastAPI(title="Estonian Scrabble Server")
 room_manager = RoomManager()
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for deployment platforms."""
+    return {"status": "ok"}
+
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 

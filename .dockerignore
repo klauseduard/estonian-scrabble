@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+.git/
+crash-course/
+screenshots/
+tests/
+.claude/
+main.py
+ui/
+estonian_words.txt
+*.pyc

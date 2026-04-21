@@ -67,6 +67,47 @@ Before you begin, ensure you have the following installed:
    python main.py  # or python3 main.py
    ```
 
+## Web Version
+
+The game includes a web-based multiplayer mode using WebSockets.
+
+### Run locally
+
+```bash
+pip install -r requirements-server.txt
+uvicorn server.app:app
+```
+
+Then open http://localhost:8000 in your browser.
+
+### Run with Docker
+
+```bash
+docker compose up --build
+```
+
+Then open http://localhost:8080 in your browser.
+
+### Deployment
+
+**Fly.io** (free tier available):
+
+```bash
+fly launch          # first time
+fly deploy          # subsequent deploys
+```
+
+**Railway**: connect your GitHub repo and Railway will auto-detect the Dockerfile.
+
+**Quick sharing with ngrok**:
+
+```bash
+uvicorn server.app:app --port 8080
+ngrok http 8080
+```
+
+Share the ngrok URL with friends to play remotely.
+
 ## How to Play
 
 1. **Starting the Game**
