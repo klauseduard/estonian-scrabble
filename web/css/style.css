@@ -321,17 +321,19 @@ body {
 /* ---- Game layout ---- */
 
 .game {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 .game__layout {
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .panel {
