@@ -25,6 +25,12 @@ let onTileSelect = null;
 /** @type {((tileIndices: number[]) => void)|null} */
 let onExchangeConfirm = null;
 
+/** @type {number|null} Index of tile being dragged within the rack for reordering. */
+let reorderDragIdx = null;
+
+/** @type {string[]} Locally ordered rack — survives server state updates. */
+let localRackOrder = [];
+
 /**
  * Initialize the rack inside the given container.
  * @param {HTMLElement} container
@@ -44,19 +50,67 @@ export function initRack(container, callbacks) {
 }
 
 /**
+ * Reconcile server rack with local order.
+ *
+ * When the server sends a new rack (e.g. after drawing tiles), we want to
+ * preserve the player's manual ordering for tiles that are still present,
+ * and append any newly drawn tiles at the end.
+ *
+ * @param {string[]} serverRack
+ * @returns {string[]} merged rack in local order
+ */
+function _reconcileRackOrder(serverRack) {
+  /* Build a frequency map of the server rack */
+  const serverCounts = new Map();
+  for (const letter of serverRack) {
+    serverCounts.set(letter, (serverCounts.get(letter) || 0) + 1);
+  }
+
+  /* Keep tiles from local order that still exist in server rack */
+  const result = [];
+  const usedCounts = new Map();
+  for (const letter of localRackOrder) {
+    const available = (serverCounts.get(letter) || 0) - (usedCounts.get(letter) || 0);
+    if (available > 0) {
+      result.push(letter);
+      usedCounts.set(letter, (usedCounts.get(letter) || 0) + 1);
+    }
+  }
+
+  /* Append any new tiles from server that weren't in local order */
+  for (const letter of serverRack) {
+    const used = usedCounts.get(letter) || 0;
+    const needed = (serverCounts.get(letter) || 0);
+    if (used < needed) {
+      result.push(letter);
+      usedCounts.set(letter, used + 1);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Update the rack display.
  * @param {string[]} rack - array of letters (or "_" for blank)
  */
 export function updateRack(rack) {
   if (!rackEl) return;
-  currentRack = rack;
+
+  /* Reconcile with local ordering */
+  if (localRackOrder.length === 0) {
+    localRackOrder = [...rack];
+  } else {
+    localRackOrder = _reconcileRackOrder(rack);
+  }
+  currentRack = localRackOrder;
 
   /* Clear existing children safely */
   while (rackEl.firstChild) {
     rackEl.removeChild(rackEl.firstChild);
   }
 
-  rack.forEach((letter, idx) => {
+  currentRack.forEach((letter, idx) => {
     const tile = document.createElement("div");
     tile.className = "rack-tile";
     tile.dataset.idx = String(idx);
@@ -87,12 +141,13 @@ export function updateRack(rack) {
 
     tile.addEventListener("click", () => _handleTileClick(idx));
 
-    /* Drag-and-drop for desktop */
+    /* Drag-and-drop: reorder within rack or place on board */
     tile.addEventListener("dragstart", (e) => {
       if (exchangeMode) {
         e.preventDefault();
         return;
       }
+      reorderDragIdx = idx;
       selectedTileIdx = idx;
       e.dataTransfer.setData("text/plain", String(idx));
       e.dataTransfer.effectAllowed = "move";
@@ -102,6 +157,82 @@ export function updateRack(rack) {
 
     tile.addEventListener("dragend", () => {
       tile.classList.remove("rack-tile--dragging");
+      reorderDragIdx = null;
+    });
+
+    tile.addEventListener("dragover", (e) => {
+      if (reorderDragIdx === null || reorderDragIdx === idx) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      tile.classList.add("rack-tile--drop-target");
+    });
+
+    tile.addEventListener("dragleave", () => {
+      tile.classList.remove("rack-tile--drop-target");
+    });
+
+    tile.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      tile.classList.remove("rack-tile--drop-target");
+      if (reorderDragIdx === null || reorderDragIdx === idx) return;
+      _reorderTile(reorderDragIdx, idx);
+      reorderDragIdx = null;
+    });
+
+    /* Touch reorder: long-press to drag within rack */
+    let touchTimer = null;
+    let touchReordering = false;
+
+    tile.addEventListener("touchstart", (e) => {
+      if (exchangeMode) return;
+      touchTimer = setTimeout(() => {
+        touchReordering = true;
+        reorderDragIdx = idx;
+        tile.classList.add("rack-tile--dragging");
+      }, 400);
+    }, { passive: true });
+
+    tile.addEventListener("touchmove", (e) => {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+      if (!touchReordering) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetTile = target?.closest?.(".rack-tile");
+      /* Highlight drop target */
+      rackEl.querySelectorAll(".rack-tile--drop-target").forEach(
+        (el) => el.classList.remove("rack-tile--drop-target")
+      );
+      if (targetTile && targetTile.dataset.idx !== String(idx)) {
+        targetTile.classList.add("rack-tile--drop-target");
+      }
+    });
+
+    tile.addEventListener("touchend", (e) => {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+      if (!touchReordering) return;
+      touchReordering = false;
+      tile.classList.remove("rack-tile--dragging");
+      const touch = e.changedTouches[0];
+      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetTile = target?.closest?.(".rack-tile");
+      if (targetTile) {
+        const targetIdx = parseInt(targetTile.dataset.idx, 10);
+        if (targetIdx !== idx) {
+          _reorderTile(idx, targetIdx);
+        }
+      }
+      rackEl.querySelectorAll(".rack-tile--drop-target").forEach(
+        (el) => el.classList.remove("rack-tile--drop-target")
+      );
+      reorderDragIdx = null;
     });
 
     tile.setAttribute(
@@ -138,6 +269,19 @@ export function updateRack(rack) {
 }
 
 /**
+ * Move a tile from one rack position to another (insert before target).
+ * @param {number} fromIdx
+ * @param {number} toIdx
+ */
+function _reorderTile(fromIdx, toIdx) {
+  const tile = localRackOrder.splice(fromIdx, 1)[0];
+  localRackOrder.splice(toIdx, 0, tile);
+  selectedTileIdx = null;
+  currentRack = localRackOrder;
+  updateRack(currentRack);
+}
+
+/**
  * Get the currently selected tile index.
  * @returns {number|null}
  */
@@ -169,6 +313,11 @@ export function setExchangeMode(enabled) {
     rackEl.classList.toggle("rack--exchange-mode", enabled);
   }
   updateRack(currentRack);
+}
+
+/** Reset local rack ordering (call when starting a new game). */
+export function resetRackOrder() {
+  localRackOrder = [];
 }
 
 /** @returns {boolean} */

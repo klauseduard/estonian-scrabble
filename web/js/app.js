@@ -13,6 +13,7 @@ import {
   clearSelection,
   setExchangeMode,
   isExchangeMode,
+  resetRackOrder,
 } from "./rack.js";
 
 /* ------------------------------------------------------------------ */
@@ -590,6 +591,7 @@ function _resetClientState() {
   waitingPlayers = [];
   boardInitialized = false;
   rackInitialized = false;
+  resetRackOrder();
   ws = null;
 
   /* Clear board and rack containers */
