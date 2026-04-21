@@ -149,6 +149,11 @@ class ScrabbleWebSocket {
     this.send({ action: "force_commit" });
   }
 
+  /** Acknowledge (approve) a forced word. */
+  forceAck() {
+    this.send({ action: "force_ack" });
+  }
+
   passTurn() {
     this.send({ action: "pass_turn" });
   }

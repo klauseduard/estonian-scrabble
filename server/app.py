@@ -163,6 +163,11 @@ async def _send_error(ws: WebSocket, message: str):
     await ws.send_json({"type": "error", "message": message})
 
 
+def _is_force_pending(room: Room) -> bool:
+    """Check if a forced word is waiting for all players to acknowledge."""
+    return bool(room._force_required_acks and not room._force_required_acks.issubset(room._force_acks))
+
+
 async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Room:
     """Handle the ``create_room`` action and return the new Room."""
     player_name = data.get("player_name", "Player 1")
@@ -287,6 +292,10 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Missing row, col, or tile_idx")
         return
 
+    if _is_force_pending(room):
+        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
+        return
+
     room.clear_challenge()  # Next player is acting, challenge window closed
 
     designated_letter = data.get("designated_letter")
@@ -382,6 +391,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
             "player_name": "Süsteem",
             "text": f"Sõna {forced_words} ei ole sõnastikus — vajab teiste mängijate heakskiitu.",
         })
+        room.set_force_ack_required(player_name)
 
     if game.game_over:
         await room.broadcast_game_over()
@@ -409,6 +419,10 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
     player_index = room.get_player_index(ws)
     if player_index != game.current_player_idx:
         await _send_error(ws, "Not your turn")
+        return
+
+    if _is_force_pending(room):
+        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
         return
 
     player_name = game.players[player_index].name
@@ -447,6 +461,10 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
     tile_indices = data.get("tile_indices")
     if tile_indices is None:
         await _send_error(ws, "Missing tile_indices")
+        return
+
+    if _is_force_pending(room):
+        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
         return
 
     player_name = game.players[player_index].name
@@ -528,6 +546,28 @@ async def _handle_chat(ws: WebSocket, room: Room, data: Dict[str, Any]):
         "player_name": player_name,
         "text": text,
     })
+
+
+async def _handle_force_ack(ws: WebSocket, room: Room):
+    """Acknowledge a forced word — player approves it."""
+    player_index = room.get_player_index(ws)
+    if player_index is None:
+        return
+    player_name = room.players[player_index]["name"]
+
+    all_acked = room.add_force_ack(player_name)
+
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{player_name} kiitis sõna heaks.",
+    })
+
+    if all_acked:
+        # All players approved — clear challenge window and draw tiles
+        room.clear_challenge(force_check=False)
+        await room.broadcast({"type": "force_approved"})
+        await room.broadcast_game_state()
 
 
 async def _handle_challenge(ws: WebSocket, room: Room):
@@ -691,6 +731,9 @@ async def websocket_endpoint(ws: WebSocket):
 
             elif action == "chat":
                 await _handle_chat(ws, room, data)
+
+            elif action == "force_ack":
+                await _handle_force_ack(ws, room)
 
             elif action == "challenge":
                 await _handle_challenge(ws, room)

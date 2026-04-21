@@ -178,6 +178,9 @@ function handleServerMessage(msg) {
     case "challenge_resolved":
       _onChallengeResolved(msg);
       break;
+    case "force_approved":
+      forcedWordAlert.classList.add("hidden");
+      break;
     case "error":
       showError(msg.message);
       break;
@@ -950,6 +953,7 @@ forcedWordChallenge.addEventListener("click", () => {
 });
 
 forcedWordOk.addEventListener("click", () => {
+  ws.forceAck();
   forcedWordAlert.classList.add("hidden");
 });
 

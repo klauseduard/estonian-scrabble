@@ -34,6 +34,9 @@ class Room:
         self._pre_commit_snapshot: Optional[GameState] = None
         self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged
         self._challenge_pending: Optional[Dict[str, Any]] = None  # active challenge info
+        # Track which players have acknowledged a forced word
+        self._force_acks: set = set()  # player names who clicked OK
+        self._force_required_acks: set = set()  # player names who need to acknowledge
 
     @property
     def player_count(self) -> int:
@@ -147,17 +150,37 @@ class Room:
         self._challenge_pending = None
         return True
 
-    def clear_challenge(self):
+    def clear_challenge(self, force_check: bool = True):
         """Clear challenge state and draw any deferred tiles.
 
         Called when the next player acts (place/pass/exchange), signalling
         that the previous move is accepted and the challenge window is closed.
+
+        For forced words, the challenge window stays open until all other
+        players have acknowledged. Set force_check=False to skip this guard.
         """
+        if force_check and self._force_required_acks:
+            # Forced word still waiting for acknowledgement — don't clear yet
+            return
         if self.game is not None and self.game.has_deferred_draw:
             self.game.draw_deferred_tiles()
         self._pre_commit_snapshot = None
         self._challengeable_player = None
         self._challenge_pending = None
+        self._force_acks.clear()
+        self._force_required_acks.clear()
+
+    def set_force_ack_required(self, committer_name: str):
+        """Mark that all players except the committer must acknowledge a forced word."""
+        self._force_acks.clear()
+        self._force_required_acks = {
+            p["name"] for p in self.players if p["name"] != committer_name
+        }
+
+    def add_force_ack(self, player_name: str) -> bool:
+        """Record a player's acknowledgement. Returns True if all have acknowledged."""
+        self._force_acks.add(player_name)
+        return self._force_required_acks.issubset(self._force_acks)
 
     async def broadcast_game_state(self):
         """Send each player a personalised game-state snapshot (own rack only)."""
