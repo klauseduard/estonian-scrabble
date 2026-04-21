@@ -522,6 +522,11 @@ async def _handle_challenge(ws: WebSocket, room: Room):
         "challenger": challenger_name,
         "challenged": room._challengeable_player,
     })
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{challenger_name} vaidlustab mängija {room._challengeable_player} käigu.",
+    })
 
 
 async def _handle_challenge_accept(ws: WebSocket, room: Room):
@@ -556,6 +561,11 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         "challenger": challenger,
         "challenged": challenged,
     })
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{challenged} võttis käigu tagasi.",
+    })
     await room.broadcast_game_state()
 
 
@@ -588,6 +598,11 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
         "result": "refused",
         "challenger": challenger,
         "challenged": challenged,
+    })
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{challenged} keeldus käiku tagasi võtmast.",
     })
     await room.broadcast_game_state()
 
