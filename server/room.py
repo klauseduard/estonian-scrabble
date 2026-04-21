@@ -1,6 +1,5 @@
 """Room management for multiplayer Scrabble over WebSockets."""
 
-import copy
 import random
 import string
 from typing import Any, Dict, List, Optional
@@ -95,17 +94,51 @@ class Room:
                 await ws.send_json(message)
 
     def save_snapshot(self, player_name: str):
-        """Save a deep copy of the game state before a commit, for challenge undo."""
-        if self.game is not None:
-            self._pre_commit_snapshot = copy.deepcopy(self.game)
-            self._challengeable_player = player_name
-            self._challenge_pending = None
+        """Save a lightweight snapshot of mutable game state before a commit.
+
+        Only copies the data that changes during a commit (board, racks,
+        scores, tile bag, etc.) — NOT the heavy WordList/Hunspell dictionary.
+        """
+        game = self.game
+        if game is None:
+            return
+        self._pre_commit_snapshot = {
+            "board": [row[:] for row in game.board],
+            "players": [
+                {"name": p.name, "score": p.score, "rack": p.rack[:]}
+                for p in game.players
+            ],
+            "tile_bag": game.tile_bag[:],
+            "current_player_idx": game.current_player_idx,
+            "current_turn_tiles": set(game.current_turn_tiles),
+            "blank_designations": dict(game.blank_designations),
+            "consecutive_passes": game.consecutive_passes,
+            "game_over": game.game_over,
+            "first_move": game.first_move,
+        }
+        self._challengeable_player = player_name
+        self._challenge_pending = None
 
     def restore_snapshot(self) -> bool:
-        """Restore game state from the pre-commit snapshot. Returns True on success."""
-        if self._pre_commit_snapshot is None:
+        """Restore game state from the saved snapshot. Returns True on success."""
+        snap = self._pre_commit_snapshot
+        if snap is None or self.game is None:
             return False
-        self.game = self._pre_commit_snapshot
+        game = self.game
+        game.board = [row[:] for row in snap["board"]]
+        for i, pdata in enumerate(snap["players"]):
+            game.players[i].name = pdata["name"]
+            game.players[i].score = pdata["score"]
+            game.players[i].rack = pdata["rack"][:]
+        game.tile_bag = snap["tile_bag"][:]
+        game.current_player_idx = snap["current_player_idx"]
+        game.current_turn_tiles = set(snap["current_turn_tiles"])
+        game.blank_designations = dict(snap["blank_designations"])
+        game.consecutive_passes = snap["consecutive_passes"]
+        game.game_over = snap["game_over"]
+        game.first_move = snap["first_move"]
+        # Re-validate so word_validator state is consistent
+        game.validate_current_placement()
         self._pre_commit_snapshot = None
         self._challengeable_player = None
         self._challenge_pending = None
