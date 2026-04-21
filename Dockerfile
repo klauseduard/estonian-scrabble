@@ -17,4 +17,5 @@ RUN python -c "from wordlist import WordList; WordList()"
 
 EXPOSE 8080
 
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Use $PORT env var if set (Heroku), otherwise default to 8080
+CMD uvicorn server.app:app --host 0.0.0.0 --port ${PORT:-8080}
