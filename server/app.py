@@ -585,13 +585,8 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
     challenger = room._challenge_pending["challenger"]
     challenged = room._challenge_pending["challenged"]
 
-    room.clear_challenge()
-
-    room.last_move = {
-        "action": "challenge_refused",
-        "challenger": challenger,
-        "challenged": challenged,
-    }
+    # Clear the pending challenge but keep the snapshot — others can still challenge
+    room._challenge_pending = None
 
     await room.broadcast({
         "type": "challenge_resolved",
@@ -604,7 +599,6 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
         "player_name": "Süsteem",
         "text": f"{challenged} keeldus käiku tagasi võtmast.",
     })
-    await room.broadcast_game_state()
 
 
 # ---- WebSocket endpoint ----
