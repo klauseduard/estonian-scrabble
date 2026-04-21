@@ -351,7 +351,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
     # Save snapshot for potential challenge undo
     room.save_snapshot(player_name)
 
-    success = game.commit_turn(force=force)
+    success = game.commit_turn(force=force, defer_draw=True)
     if not success:
         room.clear_challenge()
         await _send_error(ws, "Invalid placement — cannot commit")

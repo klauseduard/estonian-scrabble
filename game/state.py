@@ -238,13 +238,16 @@ class GameState:
 
         return breakdown
 
-    def commit_turn(self, force: bool = False) -> bool:
+    def commit_turn(self, force: bool = False, defer_draw: bool = False) -> bool:
         """Commit the current turn.
 
         Args:
             force: If True, bypass word validity checks (players agreed
                    to override the dictionary). Structural placement rules
                    (connectivity, center square) are still enforced.
+            defer_draw: If True, don't draw new tiles yet. The server calls
+                   ``draw_deferred_tiles`` later once the move is settled
+                   (challenge window closed). Prevents peeking at bag tiles.
         """
         if force:
             breakdown = self.force_calculate_turn_score()
@@ -260,8 +263,16 @@ class GameState:
         # Update player's score
         self.current_player.score += turn_score
 
-        # Draw new tiles
-        self._draw_tiles(self.current_player, len(self.current_turn_tiles))
+        tiles_to_draw = len(self.current_turn_tiles)
+
+        if defer_draw:
+            # Store how many tiles to draw later
+            self._deferred_draw_player_idx = self.current_player_idx
+            self._deferred_draw_count = tiles_to_draw
+        else:
+            self._deferred_draw_player_idx = None
+            self._deferred_draw_count = 0
+            self._draw_tiles(self.current_player, tiles_to_draw)
 
         # Clear current turn tiles (blank designations persist on the board)
         self.current_turn_tiles.clear()
@@ -278,6 +289,20 @@ class GameState:
         # Switch to next player
         self.current_player_idx = (self.current_player_idx + 1) % len(self.players)
         return True
+
+    def draw_deferred_tiles(self):
+        """Draw tiles that were deferred during commit (challenge window closed)."""
+        count = getattr(self, "_deferred_draw_count", 0)
+        idx = getattr(self, "_deferred_draw_player_idx", None)
+        if count > 0 and idx is not None and idx < len(self.players):
+            self._draw_tiles(self.players[idx], count)
+        self._deferred_draw_count = 0
+        self._deferred_draw_player_idx = None
+
+    @property
+    def has_deferred_draw(self) -> bool:
+        """Whether there are deferred tiles waiting to be drawn."""
+        return getattr(self, "_deferred_draw_count", 0) > 0
 
     def next_player(self):
         """Skip to the next player's turn (pass)."""

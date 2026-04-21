@@ -137,6 +137,9 @@ class Room:
         game.consecutive_passes = snap["consecutive_passes"]
         game.game_over = snap["game_over"]
         game.first_move = snap["first_move"]
+        # Clear deferred draw — move is being undone, no tiles should be drawn
+        game._deferred_draw_count = 0
+        game._deferred_draw_player_idx = None
         # Re-validate so word_validator state is consistent
         game.validate_current_placement()
         self._pre_commit_snapshot = None
@@ -145,7 +148,13 @@ class Room:
         return True
 
     def clear_challenge(self):
-        """Clear challenge state (e.g. when the next move is made)."""
+        """Clear challenge state and draw any deferred tiles.
+
+        Called when the next player acts (place/pass/exchange), signalling
+        that the previous move is accepted and the challenge window is closed.
+        """
+        if self.game is not None and self.game.has_deferred_draw:
+            self.game.draw_deferred_tiles()
         self._pre_commit_snapshot = None
         self._challengeable_player = None
         self._challenge_pending = None
