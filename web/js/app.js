@@ -84,6 +84,10 @@ const challengeRefuseBtn = document.getElementById("challenge-refuse-btn");
 const scorePanel = document.getElementById("score-panel");
 const gameInfoPanel = document.getElementById("game-info-panel");
 const turnIndicator = document.getElementById("turn-indicator");
+const forcedWordAlert = document.getElementById("forced-word-alert");
+const forcedWordText = document.getElementById("forced-word-text");
+const forcedWordChallenge = document.getElementById("forced-word-challenge");
+const forcedWordOk = document.getElementById("forced-word-ok");
 const tilesRemaining = document.getElementById("tiles-remaining");
 const scorePreview = document.getElementById("score-preview");
 const errorToast = document.getElementById("error-toast");
@@ -271,6 +275,7 @@ function _onChallenge(msg) {
 
 function _onChallengeResolved(msg) {
   challengePrompt.classList.add("hidden");
+  forcedWordAlert.classList.add("hidden");
   if (msg.result === "accepted") {
     _showLastMoveBanner({
       action: "challenge_accepted",
@@ -470,6 +475,16 @@ function _handleTurnChange(isMyTurn) {
     /* Show what the last player did */
     if (gameState.last_move) {
       _showLastMoveBanner(gameState.last_move);
+    }
+
+    /* Show prominent alert for forced words (to players other than the one who forced) */
+    const lm = gameState.last_move;
+    if (lm && lm.forced && lm.player_name !== _getMyName()) {
+      const words = (lm.words || []).map((w) => w.word.toUpperCase()).join(", ");
+      forcedWordText.textContent = `${lm.player_name}: ${words} ei ole sõnastikus!`;
+      forcedWordAlert.classList.remove("hidden");
+    } else {
+      forcedWordAlert.classList.add("hidden");
     }
 
     /* Notify if it's now our turn */
@@ -909,6 +924,16 @@ exchangeBtn.addEventListener("click", () => {
 
 challengeBtn.addEventListener("click", () => {
   ws.challenge();
+  forcedWordAlert.classList.add("hidden");
+});
+
+forcedWordChallenge.addEventListener("click", () => {
+  ws.challenge();
+  forcedWordAlert.classList.add("hidden");
+});
+
+forcedWordOk.addEventListener("click", () => {
+  forcedWordAlert.classList.add("hidden");
 });
 
 challengeAcceptBtn.addEventListener("click", () => {

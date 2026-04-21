@@ -619,6 +619,23 @@ body {
   font-weight: 700;
 }
 
+.forced-word-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(212, 160, 23, 0.15);
+  border: 1px solid #D4A017;
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+.forced-word-alert span {
+  flex: 1;
+}
+
 .btn--warning {
   background: #D4A017;
   color: var(--text-dark);
