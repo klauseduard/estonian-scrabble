@@ -136,6 +136,16 @@ function handleServerMessage(msg) {
     case "player_left":
       _onPlayerLeft(msg);
       break;
+    case "reconnected":
+      _onReconnected(msg);
+      break;
+    case "player_disconnected":
+      _showLastMoveBanner({ action: "disconnected", player_name: msg.player_name });
+      break;
+    case "player_reconnected":
+      _showLastMoveBanner({ action: "reconnected_other", player_name: msg.player_name });
+      _playTurnSound();
+      break;
     case "game_started":
       _onGameStarted(msg);
       break;
@@ -152,7 +162,7 @@ function handleServerMessage(msg) {
       showError(msg.message);
       break;
     case "connection_lost":
-      showError("Ühendus katkes. Palun värskenda lehte.");
+      showError("Ühendus katkes. Liitu uuesti sama toa koodiga.");
       break;
     default:
       console.warn("Unknown message type:", msg.type);
@@ -195,6 +205,14 @@ function _onPlayerLeft(msg) {
     waitingPlayers.pop();
   }
   _renderWaitingPlayers();
+}
+
+function _onReconnected(msg) {
+  roomCode = msg.room_code;
+  myPlayerIndex = msg.player_index;
+  waitingPlayers = msg.players || [];
+  gameHasStarted = true;
+  /* The server will send a game_state right after, which switches to game view */
 }
 
 function _onGameStarted(msg) {
@@ -350,6 +368,10 @@ function _showLastMoveBanner(lastMove) {
     text = `Mäng algas! ${lastMove.player_name} alustab.`;
   } else if (lastMove.action === "joined") {
     text = `${lastMove.player_name} liitus mänguga`;
+  } else if (lastMove.action === "disconnected") {
+    text = `${lastMove.player_name} katkestas ühenduse`;
+  } else if (lastMove.action === "reconnected_other") {
+    text = `${lastMove.player_name} ühines uuesti`;
   }
 
   if (!text) return;

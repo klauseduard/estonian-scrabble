@@ -17,18 +17,29 @@ def _generate_room_code(length: int = 4) -> str:
 
 
 class Room:
-    """A single game room holding a WebSocket connection per player."""
+    """A single game room holding a WebSocket connection per player.
+
+    During a game, disconnected players have ``ws`` set to ``None`` so their
+    slot (and rack) is preserved for reconnection.
+    """
 
     def __init__(self, room_code: str):
         self.code: str = room_code
-        self.players: List[Dict[str, Any]] = []  # {"name": str, "ws": WebSocket}
+        # Each entry: {"name": str, "ws": WebSocket | None}
+        self.players: List[Dict[str, Any]] = []
         self.game: Optional[GameState] = None
         self.started: bool = False
         self.last_move: Optional[Dict[str, Any]] = None
 
     @property
     def player_count(self) -> int:
+        """Total player slots (including disconnected)."""
         return len(self.players)
+
+    @property
+    def connected_count(self) -> int:
+        """Number of players currently connected."""
+        return sum(1 for p in self.players if p["ws"] is not None)
 
     def add_player(self, name: str, ws: WebSocket) -> int:
         """Add a player and return their index."""
@@ -36,11 +47,27 @@ class Room:
         self.players.append({"name": name, "ws": ws})
         return index
 
+    def disconnect_player(self, ws: WebSocket) -> Optional[int]:
+        """Mark a player as disconnected (preserve slot). Return index or None."""
+        for i, player in enumerate(self.players):
+            if player["ws"] is ws:
+                player["ws"] = None
+                return i
+        return None
+
     def remove_player(self, ws: WebSocket) -> Optional[int]:
-        """Remove a player by WebSocket reference. Return their former index or None."""
+        """Remove a player entirely (pre-game only). Return index or None."""
         for i, player in enumerate(self.players):
             if player["ws"] is ws:
                 self.players.pop(i)
+                return i
+        return None
+
+    def reconnect_player(self, name: str, ws: WebSocket) -> Optional[int]:
+        """Reconnect a disconnected player by name. Return index or None."""
+        for i, player in enumerate(self.players):
+            if player["name"] == name and player["ws"] is None:
+                player["ws"] = ws
                 return i
         return None
 
@@ -51,20 +78,28 @@ class Room:
                 return i
         return None
 
+    def has_disconnected_player(self, name: str) -> bool:
+        """Check if a player with this name is disconnected and can reconnect."""
+        return any(p["name"] == name and p["ws"] is None for p in self.players)
+
     async def broadcast(self, message: Dict[str, Any], exclude: Optional[WebSocket] = None):
         """Send a JSON message to all connected players, optionally excluding one."""
         for player in self.players:
-            if player["ws"] is not exclude:
-                await player["ws"].send_json(message)
+            ws = player["ws"]
+            if ws is not None and ws is not exclude:
+                await ws.send_json(message)
 
     async def broadcast_game_state(self):
         """Send each player a personalised game-state snapshot (own rack only)."""
         if self.game is None:
             return
         for i, player in enumerate(self.players):
+            ws = player["ws"]
+            if ws is None:
+                continue
             state = serialize_game_state(self.game, i, last_move=self.last_move)
             state["your_player_index"] = i
-            await player["ws"].send_json(state)
+            await ws.send_json(state)
 
     async def broadcast_game_over(self):
         """Send the game-over payload to all players."""

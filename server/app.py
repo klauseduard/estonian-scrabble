@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from game.state import GameState
 
 from .room import Room, RoomManager
+from .serialization import serialize_game_state
 
 app = FastAPI(title="Estonian Scrabble Server")
 room_manager = RoomManager()
@@ -177,7 +178,11 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Room:
 
 
 async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
-    """Handle the ``join_room`` action and return the Room if successful."""
+    """Handle the ``join_room`` action and return the Room if successful.
+
+    If the game has started and a disconnected player with the same name exists,
+    reconnect them to their existing slot instead of rejecting.
+    """
     room_code = data.get("room_code", "")
     player_name = data.get("player_name", "Player")
     room = room_manager.get_room(room_code)
@@ -185,6 +190,29 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
     if room is None:
         await _send_error(ws, f"Room '{room_code}' not found")
         return None
+
+    # Reconnection: game in progress, player with same name is disconnected
+    if room.started and room.has_disconnected_player(player_name):
+        player_index = room.reconnect_player(player_name, ws)
+        await ws.send_json({
+            "type": "reconnected",
+            "room_code": room.code,
+            "player_index": player_index,
+            "players": [p["name"] for p in room.players],
+        })
+        await room.broadcast(
+            {
+                "type": "player_reconnected",
+                "player_name": player_name,
+            },
+            exclude=ws,
+        )
+        # Send current game state to the reconnected player
+        if room.game is not None:
+            state = serialize_game_state(room.game, player_index, last_move=room.last_move)
+            state["your_player_index"] = player_index
+            await ws.send_json(state)
+        return room
 
     if room.started:
         await _send_error(ws, "Game already started")
@@ -502,14 +530,28 @@ async def websocket_endpoint(ws: WebSocket):
 
     except WebSocketDisconnect:
         if room is not None:
-            room.remove_player(ws)
-            if room.player_count == 0:
-                room_manager.remove_room(room.code)
+            if room.started:
+                # Game in progress: preserve slot for reconnection
+                idx = room.disconnect_player(ws)
+                if idx is not None:
+                    player_name = room.players[idx]["name"]
+                    await room.broadcast({
+                        "type": "player_disconnected",
+                        "player_name": player_name,
+                    })
+                # Clean up room only if ALL players disconnected
+                if room.connected_count == 0:
+                    room_manager.remove_room(room.code)
             else:
-                await room.broadcast({
-                    "type": "player_left",
-                    "player_count": room.player_count,
-                })
+                # Waiting room: remove player entirely
+                room.remove_player(ws)
+                if room.player_count == 0:
+                    room_manager.remove_room(room.code)
+                else:
+                    await room.broadcast({
+                        "type": "player_left",
+                        "player_count": room.player_count,
+                    })
 
 
 # ---- Static file serving (must come AFTER the /ws route) ----
