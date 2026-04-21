@@ -200,27 +200,30 @@ class GameState:
     def force_calculate_turn_score(self) -> List[Tuple[str, int]]:
         """Calculate score breakdown ignoring word validity.
 
-        Same as ``calculate_turn_score`` but skips the validity check.
+        Same as ``calculate_turn_score`` but skips the dictionary check.
         Used for forced commits when players agree to override the dictionary.
-        Returns an empty list only if placement rules are structurally broken
-        (no tiles placed, not connected, etc.).
+        Structural rules (center square, connectivity, continuous line) are
+        still strictly enforced — disconnected tiles are never allowed.
         """
-        validation = self.word_validator.validate_placement(
-            self.board, self.current_turn_tiles, self.first_move
-        )
-        # Check structural rules but not word validity
-        if not validation.get("center_square", True) and self.first_move:
-            return []
-        if not validation.get("connected", True) and not self.first_move:
-            return []
-        if not validation.get("continuous_line", True):
-            return []
         if not self.current_turn_tiles:
+            return []
+
+        # Enforce structural placement rules directly
+        wv = self.word_validator
+        if self.first_move and not wv._is_connected_to_existing(
+            self.board, self.current_turn_tiles, first_move=True
+        ):
+            return []
+        if not self.first_move and not wv._is_connected_to_existing(
+            self.board, self.current_turn_tiles, first_move=False
+        ):
+            return []
+        if not wv._are_turn_tiles_connected(self.board, self.current_turn_tiles):
             return []
 
         unique_words = {}
         for row, col in self.current_turn_tiles:
-            words = self.word_validator.get_word_at_position(self.board, row, col)
+            words = wv.get_word_at_position(self.board, row, col)
             for word_info in words:
                 _, positions = word_info
                 key = tuple(positions)
