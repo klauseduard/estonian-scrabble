@@ -1,8 +1,10 @@
 """FastAPI application with WebSocket endpoint for multiplayer Estonian Scrabble."""
 
+from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 from game.state import GameState
 
@@ -10,6 +12,8 @@ from .room import Room, RoomManager
 
 app = FastAPI(title="Estonian Scrabble Server")
 room_manager = RoomManager()
+
+_WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
 async def _send_error(ws: WebSocket, message: str):
@@ -300,3 +304,9 @@ async def websocket_endpoint(ws: WebSocket):
                     "type": "player_left",
                     "player_count": room.player_count,
                 })
+
+
+# ---- Static file serving (must come AFTER the /ws route) ----
+
+if _WEB_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(_WEB_DIR), html=True), name="static")

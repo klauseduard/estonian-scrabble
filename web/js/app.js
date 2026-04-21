@@ -1,0 +1,608 @@
+/**
+ * Entry point for Estonian Scrabble web frontend.
+ * Handles view routing (lobby <-> game) and orchestrates all modules.
+ */
+
+import ScrabbleWebSocket from "./websocket.js";
+import { initBoard, updateBoard, showBlankPicker } from "./board.js";
+import {
+  initRack,
+  updateRack,
+  getSelectedTileIdx,
+  getSelectedTileLetter,
+  clearSelection,
+  setExchangeMode,
+  isExchangeMode,
+} from "./rack.js";
+
+/* ------------------------------------------------------------------ */
+/*  State                                                              */
+/* ------------------------------------------------------------------ */
+
+/** @type {ScrabbleWebSocket} */
+let ws;
+
+/** @type {number|null} Our player index in the room. */
+let myPlayerIndex = null;
+
+/** @type {string|null} Current room code. */
+let roomCode = null;
+
+/** @type {boolean} Whether we are the host (first player). */
+let isHost = false;
+
+/** @type {object|null} Latest game state from the server. */
+let gameState = null;
+
+/** @type {string[]} Player names in the waiting room. */
+let waitingPlayers = [];
+
+/* ------------------------------------------------------------------ */
+/*  DOM references                                                     */
+/* ------------------------------------------------------------------ */
+
+const lobbyView = document.getElementById("lobby-view");
+const waitingView = document.getElementById("waiting-view");
+const gameView = document.getElementById("game-view");
+const gameOverOverlay = document.getElementById("game-over-overlay");
+
+/* Lobby elements */
+const nameInput = document.getElementById("player-name");
+const createBtn = document.getElementById("create-btn");
+const roomCodeInput = document.getElementById("room-code-input");
+const joinBtn = document.getElementById("join-btn");
+const lobbyError = document.getElementById("lobby-error");
+
+/* Waiting room elements */
+const waitingRoomCode = document.getElementById("waiting-room-code");
+const waitingPlayerList = document.getElementById("waiting-player-list");
+const startGameBtn = document.getElementById("start-game-btn");
+const copyCodeBtn = document.getElementById("copy-code-btn");
+
+/* Game elements */
+const boardContainer = document.getElementById("board-container");
+const rackContainer = document.getElementById("rack-container");
+const submitBtn = document.getElementById("submit-btn");
+const passBtn = document.getElementById("pass-btn");
+const exchangeBtn = document.getElementById("exchange-btn");
+const scorePanel = document.getElementById("score-panel");
+const gameInfoPanel = document.getElementById("game-info-panel");
+const turnIndicator = document.getElementById("turn-indicator");
+const tilesRemaining = document.getElementById("tiles-remaining");
+const scorePreview = document.getElementById("score-preview");
+const errorToast = document.getElementById("error-toast");
+
+/* Game over elements */
+const gameOverScores = document.getElementById("game-over-scores");
+const playAgainBtn = document.getElementById("play-again-btn");
+const leaveBtn = document.getElementById("leave-btn");
+
+/* ------------------------------------------------------------------ */
+/*  View routing                                                       */
+/* ------------------------------------------------------------------ */
+
+/** Show only the specified view. */
+function showView(view) {
+  lobbyView.classList.add("hidden");
+  waitingView.classList.add("hidden");
+  gameView.classList.add("hidden");
+  gameOverOverlay.classList.add("hidden");
+  view.classList.remove("hidden");
+}
+
+/* ------------------------------------------------------------------ */
+/*  WebSocket setup                                                    */
+/* ------------------------------------------------------------------ */
+
+async function connectWebSocket() {
+  ws = new ScrabbleWebSocket();
+  ws.onMessage(handleServerMessage);
+  try {
+    await ws.connect();
+  } catch {
+    showError("Could not connect to server. Please try again.");
+  }
+}
+
+/**
+ * Dispatch incoming server messages to the appropriate handler.
+ * @param {object} msg
+ */
+function handleServerMessage(msg) {
+  switch (msg.type) {
+    case "room_created":
+      _onRoomCreated(msg);
+      break;
+    case "room_joined":
+      _onRoomJoined(msg);
+      break;
+    case "player_joined":
+      _onPlayerJoined(msg);
+      break;
+    case "player_left":
+      _onPlayerLeft(msg);
+      break;
+    case "game_state":
+      _onGameState(msg);
+      break;
+    case "game_over":
+      _onGameOver(msg);
+      break;
+    case "error":
+      showError(msg.message);
+      break;
+    case "connection_lost":
+      showError("Connection lost. Please refresh the page.");
+      break;
+    default:
+      console.warn("Unknown message type:", msg.type);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Message handlers                                                   */
+/* ------------------------------------------------------------------ */
+
+function _onRoomCreated(msg) {
+  roomCode = msg.room_code;
+  myPlayerIndex = msg.player_index;
+  isHost = true;
+  waitingPlayers = [nameInput.value.trim() || "Player 1"];
+  _showWaitingRoom();
+}
+
+function _onRoomJoined(msg) {
+  roomCode = msg.room_code;
+  myPlayerIndex = msg.player_index;
+  isHost = false;
+  /* We don't know the full player list yet; add our name */
+  waitingPlayers.push(nameInput.value.trim() || "Player");
+  _showWaitingRoom();
+}
+
+function _onPlayerJoined(msg) {
+  waitingPlayers.push(msg.player_name);
+  _renderWaitingPlayers();
+}
+
+function _onPlayerLeft(msg) {
+  /* We don't know which player left; update count */
+  while (waitingPlayers.length > msg.player_count) {
+    waitingPlayers.pop();
+  }
+  _renderWaitingPlayers();
+}
+
+function _onGameState(msg) {
+  gameState = msg;
+  if (gameView.classList.contains("hidden")) {
+    showView(gameView);
+  }
+  _renderGame();
+}
+
+function _onGameOver(msg) {
+  _renderGameOver(msg.scores);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Waiting room                                                       */
+/* ------------------------------------------------------------------ */
+
+function _showWaitingRoom() {
+  lobbyError.textContent = "";
+  showView(waitingView);
+  waitingRoomCode.textContent = roomCode;
+  startGameBtn.classList.toggle("hidden", !isHost);
+  _renderWaitingPlayers();
+}
+
+function _renderWaitingPlayers() {
+  /* Clear existing children safely */
+  while (waitingPlayerList.firstChild) {
+    waitingPlayerList.removeChild(waitingPlayerList.firstChild);
+  }
+  waitingPlayers.forEach((name, i) => {
+    const li = document.createElement("li");
+    li.textContent = name;
+    if (i === 0) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "host";
+      li.appendChild(badge);
+    }
+    if (i === myPlayerIndex) {
+      const badge = document.createElement("span");
+      badge.className = "badge badge--you";
+      badge.textContent = "you";
+      li.appendChild(badge);
+    }
+    waitingPlayerList.appendChild(li);
+  });
+
+  /* Enable start if host and 2+ players */
+  if (isHost) {
+    startGameBtn.disabled = waitingPlayers.length < 2;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Game rendering                                                     */
+/* ------------------------------------------------------------------ */
+
+let boardInitialized = false;
+let rackInitialized = false;
+
+function _renderGame() {
+  if (!gameState) return;
+
+  /* Initialize board and rack once */
+  if (!boardInitialized) {
+    initBoard(boardContainer, {
+      onCellClick: _handleBoardCellClick,
+      onCellRightClick: _handleBoardCellRightClick,
+    });
+    boardInitialized = true;
+  }
+  if (!rackInitialized) {
+    initRack(rackContainer, {
+      onTileSelect: () => {},
+      onExchangeConfirm: _handleExchangeConfirm,
+    });
+    rackInitialized = true;
+  }
+
+  const isMyTurn = gameState.current_player_index === myPlayerIndex;
+
+  updateBoard({
+    board: gameState.board,
+    currentTurnTiles: gameState.current_turn_tiles || [],
+    isMyTurn,
+  });
+
+  updateRack(gameState.rack || []);
+
+  _renderScorePanel();
+  _renderGameInfo(isMyTurn);
+  _renderControls(isMyTurn);
+  _renderScorePreview();
+}
+
+function _renderScorePanel() {
+  /* Clear safely */
+  while (scorePanel.firstChild) {
+    scorePanel.removeChild(scorePanel.firstChild);
+  }
+
+  const heading = document.createElement("h2");
+  heading.textContent = "Scores";
+  scorePanel.appendChild(heading);
+
+  (gameState.players || []).forEach((player, i) => {
+    const row = document.createElement("div");
+    row.className = "score-row";
+    if (i === gameState.current_player_index) {
+      row.classList.add("score-row--active");
+    }
+    if (i === myPlayerIndex) {
+      row.classList.add("score-row--me");
+    }
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "score-row__name";
+    nameSpan.textContent = player.name;
+    row.appendChild(nameSpan);
+
+    const scoreSpan = document.createElement("span");
+    scoreSpan.className = "score-row__score";
+    scoreSpan.textContent = String(player.score);
+    row.appendChild(scoreSpan);
+
+    scorePanel.appendChild(row);
+  });
+}
+
+function _renderGameInfo(isMyTurn) {
+  const currentPlayer = gameState.players[gameState.current_player_index];
+  if (isMyTurn) {
+    turnIndicator.textContent = "Your turn";
+    turnIndicator.className = "turn-indicator turn-indicator--your-turn";
+  } else {
+    turnIndicator.textContent = `Waiting for ${currentPlayer ? currentPlayer.name : "..."}`;
+    turnIndicator.className = "turn-indicator turn-indicator--waiting";
+  }
+  tilesRemaining.textContent = `Tiles in bag: ${gameState.tiles_remaining}`;
+}
+
+function _renderControls(isMyTurn) {
+  const hasTilesPlaced = (gameState.current_turn_tiles || []).length > 0;
+  const hasValidWords =
+    (gameState.score_preview || []).length > 0 &&
+    gameState.score_preview.some((w) => w.score >= 0);
+
+  submitBtn.disabled = !isMyTurn || !hasTilesPlaced || !hasValidWords;
+  passBtn.disabled = !isMyTurn;
+  exchangeBtn.disabled =
+    !isMyTurn || gameState.tiles_remaining < 7 || hasTilesPlaced;
+
+  /* Disable board interaction when not our turn */
+  const board = document.querySelector(".board");
+  if (board) {
+    board.classList.toggle("board--disabled", !isMyTurn);
+  }
+}
+
+function _renderScorePreview() {
+  /* Clear safely */
+  while (scorePreview.firstChild) {
+    scorePreview.removeChild(scorePreview.firstChild);
+  }
+
+  const preview = gameState.score_preview || [];
+  if (preview.length === 0) {
+    scorePreview.textContent = "";
+    return;
+  }
+
+  let total = 0;
+  const parts = [];
+  for (const entry of preview) {
+    parts.push(`${entry.word.toUpperCase()}: ${entry.score}`);
+    total += entry.score;
+  }
+
+  const text = document.createElement("span");
+  text.className = "score-preview__text";
+  text.textContent = parts.join(" + ") + ` = ${total} points`;
+  scorePreview.appendChild(text);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Game over                                                          */
+/* ------------------------------------------------------------------ */
+
+function _renderGameOver(scores) {
+  gameOverOverlay.classList.remove("hidden");
+
+  /* Clear safely */
+  while (gameOverScores.firstChild) {
+    gameOverScores.removeChild(gameOverScores.firstChild);
+  }
+
+  const heading = document.createElement("h2");
+  heading.textContent = "Game Over";
+  gameOverScores.appendChild(heading);
+
+  /* Find winner */
+  let maxScore = -1;
+  for (const s of scores) {
+    if (s.score > maxScore) maxScore = s.score;
+  }
+
+  const table = document.createElement("table");
+  table.className = "game-over-table";
+
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  const thName = document.createElement("th");
+  thName.textContent = "Player";
+  const thScore = document.createElement("th");
+  thScore.textContent = "Score";
+  headerRow.appendChild(thName);
+  headerRow.appendChild(thScore);
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const s of scores) {
+    const tr = document.createElement("tr");
+    if (s.score === maxScore) {
+      tr.classList.add("game-over-table__winner");
+    }
+
+    const tdName = document.createElement("td");
+    tdName.textContent = s.name;
+    tr.appendChild(tdName);
+
+    const tdScore = document.createElement("td");
+    tdScore.textContent = String(s.score);
+    tr.appendChild(tdScore);
+
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  gameOverScores.appendChild(table);
+}
+
+/* ------------------------------------------------------------------ */
+/*  User interactions                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Handle click on a board cell.
+ * @param {number} row
+ * @param {number} col
+ */
+function _handleBoardCellClick(row, col) {
+  if (!gameState || gameState.current_player_index !== myPlayerIndex) return;
+  if (isExchangeMode()) return;
+
+  /* If the cell has a tile placed this turn, remove it */
+  const turnTiles = gameState.current_turn_tiles || [];
+  const isCurrentTurnTile = turnTiles.some((t) => t.row === row && t.col === col);
+  if (isCurrentTurnTile) {
+    ws.removeTile(row, col);
+    return;
+  }
+
+  /* If a tile is selected in the rack, place it */
+  const tileIdx = getSelectedTileIdx();
+  if (tileIdx === null) return;
+
+  /* If the board cell is already occupied, ignore */
+  if (gameState.board[row][col] !== null) return;
+
+  const letter = getSelectedTileLetter();
+  if (letter === "_") {
+    /* Blank tile — show picker */
+    showBlankPicker((chosenLetter) => {
+      ws.placeTile(row, col, tileIdx, chosenLetter);
+      clearSelection();
+    });
+  } else {
+    ws.placeTile(row, col, tileIdx);
+    clearSelection();
+  }
+}
+
+/**
+ * Handle right-click on a board cell (remove tile placed this turn).
+ * @param {number} row
+ * @param {number} col
+ */
+function _handleBoardCellRightClick(row, col) {
+  if (!gameState || gameState.current_player_index !== myPlayerIndex) return;
+
+  const turnTiles = gameState.current_turn_tiles || [];
+  const isCurrentTurnTile = turnTiles.some((t) => t.row === row && t.col === col);
+  if (isCurrentTurnTile) {
+    ws.removeTile(row, col);
+  }
+}
+
+function _handleExchangeConfirm(tileIndices) {
+  ws.exchangeTiles(tileIndices);
+  setExchangeMode(false);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Error display                                                      */
+/* ------------------------------------------------------------------ */
+
+/** @type {number|null} */
+let errorTimeout = null;
+
+/**
+ * Show a transient error toast.
+ * @param {string} message
+ */
+function showError(message) {
+  /* Show in lobby error area if on lobby view */
+  if (!lobbyView.classList.contains("hidden")) {
+    lobbyError.textContent = message;
+    return;
+  }
+
+  errorToast.textContent = message;
+  errorToast.classList.remove("hidden");
+  if (errorTimeout) clearTimeout(errorTimeout);
+  errorTimeout = setTimeout(() => {
+    errorToast.classList.add("hidden");
+  }, 4000);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Event listeners                                                    */
+/* ------------------------------------------------------------------ */
+
+createBtn.addEventListener("click", async () => {
+  const name = nameInput.value.trim();
+  if (!name) {
+    lobbyError.textContent = "Please enter your name.";
+    return;
+  }
+  lobbyError.textContent = "";
+  if (!ws) await connectWebSocket();
+  ws.createRoom(name);
+});
+
+joinBtn.addEventListener("click", async () => {
+  const name = nameInput.value.trim();
+  const code = roomCodeInput.value.trim().toUpperCase();
+  if (!name) {
+    lobbyError.textContent = "Please enter your name.";
+    return;
+  }
+  if (!code || code.length !== 4) {
+    lobbyError.textContent = "Please enter a 4-letter room code.";
+    return;
+  }
+  lobbyError.textContent = "";
+  if (!ws) await connectWebSocket();
+  ws.joinRoom(code, name);
+});
+
+startGameBtn.addEventListener("click", () => {
+  ws.startGame();
+});
+
+copyCodeBtn.addEventListener("click", () => {
+  if (roomCode) {
+    navigator.clipboard.writeText(roomCode).then(() => {
+      copyCodeBtn.textContent = "Copied!";
+      setTimeout(() => {
+        copyCodeBtn.textContent = "Copy";
+      }, 2000);
+    });
+  }
+});
+
+submitBtn.addEventListener("click", () => {
+  ws.commitTurn();
+});
+
+passBtn.addEventListener("click", () => {
+  ws.passTurn();
+});
+
+exchangeBtn.addEventListener("click", () => {
+  if (isExchangeMode()) {
+    setExchangeMode(false);
+  } else {
+    setExchangeMode(true);
+  }
+});
+
+playAgainBtn.addEventListener("click", () => {
+  /* Return to lobby to create a new game */
+  gameOverOverlay.classList.add("hidden");
+  showView(lobbyView);
+  _resetClientState();
+});
+
+leaveBtn.addEventListener("click", () => {
+  gameOverOverlay.classList.add("hidden");
+  showView(lobbyView);
+  if (ws) ws.close();
+  _resetClientState();
+});
+
+/* Force uppercase on room code input */
+roomCodeInput.addEventListener("input", () => {
+  roomCodeInput.value = roomCodeInput.value.toUpperCase().replace(/[^A-Z]/g, "");
+});
+
+function _resetClientState() {
+  myPlayerIndex = null;
+  roomCode = null;
+  isHost = false;
+  gameState = null;
+  waitingPlayers = [];
+  boardInitialized = false;
+  rackInitialized = false;
+  ws = null;
+
+  /* Clear board and rack containers */
+  while (boardContainer.firstChild) {
+    boardContainer.removeChild(boardContainer.firstChild);
+  }
+  while (rackContainer.firstChild) {
+    rackContainer.removeChild(rackContainer.firstChild);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Initialize                                                         */
+/* ------------------------------------------------------------------ */
+
+showView(lobbyView);

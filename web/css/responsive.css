@@ -1,0 +1,243 @@
+/* ================================================================
+   Responsive breakpoints
+   ================================================================ */
+
+/* ---- Large desktop (>= 1200px) ---- */
+
+@media (min-width: 1200px) {
+  :root {
+    --cell-size: 40px;
+    --tile-size: 38px;
+    --rack-tile-size: 48px;
+  }
+
+  .score-panel {
+    width: 200px;
+  }
+
+  .game-info-panel {
+    width: 180px;
+  }
+}
+
+/* ---- Desktop (900px - 1199px) ---- */
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  :root {
+    --cell-size: 36px;
+    --tile-size: 34px;
+    --rack-tile-size: 44px;
+  }
+}
+
+/* ---- Tablet (600px - 899px) ---- */
+
+@media (min-width: 600px) and (max-width: 899px) {
+  :root {
+    --cell-size: 32px;
+    --tile-size: 30px;
+    --rack-tile-size: 44px;
+  }
+
+  .score-panel {
+    width: 120px;
+  }
+
+  .game-info-panel {
+    width: 120px;
+  }
+
+  .score-panel h2 {
+    font-size: 14px;
+  }
+
+  .score-row__name {
+    font-size: 13px;
+  }
+
+  .score-row__score {
+    font-size: 17px;
+  }
+
+  .board-tile__letter {
+    font-size: 17px;
+  }
+
+  .board-tile__points {
+    font-size: 9px;
+  }
+
+  .cell__label {
+    font-size: 8px;
+  }
+}
+
+/* ---- Mobile (< 600px) ---- */
+
+@media (max-width: 599px) {
+  :root {
+    --cell-size: calc((100vw - 32px) / 15);
+    --tile-size: calc((100vw - 32px) / 15 - 2px);
+    --rack-tile-size: 44px;
+  }
+
+  .view {
+    min-height: 100dvh;
+    padding: 12px;
+  }
+
+  /* Lobby */
+  .lobby__card {
+    padding: 24px 20px;
+  }
+
+  .lobby__title {
+    font-size: 22px;
+  }
+
+  /* Waiting */
+  .waiting__card {
+    padding: 24px 20px;
+  }
+
+  .waiting__code {
+    font-size: 28px;
+  }
+
+  /* Game layout — stacked */
+  .game {
+    min-height: auto;
+  }
+
+  .game__layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .score-panel {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    overflow-x: auto;
+  }
+
+  .score-panel h2 {
+    display: none;
+  }
+
+  .score-row {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    margin-bottom: 0;
+  }
+
+  .score-row__name {
+    font-size: 13px;
+  }
+
+  .score-row__score {
+    font-size: 16px;
+    margin-left: 6px;
+  }
+
+  .game-info-panel {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 6px 12px;
+  }
+
+  .game__center {
+    padding: 4px 8px;
+    width: 100%;
+  }
+
+  .board-container {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .board {
+    width: calc(100vw - 32px);
+  }
+
+  .board-tile__letter {
+    font-size: 16px;
+  }
+
+  .board-tile__points {
+    font-size: 9px;
+  }
+
+  .cell__label {
+    font-size: 8px;
+  }
+
+  .cell--center .cell__star {
+    font-size: 12px;
+  }
+
+  /* Rack and controls — stacked */
+  .game__bottom {
+    flex-direction: column;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .game__controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .game__controls .btn {
+    font-size: 13px;
+    padding: 8px 4px;
+    min-height: 48px;
+  }
+
+  .turn-indicator {
+    font-size: 12px;
+  }
+
+  .score-preview {
+    font-size: 12px;
+  }
+
+  /* Modal */
+  .blank-picker__grid {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+  }
+
+  .blank-picker__letter {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  /* Game over */
+  .game-over-overlay__card {
+    margin: 16px;
+    padding: 24px 20px;
+  }
+
+  .game-over-table th,
+  .game-over-table td {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .rack-tile__letter {
+    font-size: 18px;
+  }
+
+  .rack-tile__points {
+    font-size: 9px;
+  }
+}
