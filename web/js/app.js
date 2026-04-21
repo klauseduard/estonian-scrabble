@@ -892,13 +892,27 @@ startGameBtn.addEventListener("click", () => {
 });
 
 copyCodeBtn.addEventListener("click", () => {
-  if (roomCode) {
-    navigator.clipboard.writeText(roomCode).then(() => {
-      copyCodeBtn.textContent = "Kopeeritud!";
-      setTimeout(() => {
-        copyCodeBtn.textContent = "Kopeeri";
-      }, 2000);
-    });
+  if (!roomCode) return;
+  /* navigator.clipboard requires HTTPS or localhost — use fallback for plain HTTP */
+  function onCopied() {
+    copyCodeBtn.textContent = "Kopeeritud!";
+    setTimeout(() => { copyCodeBtn.textContent = "Kopeeri"; }, 2000);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(roomCode).then(onCopied).catch(fallbackCopy);
+  } else {
+    fallbackCopy();
+  }
+  function fallbackCopy() {
+    const ta = document.createElement("textarea");
+    ta.value = roomCode;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    onCopied();
   }
 });
 
