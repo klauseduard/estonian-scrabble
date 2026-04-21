@@ -363,6 +363,15 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
         "challengeable": True,
     }
 
+    # Post move to chat with score breakdown
+    word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
+    chat_text = " + ".join(word_parts) + f" = {total_score} p."
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{player_name}: {chat_text}",
+    })
+
     if game.game_over:
         await room.broadcast_game_over()
     else:
@@ -389,6 +398,12 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         "action": "pass",
         "player_name": player_name,
     }
+
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{player_name} jättis käigu vahele.",
+    })
 
     if game.game_over:
         await room.broadcast_game_over()
@@ -427,6 +442,12 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         "player_name": player_name,
         "tile_count": count,
     }
+
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"{player_name} vahetas {count} tähe{'d' if count != 1 else 't'}.",
+    })
 
     await room.broadcast_game_state()
 

@@ -361,10 +361,18 @@ body {
 
 .score-row--active {
   background: rgba(255, 215, 0, 0.15);
+  border-left: 3px solid var(--text-gold);
+  padding-left: 7px;
 }
 
 .score-row--active .score-row__name {
   color: var(--text-gold);
+}
+
+.score-row--active .score-row__name::before {
+  content: "\25B6 ";
+  font-size: 0.65em;
+  vertical-align: middle;
 }
 
 .score-row__name {
