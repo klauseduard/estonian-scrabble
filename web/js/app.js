@@ -433,6 +433,7 @@ function _renderGame() {
     initBoard(boardContainer, {
       onCellClick: _handleBoardCellClick,
       onCellRightClick: _handleBoardCellRightClick,
+      onTileDrop: _handleBoardTileDrop,
     });
     boardInitialized = true;
   }
@@ -575,10 +576,14 @@ function _renderGameOver(scores) {
   heading.textContent = "Mäng läbi";
   gameOverScores.appendChild(heading);
 
-  /* Find winner */
-  let maxScore = -1;
+  /* Check if we have detailed breakdown */
+  const hasDetails = scores.length > 0 && scores[0].word_score !== undefined;
+
+  /* Find winner by final score */
+  let maxScore = -Infinity;
   for (const s of scores) {
-    if (s.score > maxScore) maxScore = s.score;
+    const fs = hasDetails ? s.final_score : s.score;
+    if (fs > maxScore) maxScore = fs;
   }
 
   const table = document.createElement("table");
@@ -586,19 +591,22 @@ function _renderGameOver(scores) {
 
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
-  const thName = document.createElement("th");
-  thName.textContent = "Mängija";
-  const thScore = document.createElement("th");
-  thScore.textContent = "Skoor";
-  headerRow.appendChild(thName);
-  headerRow.appendChild(thScore);
+  const headers = hasDetails
+    ? ["Mängija", "Sõnad", "Tähed", "Boonus", "Kokku"]
+    : ["Mängija", "Skoor"];
+  for (const h of headers) {
+    const th = document.createElement("th");
+    th.textContent = h;
+    headerRow.appendChild(th);
+  }
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
   for (const s of scores) {
+    const finalScore = hasDetails ? s.final_score : s.score;
     const tr = document.createElement("tr");
-    if (s.score === maxScore) {
+    if (finalScore === maxScore) {
       tr.classList.add("game-over-table__winner");
     }
 
@@ -606,14 +614,44 @@ function _renderGameOver(scores) {
     tdName.textContent = s.name;
     tr.appendChild(tdName);
 
-    const tdScore = document.createElement("td");
-    tdScore.textContent = String(s.score);
-    tr.appendChild(tdScore);
+    if (hasDetails) {
+      const tdWords = document.createElement("td");
+      tdWords.textContent = String(s.word_score);
+      tr.appendChild(tdWords);
+
+      const tdDeduction = document.createElement("td");
+      tdDeduction.textContent = s.tile_deduction !== 0 ? String(s.tile_deduction) : "—";
+      if (s.tile_deduction < 0) tdDeduction.style.color = "var(--btn-danger)";
+      tr.appendChild(tdDeduction);
+
+      const tdBonus = document.createElement("td");
+      tdBonus.textContent = s.tile_bonus > 0 ? `+${s.tile_bonus}` : "—";
+      if (s.tile_bonus > 0) tdBonus.style.color = "var(--turn-green)";
+      tr.appendChild(tdBonus);
+
+      const tdFinal = document.createElement("td");
+      tdFinal.textContent = String(s.final_score);
+      tdFinal.style.fontWeight = "700";
+      tr.appendChild(tdFinal);
+    } else {
+      const tdScore = document.createElement("td");
+      tdScore.textContent = String(finalScore);
+      tr.appendChild(tdScore);
+    }
 
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
   gameOverScores.appendChild(table);
+
+  /* Add explanation note when deductions/bonuses apply */
+  if (hasDetails && scores.some((s) => s.tile_deduction !== 0 || s.tile_bonus > 0)) {
+    const note = document.createElement("p");
+    note.className = "game-over-note";
+    note.textContent = "Tähed: allesjäänud tähtede väärtus lahutatakse skoorist. " +
+      "Boonus: tühjaks mänginud mängija saab teiste allesjäänud tähtede väärtuse.";
+    gameOverScores.appendChild(note);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -625,6 +663,30 @@ function _renderGameOver(scores) {
  * @param {number} row
  * @param {number} col
  */
+/**
+ * Handle a tile dragged from the rack and dropped on a board cell.
+ * Uses the dragged tile index directly (not the selection state).
+ */
+function _handleBoardTileDrop(row, col, tileIdx) {
+  if (!gameState || gameState.current_player_index !== myPlayerIndex) return;
+  if (isExchangeMode()) return;
+  if (gameState.board[row][col] !== null) return;
+
+  const rack = gameState.rack || [];
+  if (tileIdx < 0 || tileIdx >= rack.length) return;
+
+  const letter = rack[tileIdx];
+  if (letter === "_") {
+    showBlankPicker((chosenLetter) => {
+      ws.placeTile(row, col, tileIdx, chosenLetter);
+      clearSelection();
+    });
+  } else {
+    ws.placeTile(row, col, tileIdx);
+    clearSelection();
+  }
+}
+
 function _handleBoardCellClick(row, col) {
   if (!gameState || gameState.current_player_index !== myPlayerIndex) return;
   if (isExchangeMode()) return;

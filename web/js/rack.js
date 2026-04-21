@@ -28,6 +28,9 @@ let onExchangeConfirm = null;
 /** @type {number|null} Index of tile being dragged within the rack for reordering. */
 let reorderDragIdx = null;
 
+/** @type {boolean} True while a drag is in progress — suppresses click events. */
+let isDragging = false;
+
 /** @type {string[]} Locally ordered rack — survives server state updates. */
 let localRackOrder = [];
 
@@ -139,7 +142,10 @@ export function updateRack(rack) {
     pointsSpan.textContent = String(points);
     tile.appendChild(pointsSpan);
 
-    tile.addEventListener("click", () => _handleTileClick(idx));
+    tile.addEventListener("click", () => {
+      if (isDragging) return;  /* Suppress click after drag */
+      _handleTileClick(idx);
+    });
 
     /* Drag-and-drop: reorder within rack or place on board */
     tile.addEventListener("dragstart", (e) => {
@@ -147,6 +153,7 @@ export function updateRack(rack) {
         e.preventDefault();
         return;
       }
+      isDragging = true;
       reorderDragIdx = idx;
       selectedTileIdx = idx;
       e.dataTransfer.setData("text/plain", String(idx));
@@ -158,6 +165,8 @@ export function updateRack(rack) {
     tile.addEventListener("dragend", () => {
       tile.classList.remove("rack-tile--dragging");
       reorderDragIdx = null;
+      /* Delay clearing isDragging so the click event is still suppressed */
+      setTimeout(() => { isDragging = false; }, 0);
     });
 
     tile.addEventListener("dragover", (e) => {

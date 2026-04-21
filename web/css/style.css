@@ -609,6 +609,14 @@ body {
   font-weight: 700;
 }
 
+.game-over-note {
+  font-size: 12px;
+  color: #AAB;
+  margin-top: 12px;
+  line-height: 1.5;
+  text-align: left;
+}
+
 .game-over-overlay__actions {
   display: flex;
   gap: 12px;

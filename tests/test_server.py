@@ -169,7 +169,8 @@ class TestSerialization(unittest.TestCase):
         payload = serialize_game_over(game)
         self.assertEqual(payload["type"], "game_over")
         self.assertEqual(len(payload["scores"]), 2)
-        self.assertEqual(payload["scores"][0]["score"], 50)
+        self.assertEqual(payload["scores"][0]["final_score"], 50)
+        self.assertEqual(payload["scores"][0]["word_score"], 50)
 
 
 # ---------------------------------------------------------------------------

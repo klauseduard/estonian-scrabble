@@ -20,6 +20,9 @@ let onCellClick = null;
 /** @type {((row: number, col: number) => void)|null} */
 let onCellRightClick = null;
 
+/** @type {((row: number, col: number, tileIdx: number) => void)|null} */
+let _onTileDrop = null;
+
 /** @type {((letter: string) => void)|null} */
 let pendingBlankCallback = null;
 
@@ -29,10 +32,12 @@ let pendingBlankCallback = null;
  * @param {object} callbacks
  * @param {(row: number, col: number) => void} callbacks.onCellClick
  * @param {(row: number, col: number) => void} callbacks.onCellRightClick
+ * @param {(row: number, col: number, tileIdx: number) => void} [callbacks.onTileDrop]
  */
 export function initBoard(container, callbacks) {
   onCellClick = callbacks.onCellClick;
   onCellRightClick = callbacks.onCellRightClick;
+  _onTileDrop = callbacks.onTileDrop || null;
 
   boardEl = document.createElement("div");
   boardEl.className = "board";
@@ -84,7 +89,12 @@ export function initBoard(container, callbacks) {
       cell.addEventListener("drop", (e) => {
         e.preventDefault();
         cell.classList.remove("cell--drop-target");
-        _handleCellClick(row, col);
+        const draggedIdx = e.dataTransfer.getData("text/plain");
+        if (draggedIdx !== "" && _onTileDrop) {
+          _onTileDrop(row, col, parseInt(draggedIdx, 10));
+        } else {
+          _handleCellClick(row, col);
+        }
       });
 
       boardEl.appendChild(cell);

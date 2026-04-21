@@ -77,11 +77,30 @@ def serialize_game_state(
 
 
 def serialize_game_over(game: GameState) -> Dict[str, Any]:
-    """Build the game-over payload with final scores."""
-    scores = [
-        {"name": player.name, "score": player.score}
-        for player in game.players
-    ]
+    """Build the game-over payload with final scores and end-game breakdown."""
+    details = getattr(game, "end_game_details", None)
+    if details:
+        scores = [
+            {
+                "name": d["name"],
+                "word_score": d["word_score"],
+                "tile_deduction": d.get("tile_deduction", 0),
+                "tile_bonus": d.get("tile_bonus", 0),
+                "final_score": d["final_score"],
+            }
+            for d in details
+        ]
+    else:
+        scores = [
+            {
+                "name": player.name,
+                "word_score": player.score,
+                "tile_deduction": 0,
+                "tile_bonus": 0,
+                "final_score": player.score,
+            }
+            for player in game.players
+        ]
     return {
         "type": "game_over",
         "scores": scores,
