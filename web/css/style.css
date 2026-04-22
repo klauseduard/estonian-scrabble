@@ -318,6 +318,73 @@ body {
   background: var(--btn-primary);
 }
 
+.lobby__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.lobby__checkbox input[type="checkbox"] {
+  accent-color: var(--btn-primary);
+}
+
+.lobby__public-rooms {
+  margin-top: 8px;
+}
+
+.lobby__rooms-list {
+  margin-bottom: 8px;
+}
+
+.lobby__rooms-empty {
+  font-size: 13px;
+  color: #667;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.lobby__room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.lobby__room-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lobby__room-host {
+  font-weight: 600;
+}
+
+.lobby__room-players {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lobby__room-join {
+  font-size: 12px;
+}
+
+.lobby__traffic-note {
+  font-size: 11px;
+  color: #667;
+  text-align: center;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
 .waiting__hint {
   font-size: 12px;
   color: #889;

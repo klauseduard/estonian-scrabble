@@ -30,6 +30,7 @@ class Room:
         self.game: Optional[GameState] = None
         self.started: bool = False
         self.last_move: Optional[Dict[str, Any]] = None
+        self.public: bool = False  # visible in lobby for strangers to join
         # Challenge support: snapshot of game state before last commit
         self._pre_commit_snapshot: Optional[GameState] = None
         self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged

@@ -866,6 +866,8 @@ function showError(message) {
 /*  Event listeners                                                    */
 /* ------------------------------------------------------------------ */
 
+const publicToggle = document.getElementById("public-toggle");
+
 createBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
   if (!name) {
@@ -874,7 +876,7 @@ createBtn.addEventListener("click", async () => {
   }
   lobbyError.textContent = "";
   if (!ws) await connectWebSocket();
-  ws.createRoom(name);
+  ws.createRoom(name, publicToggle.checked);
 });
 
 joinBtn.addEventListener("click", async () => {
@@ -1065,3 +1067,68 @@ if (joinCode) {
   nameInput.value = "Mängija " + (Math.floor(Math.random() * 99) + 2);
   nameInput.focus();
 }
+
+/* ------------------------------------------------------------------ */
+/*  Public lobby                                                       */
+/* ------------------------------------------------------------------ */
+
+const publicRoomsList = document.getElementById("public-rooms-list");
+let lobbyRefreshInterval = null;
+
+async function _refreshPublicRooms() {
+  try {
+    const resp = await fetch("lobby");
+    const data = await resp.json();
+    while (publicRoomsList.firstChild) {
+      publicRoomsList.removeChild(publicRoomsList.firstChild);
+    }
+    if (data.rooms.length === 0) {
+      const p = document.createElement("p");
+      p.className = "lobby__rooms-empty";
+      p.textContent = "Hetkel avalikke mänge ei ole. Loo ise!";
+      publicRoomsList.appendChild(p);
+    } else {
+      data.rooms.forEach((rm) => {
+        const item = document.createElement("div");
+        item.className = "lobby__room-item";
+
+        const info = document.createElement("div");
+        info.className = "lobby__room-info";
+        const host = document.createElement("span");
+        host.className = "lobby__room-host";
+        host.textContent = rm.host;
+        const players = document.createElement("span");
+        players.className = "lobby__room-players";
+        players.textContent = `${rm.players}/4`;
+        info.appendChild(host);
+        info.appendChild(players);
+
+        const joinBtn2 = document.createElement("button");
+        joinBtn2.className = "btn btn--primary lobby__room-join";
+        joinBtn2.textContent = "Liitu";
+        joinBtn2.addEventListener("click", async () => {
+          const name = nameInput.value.trim();
+          if (!name) {
+            lobbyError.textContent = "Palun sisesta oma nimi.";
+            return;
+          }
+          lobbyError.textContent = "";
+          if (!ws) await connectWebSocket();
+          ws.joinRoom(rm.code, name);
+        });
+
+        item.appendChild(info);
+        item.appendChild(joinBtn2);
+        publicRoomsList.appendChild(item);
+      });
+    }
+  } catch { /* ignore fetch errors */ }
+}
+
+/* Refresh lobby every 5 seconds while on the lobby view */
+_refreshPublicRooms();
+lobbyRefreshInterval = setInterval(() => {
+  if (!lobbyView.classList.contains("hidden")) {
+    _refreshPublicRooms();
+  }
+}, 5000);

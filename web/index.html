@@ -32,6 +32,9 @@
       </div>
 
       <div class="lobby__section">
+        <label class="lobby__checkbox">
+          <input type="checkbox" id="public-toggle"> Avalik mäng (nähtav teistele)
+        </label>
         <button id="create-btn" class="btn btn--primary btn--full">Loo uus mäng</button>
       </div>
 
@@ -46,6 +49,14 @@
 
       <div class="lobby__section">
         <button id="join-btn" class="btn btn--primary btn--full">Liitu mänguga</button>
+      </div>
+
+      <div id="public-rooms" class="lobby__public-rooms">
+        <div class="lobby__divider"><span>avalikud mängud</span></div>
+        <div id="public-rooms-list" class="lobby__rooms-list">
+          <p class="lobby__rooms-empty">Hetkel avalikke mänge ei ole. Loo ise!</p>
+        </div>
+        <p class="lobby__traffic-note">Liiklus on praegu väike — kui kedagi pole, kutsu sõpru või loo avalik mäng ja oota.</p>
       </div>
 
       <p id="lobby-error" class="error-text" aria-live="polite"></p>

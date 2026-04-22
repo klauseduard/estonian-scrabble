@@ -102,8 +102,12 @@ class ScrabbleWebSocket {
   /**
    * @param {string} playerName
    */
-  createRoom(playerName) {
-    this.send({ action: "create_room", player_name: playerName });
+  /**
+   * @param {string} playerName
+   * @param {boolean} [isPublic=false]
+   */
+  createRoom(playerName, isPublic = false) {
+    this.send({ action: "create_room", player_name: playerName, public: isPublic });
   }
 
   /**

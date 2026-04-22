@@ -25,6 +25,20 @@ async def health_check():
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
+@app.get("/lobby")
+async def public_lobby():
+    """List public rooms waiting for players."""
+    rooms = []
+    for room in room_manager.rooms.values():
+        if room.public and not room.started and room.player_count < 4:
+            rooms.append({
+                "code": room.code,
+                "host": room.players[0]["name"] if room.players else "?",
+                "players": room.player_count,
+            })
+    return {"rooms": rooms}
+
+
 @app.get("/stats")
 async def server_stats():
     """Live server metrics derived from active rooms."""
@@ -172,6 +186,7 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Room:
     """Handle the ``create_room`` action and return the new Room."""
     player_name = data.get("player_name", "Player 1")
     room = room_manager.create_room()
+    room.public = bool(data.get("public", False))
     player_index = room.add_player(player_name, ws)
     await ws.send_json({
         "type": "room_created",
