@@ -55,7 +55,6 @@ async def server_stats():
             rooms_waiting += 1
         players_total += room.player_count
         rooms_list.append({
-            "code": room.code,
             "players": room.player_count,
             "status": status,
         })
@@ -127,7 +126,7 @@ async def admin_page():
     </div>
   </div>
   <table>
-    <thead><tr><th>Toa kood</th><th>M&auml;ngijaid</th><th>Staatus</th></tr></thead>
+    <thead><tr><th>M&auml;ngijaid</th><th>Staatus</th></tr></thead>
     <tbody id="room-rows"><tr><td colspan="3">Laen...</td></tr></tbody>
   </table>
   <div id="updated"></div>
@@ -145,19 +144,17 @@ async function refresh() {
     if (d.rooms.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 3; td.style.color = "#667"; td.textContent = "Tube pole";
+      td.colSpan = 2; td.style.color = "#667"; td.textContent = "Tube pole";
       tr.appendChild(td); tbody.appendChild(tr);
     } else {
       d.rooms.forEach(function(rm) {
         const tr = document.createElement("tr");
-        const tdCode = document.createElement("td");
-        tdCode.className = "code"; tdCode.textContent = rm.code;
         const tdPlayers = document.createElement("td");
         tdPlayers.textContent = rm.players;
         const tdStatus = document.createElement("td");
         tdStatus.className = "status-" + rm.status;
         tdStatus.textContent = rm.status === "playing" ? "M\\u00e4ngib" : "Ootab";
-        tr.appendChild(tdCode); tr.appendChild(tdPlayers); tr.appendChild(tdStatus);
+        tr.appendChild(tdPlayers); tr.appendChild(tdStatus);
         tbody.appendChild(tr);
       });
     }

@@ -597,6 +597,16 @@ function _renderGameInfo(isMyTurn) {
     turnIndicator.className = "turn-indicator turn-indicator--waiting";
   }
   tilesRemaining.textContent = `Tähti kotis: ${gameState.tiles_remaining}`;
+
+  const roomCodeEl = document.getElementById("game-room-code");
+  if (roomCodeEl && roomCode) {
+    while (roomCodeEl.firstChild) roomCodeEl.removeChild(roomCodeEl.firstChild);
+    const label = document.createTextNode("Tuba: ");
+    const codeSpan = document.createElement("span");
+    codeSpan.textContent = roomCode;
+    roomCodeEl.appendChild(label);
+    roomCodeEl.appendChild(codeSpan);
+  }
 }
 
 function _renderControls(isMyTurn) {

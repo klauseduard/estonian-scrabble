@@ -551,6 +551,20 @@ body {
   overflow: hidden;
 }
 
+.game-room-code {
+  font-size: 11px;
+  color: #667;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.game-room-code span {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #889;
+}
+
 .tiles-remaining {
   font-size: 14px;
   margin-bottom: 12px;
