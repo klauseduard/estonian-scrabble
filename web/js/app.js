@@ -981,6 +981,14 @@ leaveBtn.addEventListener("click", () => {
   _resetClientState();
 });
 
+/* Test tab — opens second window with room code pre-filled */
+document.getElementById("open-test-tab").addEventListener("click", (e) => {
+  e.preventDefault();
+  if (roomCode) {
+    window.open(`${location.pathname}?join=${roomCode}`, "_blank");
+  }
+});
+
 /* Info / Help modal */
 infoBtn.addEventListener("click", () => {
   infoModal.classList.remove("hidden");
@@ -1048,3 +1056,12 @@ function _resetClientState() {
 /* ------------------------------------------------------------------ */
 
 showView(lobbyView);
+
+/* Auto-fill room code from URL parameter (e.g. ?join=ABCD) */
+const urlParams = new URLSearchParams(location.search);
+const joinCode = urlParams.get("join");
+if (joinCode) {
+  roomCodeInput.value = joinCode.toUpperCase();
+  nameInput.value = "Mängija " + (Math.floor(Math.random() * 99) + 2);
+  nameInput.focus();
+}

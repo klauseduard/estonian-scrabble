@@ -318,6 +318,22 @@ body {
   background: var(--btn-primary);
 }
 
+.waiting__hint {
+  font-size: 12px;
+  color: #889;
+  margin-top: 16px;
+  text-align: center;
+}
+
+.waiting__hint a {
+  color: var(--btn-primary);
+  text-decoration: none;
+}
+
+.waiting__hint a:hover {
+  text-decoration: underline;
+}
+
 /* ---- Game layout ---- */
 
 .game {
