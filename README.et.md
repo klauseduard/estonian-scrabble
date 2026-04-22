@@ -1,10 +1,10 @@
 # Eesti Scrabble
 
-Scrabble'i mängu rakendus, mis toetab eesti tähestikku ja kasutab eesti sõnastikku.
+Eestikeelne Scrabble mitmekesi veebis mängimiseks. Toetab eesti keele eritähti (õ, ä, ö, ü, š, ž) ja kasutab Hunspelli sõnastikku morfoloogiliseks sõnade kontrolliks.
 
-> **Tõlke märkus**: See dokumentatsioon on tõlgitud inglise keelest eesti keelde. Kui leiate tõlkevigu, andke palun teada!
+**Mängi kohe**: [klauseduard.duckdns.org/scrabble](https://klauseduard.duckdns.org/scrabble/)
 
-> **Märkus**: See projekt loodi algselt tehisintellekti abil (Cursor IDE + Claude). Sellest ajast alates on arendaja seda oluliselt edasi arendanud ja täiustanud.
+> **Märkus**: See projekt loodi algselt tehisintellekti abil (Cursor IDE + Claude) 2025. aastal. Veebipõhine mitmikmängu versioon loodi Claude Code'iga 2026. aastal.
 
 ## Eeldused
 

@@ -4,13 +4,13 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Estonian](https://img.shields.io/badge/language-Estonian-green.svg)](https://en.wikipedia.org/wiki/Estonian_language)
 
-> **Note**: This project was originally bootstrapped using AI-assisted programming (Cursor IDE + Claude). It has since been significantly extended and refined by the developer.
+> **Note**: This project was originally bootstrapped using AI-assisted programming (Cursor IDE + Claude) in 2025. The web multiplayer version was built with Claude Code in 2026.
 
-A Python-based implementation of the classic Scrabble board game, specifically designed for the Estonian language. Features include Estonian alphabet support (õ, ä, ö, ü, š, ž), Estonian wordlist validation, and a modern graphical user interface.
+A Scrabble board game for the Estonian language with web-based multiplayer. Play with friends online — no installation or registration needed. Supports Estonian special characters (õ, ä, ö, ü, š, ž) with full morphological word validation via Hunspell.
 
-**View on GitHub**: [github.com/klauseduard/estonian-scrabble](https://github.com/klauseduard/estonian-scrabble)
+**Play now**: [klauseduard.duckdns.org/scrabble](https://klauseduard.duckdns.org/scrabble/)
 
-**Keywords**: scrabble, estonian language, word game, python game, desktop application, educational game, language learning
+**Keywords**: scrabble, estonian language, word game, multiplayer, web game, python, fastapi, websocket
 
 > [🇪🇪 Eestikeelne dokumentatsioon (README in Estonian)](README.et.md)
 
