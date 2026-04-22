@@ -201,13 +201,21 @@ body {
 
 /* ---- Lobby ---- */
 
+.lobby__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 480px;
+}
+
 .lobby__card {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   border-radius: 12px;
-  padding: 40px 32px;
+  padding: 32px 28px 24px;
   width: 100%;
-  max-width: 400px;
 }
 
 .lobby__title {
@@ -221,11 +229,54 @@ body {
   text-align: center;
   font-size: 14px;
   color: #AAB;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .lobby__section {
   margin-bottom: 16px;
+}
+
+.lobby__actions {
+  display: flex;
+  gap: 0;
+  margin-top: 20px;
+}
+
+.lobby__action-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.lobby__action-col:first-child {
+  padding-left: 0;
+}
+
+.lobby__action-col:last-child {
+  padding-right: 0;
+}
+
+.lobby__action-divider {
+  width: 1px;
+  background: var(--panel-border);
+  margin: 4px 0;
+}
+
+.lobby__action-heading {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #889;
+  margin-bottom: 2px;
+}
+
+.input--compact {
+  padding: 8px 10px;
+  font-size: 20px;
+  letter-spacing: 6px;
 }
 
 .lobby__divider {
@@ -247,6 +298,23 @@ body {
   font-size: 13px;
   color: #889;
   white-space: nowrap;
+}
+
+.lobby__footer-note {
+  font-size: 11px;
+  color: #667;
+  text-align: center;
+  line-height: 1.6;
+  max-width: 360px;
+}
+
+.lobby__footer-note a {
+  color: var(--btn-primary);
+  text-decoration: none;
+}
+
+.lobby__footer-note a:hover {
+  text-decoration: underline;
 }
 
 /* ---- Waiting Room ---- */
@@ -333,18 +401,22 @@ body {
 }
 
 .lobby__public-rooms {
-  margin-top: 8px;
+  width: 100%;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 12px 16px;
 }
 
 .lobby__rooms-list {
-  margin-bottom: 8px;
+  /* no extra margin */
 }
 
 .lobby__rooms-empty {
-  font-size: 13px;
+  font-size: 12px;
   color: #667;
   text-align: center;
-  padding: 8px 0;
+  padding: 2px 0;
 }
 
 .lobby__room-item {
@@ -375,14 +447,6 @@ body {
 
 .lobby__room-join {
   font-size: 12px;
-}
-
-.lobby__traffic-note {
-  font-size: 11px;
-  color: #667;
-  text-align: center;
-  margin-top: 4px;
-  line-height: 1.5;
 }
 
 .waiting__hint {

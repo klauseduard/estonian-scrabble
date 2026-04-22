@@ -1085,7 +1085,7 @@ async function _refreshPublicRooms() {
     if (data.rooms.length === 0) {
       const p = document.createElement("p");
       p.className = "lobby__rooms-empty";
-      p.textContent = "Hetkel avalikke mänge ei ole. Loo ise!";
+      p.textContent = "Avalikke mänge hetkel ei ole";
       publicRoomsList.appendChild(p);
     } else {
       data.rooms.forEach((rm) => {

@@ -22,44 +22,42 @@
 
   <!-- ===== LOBBY VIEW ===== -->
   <div id="lobby-view" class="view lobby">
-    <div class="lobby__card">
-      <h1 class="lobby__title">Eesti Scrabble</h1>
-      <p class="lobby__subtitle">Mitme mängijaga sõnamäng</p>
+    <div class="lobby__wrapper">
+      <div class="lobby__card">
+        <h1 class="lobby__title">Eesti Scrabble</h1>
+        <p class="lobby__subtitle">Mitme mängijaga sõnamäng</p>
 
-      <div class="lobby__section">
-        <label for="player-name" class="label">Sinu nimi</label>
-        <input type="text" id="player-name" class="input" maxlength="20" placeholder="Sisesta oma nimi" autocomplete="off">
-      </div>
+        <div class="lobby__section">
+          <label for="player-name" class="label">Sinu nimi</label>
+          <input type="text" id="player-name" class="input" maxlength="20" placeholder="Sisesta oma nimi" autocomplete="off">
+        </div>
 
-      <div class="lobby__section">
-        <label class="lobby__checkbox">
-          <input type="checkbox" id="public-toggle"> Avalik mäng (nähtav teistele)
-        </label>
-        <button id="create-btn" class="btn btn--primary btn--full">Loo uus mäng</button>
-      </div>
+        <div class="lobby__actions">
+          <div class="lobby__action-col">
+            <h3 class="lobby__action-heading">Uus mäng</h3>
+            <label class="lobby__checkbox">
+              <input type="checkbox" id="public-toggle"> Avalik
+            </label>
+            <button id="create-btn" class="btn btn--primary btn--full">Loo mäng</button>
+          </div>
+          <div class="lobby__action-divider"></div>
+          <div class="lobby__action-col">
+            <h3 class="lobby__action-heading">Liitu koodiga</h3>
+            <input type="text" id="room-code-input" class="input input--code input--compact" maxlength="4" placeholder="ABCD" autocomplete="off">
+            <button id="join-btn" class="btn btn--primary btn--full">Liitu</button>
+          </div>
+        </div>
 
-      <div class="lobby__divider">
-        <span>või liitu olemasolevaga</span>
-      </div>
-
-      <div class="lobby__section">
-        <label for="room-code-input" class="label">Toa kood</label>
-        <input type="text" id="room-code-input" class="input input--code" maxlength="4" placeholder="ABCD" autocomplete="off">
-      </div>
-
-      <div class="lobby__section">
-        <button id="join-btn" class="btn btn--primary btn--full">Liitu mänguga</button>
+        <p id="lobby-error" class="error-text" aria-live="polite"></p>
       </div>
 
       <div id="public-rooms" class="lobby__public-rooms">
-        <div class="lobby__divider"><span>avalikud mängud</span></div>
         <div id="public-rooms-list" class="lobby__rooms-list">
-          <p class="lobby__rooms-empty">Hetkel avalikke mänge ei ole. Loo ise!</p>
+          <p class="lobby__rooms-empty">Avalikke mänge hetkel ei ole</p>
         </div>
-        <p class="lobby__traffic-note">See on hobi&shy;projekt ja juhuslikke külastajaid on vähe. Kindlam viis mängida on kutsuda sõpru toa koodiga või proovida üksi mitmes brauseri aknas.</p>
       </div>
 
-      <p id="lobby-error" class="error-text" aria-live="polite"></p>
+      <p class="lobby__footer-note">Hobi&shy;projekt — juhuslikke külastajaid on vähe. Kutsu sõpru toa koodiga või proovi üksi mitmes brauseri aknas.</p>
     </div>
   </div>
 
