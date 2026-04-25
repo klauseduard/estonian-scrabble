@@ -441,9 +441,9 @@ function _showLastMoveBanner(lastMove) {
   } else if (lastMove.action === "challenge_pending") {
     text = `${lastMove.player_name} vaidlustab mängija ${lastMove.challenged} käigu`;
   } else if (lastMove.action === "challenge_accepted") {
-    text = `${lastMove.player_name} võttis käigu tagasi`;
+    text = `${lastMove.challenged || lastMove.player_name} võttis käigu tagasi`;
   } else if (lastMove.action === "challenge_refused") {
-    text = `${lastMove.player_name} keeldus käiku tagasi võtmast`;
+    text = `${lastMove.challenged || lastMove.player_name} keeldus käiku tagasi võtmast`;
   }
 
   if (!text) return;

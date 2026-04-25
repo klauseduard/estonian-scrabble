@@ -305,7 +305,7 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
         return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
+        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
         return
 
     room.clear_challenge()  # Next player is acting, challenge window closed
@@ -434,7 +434,7 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
+        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
         return
 
     player_name = game.players[player_index].name
@@ -476,7 +476,7 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on sunnitud sõna heaks kiitnud")
+        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
         return
 
     player_name = game.players[player_index].name

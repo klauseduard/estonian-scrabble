@@ -149,6 +149,8 @@ class Room:
         self._pre_commit_snapshot = None
         self._challengeable_player = None
         self._challenge_pending = None
+        self._force_acks.clear()
+        self._force_required_acks.clear()
         return True
 
     def clear_challenge(self, force_check: bool = True):
