@@ -620,7 +620,7 @@ function _renderControls(isMyTurn) {
   exchangeBtn.disabled =
     !isMyTurn || gameState.tiles_remaining < 7 || hasTilesPlaced;
 
-  /* Show "Sunni läbi" when tiles are placed but words are invalid */
+  /* Show "Palu heakskiitu" when tiles are placed but words are invalid */
   const showForce = isMyTurn && hasTilesPlaced && !hasValidWords;
   forceSubmitBtn.classList.toggle("hidden", !showForce);
   forceSubmitBtn.disabled = !showForce;
