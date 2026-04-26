@@ -270,49 +270,12 @@ When adding new features:
 3. Make your changes
 4. Submit a pull request
 
-## Future Improvements
+## Future Ideas
 
-> _Note: The following improvements were suggested by the AI agent during development. The human developer was mostly focused on getting the basic game working! Feel free to implement any of these if you're interested._
-
-✅ Implemented:
-- Estonian Hunspell dictionary with full morphological validation (via spylls)
-- Scoring with premium squares and 50-point bingo bonus
-- Real-time word validation and score preview
-- 2-4 player support with name entry screen
-- Blank tile support with letter selection dialog
-- Turn transition screen between players
-- Game-over screen with score breakdown
-- Estonian/English language toggle
-- Rack reordering via drag
-- Tile exchange (game logic only, no UI button yet)
-- Unit tests for game state and word validation
-- Logging system
-
-🚀 Ideas for future development:
-1. **Game Features**:
-   - Tile exchange UI button
-   - Save/load game state
-   - Undo/redo moves
-   - Tournament mode with time limits
-   - Statistics tracking (highest scores, longest words, etc.)
-
-2. **Multiplayer**:
-   - Network play support
-   - Player rankings
-
-3. **AI Features**:
-   - AI opponent with adjustable difficulty
-   - AI move suggestions for learning
-
-4. **UI Enhancements**:
-   - Animations for tile placement
-   - Sound effects
-   - Dark/light theme support
-   - Accessibility features
-
-5. **Technical Improvements**:
-   - Configurable game rules
-   - Cross-platform packaging
+- AI opponent with adjustable difficulty
+- Statistics tracking (highest scores, longest words)
+- Save/resume games across server restarts
+- Improved word validation (spylls has [known false positives](https://github.com/klauseduard/estonian-scrabble/issues/32))
 
 ## License
 
