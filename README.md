@@ -108,94 +108,71 @@ ngrok http 8080
 
 Share the ngrok URL with friends to play remotely.
 
-## How to Play
+## Features
 
-1. **Starting the Game**
-   - Run the game using the command above
-   - Select the number of players (2-4) and enter player names
-   - The game window will open with an empty board
-
-2. **Game Controls**
-   - **Mouse Controls:**
-     - Left-click and hold to drag tiles from your rack to the board
-     - Release left mouse button to place a tile
-     - Right-click a tile on the board to return it to your rack
-     - Left-click buttons ("Submit Turn", "Pass Turn") to perform actions
-     - Drag tiles within the rack to reorder them
-   - Click "Submit Turn" to end your turn when you're satisfied with your word placement
-   - Click "Pass Turn" to skip your turn
-
-3. **First Move**
-   - Must place tiles through the center square
-   - Must form a valid Estonian word
-   - Word must read left-to-right or top-to-bottom
-
-4. **Subsequent Moves**
-   - New tiles must connect to existing words
-   - All formed words must be valid Estonian words
-   - Words read left-to-right or top-to-bottom
+- **2-4 players** on separate devices via WebSocket
+- **Real-time** board updates, score preview, turn notifications
+- **In-game chat** with system messages for moves and challenges
+- **Word challenge** — dispute any move, ask the player to take it back
+- **Force submit** ("Palu heakskiitu") — play words not in the dictionary if all players approve
+- **Reconnection** — rejoin a game if your browser crashes
+- **Rack reordering** — drag tiles to rearrange your rack
+- **Tile exchange** — swap tiles with the bag
+- **Public lobby** — find open games or create your own
+- **Estonian UI** — full Estonian interface
 
 ## Screenshots
 
-> *Note: Screenshots show an earlier version of the game. The current version includes player count selection (2-4), name entry, turn transitions, and other improvements.*
+### Web Version
 
-### Game Interface
+![Lobby](screenshots/web_lobby.png)
+*Lobby — create a new game or join with a room code*
+
+![Waiting Room](screenshots/web_waiting_room.png)
+*Waiting room — share the room code with friends*
+
+![Game Board](screenshots/web_game_board.png)
+*Game board with scores, tile rack, and chat*
+
+![Game with Chat](screenshots/web_game_with_chat.png)
+*In-game chat with system move notifications*
+
+### Desktop Version (Pygame)
+
+> *Screenshots show the Pygame desktop version, which is still available.*
+
 ![Game Start](screenshots/game_start.png)
-*Initial game board showing premium squares*
+*Desktop game board with premium squares*
 
-![Rack and Controls](screenshots/rack_and_controls.png)
-*Player's tile rack and game controls*
-
-### Word Placement
 ![Valid Word](screenshots/valid_word.png)
-*Example of a valid word placement (green highlight)*
+*Valid word placement (green highlight)*
 
-![Invalid Word](screenshots/invalid_word.png)
-*Example of an invalid word placement (red highlight)*
+## How to Play
 
-### Game Progress
-![First Move](screenshots/first_move.png)
-*Valid first move through the center square*
+### Web Version
+1. Open the game at [klauseduard.duckdns.org/scrabble](https://klauseduard.duckdns.org/scrabble/)
+2. Enter your name and create a new game or join with a room code
+3. Share the 4-letter room code with friends
+4. Click or drag tiles from your rack to the board
+5. Right-click (or tap) placed tiles to return them to your rack
+6. Click **Kinnita käik** to submit your word
+7. If the dictionary rejects your word, click **Palu heakskiitu** to ask other players
 
-![Multiple Words](screenshots/multiple_words.png)
-*Forming multiple valid words in one move*
+### Desktop Version (Pygame)
+1. Run `python main.py`
+2. Select number of players (2-4) and enter names
+3. Drag tiles from rack to board, right-click to remove
+4. Click "Submit Turn" or "Pass Turn"
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **"Python not found" or similar error**
-   - Make sure Python is installed and added to PATH
-   - Try using `python3` instead of `python`
-   - Restart your terminal/command prompt
-
-2. **"pip not found" error**
-   - Make sure pip is installed
-   - Try using `pip3` instead of `pip`
-   - On Windows, try: `py -m pip install -r requirements.txt`
-
-3. **Game doesn't start**
-   - Make sure all dependencies are installed
-   - Try reinstalling dependencies:
-     ```bash
-     pip uninstall -r requirements.txt
-     pip install -r requirements.txt
-     ```
-
-4. **Estonian characters don't display correctly**
-   - Make sure your system supports UTF-8
-   - Try updating your terminal/command prompt font
+- **Web version**: Works in any modern browser. If WebSocket connection fails, check that your network doesn't block WebSocket traffic.
+- **Desktop version**: Requires Python 3.8+ and Pygame. Run `pip install -r requirements.txt` to install dependencies.
+- **Estonian characters**: The web version handles all Estonian characters. For the desktop version, ensure your system supports UTF-8.
 
 ### Getting Help
 
-If you encounter any issues:
-1. Check the troubleshooting section above
-2. Look for similar issues in the project's issue tracker
-3. Create a new issue with:
-   - Your operating system
-   - Python version (`python --version`)
-   - Error message (if any)
-   - Steps to reproduce the problem
+Report bugs or suggest features: [GitHub Issues](https://github.com/klauseduard/estonian-scrabble/issues) or email klaus.eduard@gmail.com
 
 ## Features
 
