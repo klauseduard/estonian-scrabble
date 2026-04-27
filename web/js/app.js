@@ -39,6 +39,9 @@ let gameState = null;
 /** @type {string[]} Player names in the waiting room. */
 let waitingPlayers = [];
 
+/** @type {Set<string>} Names of AI players in the waiting room. */
+let aiPlayerNames = new Set();
+
 /** @type {number|null} Previous current_player_index — used to detect turn changes. */
 let prevCurrentPlayerIdx = null;
 
@@ -67,6 +70,7 @@ const lobbyError = document.getElementById("lobby-error");
 const waitingRoomCode = document.getElementById("waiting-room-code");
 const waitingPlayerList = document.getElementById("waiting-player-list");
 const startGameBtn = document.getElementById("start-game-btn");
+const addAiBtn = document.getElementById("add-ai-btn");
 const copyCodeBtn = document.getElementById("copy-code-btn");
 
 /* Game elements */
@@ -214,6 +218,9 @@ function _onRoomJoined(msg) {
 
 function _onPlayerJoined(msg) {
   waitingPlayers.push(msg.player_name);
+  if (msg.is_ai) {
+    aiPlayerNames.add(msg.player_name);
+  }
   _renderWaitingPlayers();
   _playTurnSound();
   _showLastMoveBanner({
@@ -335,6 +342,7 @@ function _showWaitingRoom() {
   showView(waitingView);
   waitingRoomCode.textContent = roomCode;
   startGameBtn.classList.toggle("hidden", !isHost);
+  addAiBtn.classList.toggle("hidden", !isHost);
   _renderWaitingPlayers();
 }
 
@@ -346,7 +354,12 @@ function _renderWaitingPlayers() {
   waitingPlayers.forEach((name, i) => {
     const li = document.createElement("li");
     li.textContent = name;
-    if (i === 0) {
+    if (aiPlayerNames.has(name)) {
+      const badge = document.createElement("span");
+      badge.className = "badge badge--ai";
+      badge.textContent = "arvuti";
+      li.appendChild(badge);
+    } else if (i === 0) {
       const badge = document.createElement("span");
       badge.className = "badge";
       badge.textContent = "looja";
@@ -364,6 +377,8 @@ function _renderWaitingPlayers() {
   /* Enable start if host and 2+ players */
   if (isHost) {
     startGameBtn.disabled = waitingPlayers.length < 2;
+    /* Hide add-ai button when room is full */
+    addAiBtn.classList.toggle("hidden", waitingPlayers.length >= 4);
   }
 }
 
@@ -909,6 +924,10 @@ startGameBtn.addEventListener("click", () => {
   ws.startGame();
 });
 
+addAiBtn.addEventListener("click", () => {
+  ws.addAi("medium");
+});
+
 copyCodeBtn.addEventListener("click", () => {
   if (!roomCode) return;
   /* navigator.clipboard requires HTTPS or localhost — use fallback for plain HTTP */
@@ -1041,6 +1060,7 @@ function _resetClientState() {
   isHost = false;
   gameState = null;
   waitingPlayers = [];
+  aiPlayerNames = new Set();
   boardInitialized = false;
   rackInitialized = false;
   resetRackOrder();
