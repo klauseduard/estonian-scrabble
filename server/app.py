@@ -508,6 +508,12 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
         await _send_error(ws, "Room is full")
         return None
 
+    # Names key the challenge and reconnection logic — duplicates would
+    # let players act for each other (issue #36)
+    if any(p["name"] == player_name for p in room.players):
+        await _send_error(ws, "See nimi on toas juba kasutusel — vali teine nimi")
+        return None
+
     player_index = room.add_player(player_name, ws)
     await ws.send_json({
         "type": "room_joined",
@@ -527,9 +533,15 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
 
 
 async def _handle_start_game(ws: WebSocket, room: Room):
-    """Start the game in the room (only if enough players)."""
+    """Start the game in the room (host only, with enough players)."""
     if room.started:
         await _send_error(ws, "Game already started")
+        return
+
+    # Only the host (first player) can start — the client only shows the
+    # button to the host, but the action must be enforced server-side too
+    if room.get_player_index(ws) != 0:
+        await _send_error(ws, "Only the host can start the game")
         return
 
     if room.player_count < 2:
@@ -921,9 +933,12 @@ async def _handle_force_ack(ws: WebSocket, room: Room):
     player_index = room.get_player_index(ws)
     if player_index is None:
         return
+    # Only players whose approval is actually required, once each
+    if player_index not in room._force_required_acks or player_index in room._force_acks:
+        return
     player_name = room.players[player_index]["name"]
 
-    all_acked = room.add_force_ack(player_name)
+    all_acked = room.add_force_ack(player_index)
 
     await room.broadcast({
         "type": "chat",
@@ -931,7 +946,11 @@ async def _handle_force_ack(ws: WebSocket, room: Room):
         "text": f"{player_name} kiitis sõna heaks.",
     })
 
-    if all_acked:
+    # While a challenge against this word is pending, keep the snapshot —
+    # clearing it here would make a later challenge-accept silently fail
+    # (issue #36). The challenge resolution or the next player's action
+    # finishes the cleanup.
+    if all_acked and room._challenge_pending is None:
         # All players approved — clear challenge window and draw tiles
         room.clear_challenge(force_check=False)
         await room.broadcast({"type": "force_approved"})
@@ -1140,6 +1159,22 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
                 "type": "player_disconnected",
                 "player_name": player_name,
             })
+            # A pending challenge against this player would wedge — only
+            # they can accept/refuse (issue #36). Drop it; the word stands.
+            pending = room._challenge_pending
+            if pending and pending.get("challenged") == player_name:
+                room._challenge_pending = None
+                await room.broadcast({
+                    "type": "challenge_resolved",
+                    "result": "dropped",
+                    "challenger": pending.get("challenger"),
+                    "challenged": player_name,
+                })
+                await room.broadcast({
+                    "type": "chat",
+                    "player_name": "Süsteem",
+                    "text": f"{player_name} katkestas ühenduse — vaidlustus tühistati, sõna jäi lauale.",
+                })
         # Clean up room only if ALL players disconnected
         if room.connected_count == 0:
             room.cancel_turn_timer()

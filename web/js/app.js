@@ -315,13 +315,15 @@ function _onChallengeResolved(msg) {
       challenger: msg.challenger,
     });
     _playTurnSound();
-  } else {
+  } else if (msg.result === "refused") {
     _showLastMoveBanner({
       action: "challenge_refused",
       player_name: msg.challenged,
       challenger: msg.challenger,
     });
   }
+  /* result "dropped" (challenged player disconnected): the system chat
+     message explains it — no banner needed */
 }
 
 /** Get the current player's name. */

@@ -652,6 +652,112 @@ class TestAITurnExecution(unittest.TestCase):
         self.assertEqual(move["total_score"], 6)  # blank scores 0, center DW doubles
 
 
+class TestChallengeStateMachine(unittest.TestCase):
+    """Challenge/force-ack state machine fixes (issue #36)."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_room(self, names=("Alice", "Bob")):
+        from server.app import _handle_create_room, _handle_join_room, room_manager
+
+        room_manager.rooms.clear()
+        sockets = [_make_ws() for _ in names]
+        room = self._run(_handle_create_room(sockets[0], {"player_name": names[0]}))
+        for ws, name in zip(sockets[1:], names[1:]):
+            self._run(_handle_join_room(ws, {"room_code": room.code, "player_name": name}))
+        room.game = _create_game(len(names))
+        for i, name in enumerate(names):
+            room.game.players[i].name = name
+        room.started = True
+        return room, sockets
+
+    def test_restore_snapshot_resets_end_game_adjustment(self):
+        room, _ = self._make_room()
+        game = room.game
+        room.save_snapshot("Alice")
+        # The (later retracted) move ends the game and applies the adjustment
+        game._end_game_applied = True
+        game.end_game_details = [{"name": "Alice", "final_score": 50}]
+        game.game_over = True
+
+        self.assertTrue(room.restore_snapshot())
+        self.assertFalse(game._end_game_applied)
+        self.assertEqual(game.end_game_details, [])
+        self.assertFalse(game.game_over)
+
+    def test_challenged_player_disconnect_drops_pending_challenge(self):
+        from server.app import _cleanup_connection
+
+        room, sockets = self._make_room()
+        room.save_snapshot("Alice")
+        room._challenge_pending = {"challenger": "Bob", "challenged": "Alice"}
+
+        self._run(_cleanup_connection(room, sockets[0]))  # Alice's socket dies
+        self.assertIsNone(room._challenge_pending)
+        # Bob got a challenge_resolved with result "dropped"
+        types = [
+            call.args[0].get("result")
+            for call in sockets[1].send_json.call_args_list
+            if call.args[0].get("type") == "challenge_resolved"
+        ]
+        self.assertIn("dropped", types)
+
+    def test_force_ack_ignored_from_committer_and_counted_once(self):
+        from server.app import _handle_force_ack
+
+        room, sockets = self._make_room(("Alice", "Bob", "Carol"))
+        room.set_force_ack_required("Alice")
+        self.assertEqual(room._force_required_acks, {1, 2})
+
+        # The committer's own ack must not count
+        self._run(_handle_force_ack(sockets[0], room))
+        self.assertEqual(room._force_acks, set())
+
+        # Bob acks twice — counted once, still pending
+        self._run(_handle_force_ack(sockets[1], room))
+        self._run(_handle_force_ack(sockets[1], room))
+        self.assertEqual(room._force_acks, {1})
+
+    def test_force_ack_completion_keeps_snapshot_during_pending_challenge(self):
+        from server.app import _handle_force_ack
+
+        room, sockets = self._make_room()
+        room.save_snapshot("Alice")
+        room.set_force_ack_required("Alice")
+        room._challenge_pending = {"challenger": "Bob", "challenged": "Alice"}
+
+        self._run(_handle_force_ack(sockets[1], room))  # Bob approves (all acked)
+        # Snapshot must survive so the pending challenge can still restore it
+        self.assertIsNotNone(room._pre_commit_snapshot)
+        self.assertTrue(room.restore_snapshot())
+
+    def test_duplicate_name_rejected_at_join(self):
+        from server.app import _handle_join_room
+
+        room, _ = self._make_room()
+        room.started = False  # joining is a pre-game action
+        ws = _make_ws()
+        result = self._run(
+            _handle_join_room(ws, {"room_code": room.code, "player_name": "Alice"})
+        )
+        self.assertIsNone(result)
+        msg = ws.send_json.call_args[0][0]
+        self.assertEqual(msg["type"], "error")
+        self.assertIn("juba kasutusel", msg["message"])
+
+    def test_start_game_requires_host(self):
+        from server.app import _handle_start_game
+
+        room, sockets = self._make_room()
+        room.started = False
+        sockets[1].send_json.reset_mock()
+        self._run(_handle_start_game(sockets[1], room))
+        msg = sockets[1].send_json.call_args[0][0]
+        self.assertEqual(msg["type"], "error")
+        self.assertFalse(room.started)
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 

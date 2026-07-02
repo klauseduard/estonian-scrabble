@@ -51,8 +51,8 @@ class Room:
         self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged
         self._challenge_pending: Optional[Dict[str, Any]] = None  # active challenge info
         # Track which players have acknowledged a forced word
-        self._force_acks: set = set()  # player names who clicked OK
-        self._force_required_acks: set = set()  # player names who need to acknowledge
+        self._force_acks: set = set()  # player indices who clicked OK
+        self._force_required_acks: set = set()  # player indices who must acknowledge
 
     @property
     def player_count(self) -> int:
@@ -211,6 +211,10 @@ class Room:
             "consecutive_passes": game.consecutive_passes,
             "game_over": game.game_over,
             "first_move": game.first_move,
+            "end_game_applied": getattr(game, "_end_game_applied", False),
+            "end_game_details": [
+                dict(d) for d in getattr(game, "end_game_details", [])
+            ],
         }
         self._challengeable_player = player_name
         self._challenge_pending = None
@@ -233,6 +237,11 @@ class Room:
         game.consecutive_passes = snap["consecutive_passes"]
         game.game_over = snap["game_over"]
         game.first_move = snap["first_move"]
+        # Undo any end-game adjustment applied by the retracted move —
+        # otherwise the guard flag stays set and the real game end would
+        # silently skip the tile adjustment (issue #36).
+        game._end_game_applied = snap["end_game_applied"]
+        game.end_game_details = [dict(d) for d in snap["end_game_details"]]
         # Clear deferred draw — move is being undone, no tiles should be drawn
         game._deferred_draw_count = 0
         game._deferred_draw_player_idx = None
@@ -266,16 +275,25 @@ class Room:
         self._force_required_acks.clear()
 
     def set_force_ack_required(self, committer_name: str):
-        """Mark that all human players except the committer must acknowledge a forced word."""
+        """Mark that all human players except the committer must acknowledge a forced word.
+
+        Tracked by player index, not name — names are not guaranteed
+        unique across the room's lifetime (issue #36).
+        """
         self._force_acks.clear()
         self._force_required_acks = {
-            p["name"] for i, p in enumerate(self.players)
+            i for i, p in enumerate(self.players)
             if p["name"] != committer_name and i not in self.ai_players
         }
 
-    def add_force_ack(self, player_name: str) -> bool:
-        """Record a player's acknowledgement. Returns True if all have acknowledged."""
-        self._force_acks.add(player_name)
+    def add_force_ack(self, player_index: int) -> bool:
+        """Record a required player's acknowledgement.
+
+        Acks from players outside the required set are ignored.
+        Returns True once every required player has acknowledged.
+        """
+        if player_index in self._force_required_acks:
+            self._force_acks.add(player_index)
         return self._force_required_acks.issubset(self._force_acks)
 
     async def broadcast_game_state(self):
