@@ -1044,7 +1044,7 @@ startGameBtn.addEventListener("click", () => {
 });
 
 addAiBtn.addEventListener("click", () => {
-  ws.addAi("fast");
+  ws.addAi("easy");
 });
 
 addAiStrongBtn.addEventListener("click", () => {

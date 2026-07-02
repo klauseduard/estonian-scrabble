@@ -138,6 +138,26 @@ class TestStrictDictionaryForAI(unittest.TestCase):
                 self.assertTrue(self.wordlist.is_valid_word(word))
                 self.assertTrue(self.strict.is_valid_word(word))
 
+    def test_dawg_generation_fast_and_valid(self):
+        """The production DAWG generates instantly and only valid words."""
+        import time
+
+        if self.strict.dawg is None:
+            self.skipTest("DAWG artifact not built")
+        board = _empty_board()
+        for c, ch in enumerate("silmad"):
+            board[7][5 + c] = ch
+        t0 = time.monotonic()
+        moves = find_all_moves(board, ["k", "a", "s", "t", "m", "e", "_"], self.strict)
+        elapsed = time.monotonic() - t0
+        self.assertTrue(moves)
+        self.assertLess(elapsed, 5.0)  # measured ~0.2 s; generous CI margin
+        self.assertTrue(any(m.blanks for m in moves))
+        # Spot-check words from a sample of moves against the dictionary
+        for move in moves[:200]:
+            for word in move.words_formed:
+                self.assertTrue(self.strict.is_valid_word(word), f"{word!r} invalid")
+
     def test_ai_generation_produces_no_garbage(self):
         """Regression for the revert reason: generated words must be clean.
 

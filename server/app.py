@@ -589,16 +589,16 @@ async def _handle_add_ai(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Room is full")
         return
 
-    difficulty = data.get("difficulty", "fast")
+    difficulty = data.get("difficulty", "easy")
     # Legacy names map onto the two modes (see game/ai_player.py)
-    difficulty = {"easy": "fast", "medium": "fast", "hard": "strong"}.get(
+    difficulty = {"medium": "strong", "hard": "strong", "fast": "strong"}.get(
         difficulty, difficulty
     )
-    if difficulty not in ("fast", "strong"):
-        difficulty = "fast"
+    if difficulty not in ("easy", "strong"):
+        difficulty = "easy"
 
     # Generate AI name, mode visible to the players
-    base_name = "Arvuti (kiire)" if difficulty == "fast" else "Arvuti (tugev)"
+    base_name = "Arvuti (lihtne)" if difficulty == "easy" else "Arvuti (tugev)"
     existing = sum(
         1 for i, p in enumerate(room.players)
         if i in room.ai_players and p["name"].startswith(base_name)

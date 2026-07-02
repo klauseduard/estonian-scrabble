@@ -1,19 +1,21 @@
 """AI player for Estonian Scrabble.
 
-Generates valid moves by scanning the board for anchor points, trying
-rack tile combinations, and scoring candidates.  The module is pure
-game-logic — no UI or server dependencies — so it works with both the
-Pygame desktop client and the FastAPI web server.
+Move generation (issue #40): when the wordlist exposes a DAWG
+(``wordlist.dawg``), moves are generated Appel & Jacobson style — the
+dictionary traversal IS the search, finding every legal move in
+milliseconds, including bingos and blank plays. Without a DAWG (mock
+wordlists in tests, or a failed DAWG build) the legacy brute-force
+generate-and-test search runs with a time budget.
 
-Two modes (issue #40 tracks a fundamentally better generator):
-  - fast:   bounded search, answers in ~a second; short words only,
-            no blank tiles. Optimizes response time.
-  - strong: spends a ~12 s time budget hunting longer words (up to
-            bingos) and playing blank tiles; selects with rack-balance
-            and positional heuristics. Optimizes playing strength.
+Two modes, which with the DAWG are purely selection policy:
+  - easy:   deliberately mild — picks a mid-range move, never the best.
+  - strong: heuristic best move (score + rack balance + position).
 
-Legacy difficulty names map onto these: easy = fast with a random
-move, medium = fast, hard = strong.
+Legacy difficulty names map onto these: easy = easy; medium, hard and
+fast = strong.
+
+The module is pure game-logic — no UI or server dependencies — so it
+works with both the Pygame desktop client and the FastAPI web server.
 """
 
 import itertools
@@ -29,6 +31,7 @@ from .constants import (
     TRIPLE_LETTER_SCORE,
     TRIPLE_WORD_SCORE,
 )
+from .dawg import Dawg
 
 # Wall-clock budgets per move (seconds)
 FAST_TIME_BUDGET = 1.5
@@ -269,6 +272,208 @@ def _generate_line_moves(
     return moves
 
 
+# ---------------------------------------------------------------------------
+# DAWG-based move generation (Appel & Jacobson 1988) — issue #40
+# ---------------------------------------------------------------------------
+
+def _dawg_cross_context(board, r: int, c: int) -> Tuple[str, str]:
+    """Contiguous letters above and below (r, c) in *board*'s columns."""
+    size = len(board)
+    up = []
+    i = r - 1
+    while i >= 0 and board[i][c] is not None:
+        up.append(board[i][c])
+        i -= 1
+    up.reverse()
+    down = []
+    i = r + 1
+    while i < size and board[i][c] is not None:
+        down.append(board[i][c])
+        i += 1
+    return "".join(up), "".join(down)
+
+
+def _dawg_cross_checks_for_row(board, r: int, dawg: Dawg) -> List[Optional[Set[str]]]:
+    """For each empty square in row r: letters allowed by the vertical word.
+
+    None means unconstrained (no vertical neighbors). An empty set means
+    the square cannot legally take any tile.
+    """
+    size = len(board)
+    checks: List[Optional[Set[str]]] = [None] * size
+    for c in range(size):
+        if board[r][c] is not None:
+            continue
+        up, down = _dawg_cross_context(board, r, c)
+        if not up and not down:
+            continue
+        allowed = set()
+        node = 0
+        ok = True
+        for ch in up:
+            node = dawg.edges[node].get(ch)
+            if node is None:
+                ok = False
+                break
+        if ok:
+            for ch, nxt in dawg.edges[node].items():
+                cur = nxt
+                good = True
+                for dch in down:
+                    cur = dawg.edges[cur].get(dch)
+                    if cur is None:
+                        good = False
+                        break
+                if good and dawg.finals[cur]:
+                    allowed.add(ch)
+        checks[c] = allowed
+    return checks
+
+
+def _dawg_scan_rows(board, rack_counts, dawg, anchors, moves, transposed: bool):
+    """Generate all moves whose main word is horizontal in *board*."""
+    size = len(board)
+    edges = dawg.edges
+    finals = dawg.finals
+
+    for r in range(size):
+        row = board[r]
+        row_anchor_cols = [c for c in range(size) if (r, c) in anchors]
+        if not row_anchor_cols:
+            continue
+        checks = _dawg_cross_checks_for_row(board, r, dawg)
+        anchor_set = set(row_anchor_cols)
+
+        def record(word, placed):
+            """placed: list of (col, ch, is_blank)."""
+            if len(word) < 2 or not placed:
+                return
+            tiles = []
+            blanks = set()
+            for col, ch, is_blank in placed:
+                pos = (col, r) if transposed else (r, col)
+                tiles.append((pos[0], pos[1], ch))
+                if is_blank:
+                    blanks.add(pos)
+            words_formed = [word]
+            for col, ch, _ in placed:
+                up, down = _dawg_cross_context(board, r, col)
+                if up or down:
+                    words_formed.append(up + ch + down)
+            key = frozenset((t[0], t[1], t[2], (t[0], t[1]) in blanks) for t in tiles)
+            if key not in moves:
+                moves[key] = Move(tiles=tiles, words_formed=words_formed, blanks=blanks)
+
+        def extend_right(word, node, col, anchor_col, placed):
+            if col >= size or row[col] is None:
+                if finals[node] and placed and col > anchor_col:
+                    record(word, placed)
+                if col >= size:
+                    return
+                allowed = checks[col]
+                for ch, child in edges[node].items():
+                    if allowed is not None and ch not in allowed:
+                        continue
+                    n_real = rack_counts.get(ch, 0)
+                    n_blank = rack_counts.get("_", 0)
+                    if n_real:
+                        rack_counts[ch] = n_real - 1
+                        placed.append((col, ch, False))
+                        extend_right(word + ch, child, col + 1, anchor_col, placed)
+                        placed.pop()
+                        rack_counts[ch] = n_real
+                    if n_blank:
+                        rack_counts["_"] = n_blank - 1
+                        placed.append((col, ch, True))
+                        extend_right(word + ch, child, col + 1, anchor_col, placed)
+                        placed.pop()
+                        rack_counts["_"] = n_blank
+            else:
+                ch = row[col]
+                child = edges[node].get(ch)
+                if child is not None:
+                    extend_right(word + ch, child, col + 1, anchor_col, placed)
+
+        _lp_marks: List[bool] = []  # blank flags for the current left part
+
+        def _left_placed(word, anchor_col):
+            start = anchor_col - len(word)
+            return [(start + i, word[i], _lp_marks[i]) for i in range(len(word))]
+
+        def left_part(word, node, limit, anchor_col):
+            # Tiles of the left part occupy cols anchor_col-len(word)..anchor_col-1.
+            extend_right(word, node, anchor_col, anchor_col,
+                         _left_placed(word, anchor_col) if word else [])
+            if limit > 0:
+                for ch, child in edges[node].items():
+                    n_real = rack_counts.get(ch, 0)
+                    n_blank = rack_counts.get("_", 0)
+                    if n_real:
+                        rack_counts[ch] = n_real - 1
+                        _lp_marks.append(False)
+                        left_part(word + ch, child, limit - 1, anchor_col)
+                        _lp_marks.pop()
+                        rack_counts[ch] = n_real
+                    if n_blank:
+                        rack_counts["_"] = n_blank - 1
+                        _lp_marks.append(True)
+                        left_part(word + ch, child, limit - 1, anchor_col)
+                        _lp_marks.pop()
+                        rack_counts["_"] = n_blank
+
+        for ac in row_anchor_cols:
+            if ac > 0 and row[ac - 1] is not None:
+                # Fixed left prefix: existing tiles ending at ac-1.
+                start = ac - 1
+                while start > 0 and row[start - 1] is not None:
+                    start -= 1
+                prefix = "".join(row[start:ac])
+                node = 0
+                ok = True
+                for ch in prefix:
+                    node = edges[node].get(ch)
+                    if node is None:
+                        ok = False
+                        break
+                if ok:
+                    extend_right(prefix, node, ac, ac, [])
+            else:
+                # Count empty non-anchor squares immediately left of anchor.
+                limit = 0
+                c = ac - 1
+                while c >= 0 and row[c] is None and c not in anchor_set:
+                    limit += 1
+                    c -= 1
+                limit = min(limit, sum(rack_counts.values()) - 1)
+                left_part("", 0, max(limit, 0), ac)
+
+
+def _find_all_moves_dawg(
+    board: List[List[Optional[str]]],
+    rack: List[str],
+    dawg: Dawg,
+    first_move: bool = False,
+) -> List[Move]:
+    """All legal moves for *rack* on *board* — exhaustive, no budget needed."""
+    moves: Dict[frozenset, Move] = {}
+
+    rack_counts: Dict[str, int] = {}
+    for t in rack:
+        rack_counts[t] = rack_counts.get(t, 0) + 1
+
+    anchors = _get_anchors(board, first_move)
+
+    # Horizontal main words
+    _dawg_scan_rows(board, rack_counts, dawg, anchors, moves, transposed=False)
+
+    # Vertical main words: transpose board and anchor coordinates
+    tboard = [list(col) for col in zip(*board)]
+    tanchors = {(c, r) for (r, c) in anchors}
+    _dawg_scan_rows(tboard, rack_counts, dawg, tanchors, moves, transposed=True)
+
+    return list(moves.values())
+
+
 def _collect_moves(
     board, rack, anchors, wordlist, validation_cache, first_move,
     lengths, full_perm_max_length, deadline,
@@ -305,15 +510,22 @@ def find_all_moves(
 ) -> List[Move]:
     """Find valid moves for the given rack on the current board.
 
+    When the wordlist exposes a DAWG, the search is exhaustive and
+    effectively instant — *mode* is irrelevant. Otherwise the legacy
+    brute-force search runs:
+
     fast:   short placements (1–4 tiles, full permutations), blanks
             unused, ~FAST_TIME_BUDGET wall clock.
     strong: everything fast finds, then spends the rest of
             STRONG_TIME_BUDGET on longer placements (5–7 tiles,
             permutations capped) and blank-tile substitutions.
 
-    This is the CPU-intensive function that should be run via
-    ``asyncio.run_in_executor`` on the server.
+    This should be run via ``asyncio.run_in_executor`` on the server.
     """
+    dawg = getattr(wordlist, "dawg", None)
+    if dawg is not None:
+        return _find_all_moves_dawg(board, rack, dawg, first_move)
+
     anchors = _get_anchors(board, first_move)
     validation_cache: Dict[str, bool] = {}
     all_moves: List[Move] = []
@@ -497,17 +709,21 @@ def select_move(
 ) -> Optional[Move]:
     """Find and select a move for the given mode.
 
-    Modes: "fast" (bounded search, greedy pick) and "strong" (deep
-    search, heuristic pick). Legacy difficulty names are mapped:
-    easy = fast + random move, medium = fast, hard = strong.
+    Modes: "easy" (deliberately mild — picks a mid-range move, never
+    the best) and "strong" (heuristic best). Legacy names are mapped:
+    easy = easy; medium, hard and fast = strong.
 
     Returns None if no valid move exists (AI should pass or exchange).
     """
-    mode = {"easy": "fast", "medium": "fast", "hard": "strong"}.get(difficulty, difficulty)
-    if mode not in ("fast", "strong"):
-        mode = "fast"
+    mode = {"medium": "strong", "hard": "strong", "fast": "strong"}.get(
+        difficulty, difficulty
+    )
+    if mode not in ("easy", "strong"):
+        mode = "strong"
 
-    moves = find_all_moves(board, rack, wordlist, first_move, mode=mode)
+    # For the brute-force fallback, easy only needs the quick search
+    gen_mode = "fast" if mode == "easy" else "strong"
+    moves = find_all_moves(board, rack, wordlist, first_move, mode=gen_mode)
 
     if not moves:
         return None
@@ -516,13 +732,13 @@ def select_move(
     for move in moves:
         _calculate_move_score(board, move)
 
-    if difficulty == "easy":
-        # Random move from all valid moves
-        return random.choice(moves)
-
-    if mode == "fast":
-        # Highest raw score
-        return max(moves, key=lambda m: m.raw_score)
+    if mode == "easy":
+        # A plausible but modest move: random pick from the 25th–60th
+        # score percentile, so the AI neither dominates nor embarrasses.
+        ranked = sorted(moves, key=lambda m: m.raw_score)
+        lo = int(len(ranked) * 0.25)
+        hi = max(lo + 1, int(len(ranked) * 0.6))
+        return random.choice(ranked[lo:hi])
 
     # Strong: raw score + heuristics
     for move in moves:

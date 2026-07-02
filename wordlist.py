@@ -66,6 +66,15 @@ class WordList:
                 patch_dictionary()
         except Exception as e:
             self.logger.error(f"Failed to patch dictionary: {e}")
+        try:
+            from tools.build_dawg import build_dawg, dawg_stale
+
+            if dawg_stale():
+                self.logger.info("Building AI move-generation DAWG (~30 s, cached)...")
+                build_dawg()
+        except Exception as e:
+            # The AI falls back to brute-force generation without a DAWG
+            self.logger.error(f"Failed to build DAWG: {e}")
 
     def _load_dictionary(self):
         """Load the patched Hunspell dictionary via spylls."""
@@ -135,6 +144,8 @@ class StrictWordList:
     def __init__(self, blocked: Set[str], logger: logging.Logger):
         self._blocked = blocked
         self.logger = logger
+        self._dawg = None
+        self._dawg_loaded = False
         try:
             from spylls.hunspell import Dictionary
 
@@ -145,6 +156,26 @@ class StrictWordList:
         except Exception as e:
             self.logger.error(f"Failed to load strict dictionary: {e}")
             self._dict = None
+
+    @property
+    def dawg(self):
+        """DAWG over all strict-dictionary forms, for AI move generation.
+
+        Lazy-loaded (~1 MB marshal). None if unavailable — the AI then
+        falls back to brute-force generation.
+        """
+        if not self._dawg_loaded:
+            self._dawg_loaded = True
+            try:
+                from game.dawg import Dawg
+                from tools.build_dawg import DAWG_FILE
+
+                self._dawg = Dawg.load(DAWG_FILE)
+                self.logger.info(f"Loaded move-generation DAWG ({len(self._dawg)} nodes)")
+            except Exception as e:
+                self.logger.error(f"Failed to load DAWG: {e}")
+                self._dawg = None
+        return self._dawg
 
     def is_valid_word(self, word: str) -> bool:
         """Check a word against the strict (no-compound) dictionary."""
