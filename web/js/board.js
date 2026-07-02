@@ -2,7 +2,13 @@
  * Board rendering and interaction for the 15x15 Scrabble grid.
  */
 
-import { getPremiumType, getLetterPoints, ESTONIAN_LETTERS } from "./constants.js";
+import {
+  getPremiumType,
+  getLetterPoints,
+  ESTONIAN_LETTERS,
+  PREMIUM_LABELS,
+  PREMIUM_DESCRIPTIONS,
+} from "./constants.js";
 
 /**
  * @typedef {object} BoardState
@@ -42,7 +48,7 @@ export function initBoard(container, callbacks) {
   boardEl = document.createElement("div");
   boardEl.className = "board";
   boardEl.setAttribute("role", "grid");
-  boardEl.setAttribute("aria-label", "Scrabble board, 15 by 15");
+  boardEl.setAttribute("aria-label", "Scrabble'i laud, 15 × 15");
 
   for (let row = 0; row < 15; row++) {
     for (let col = 0; col < 15; col++) {
@@ -57,7 +63,7 @@ export function initBoard(container, callbacks) {
         cell.classList.add(`cell--${premium.toLowerCase()}`);
         const label = document.createElement("span");
         label.className = "cell__label";
-        label.textContent = premium;
+        label.textContent = PREMIUM_LABELS[premium];
         cell.appendChild(label);
       }
 
@@ -160,19 +166,20 @@ export function updateBoard(state) {
 
       cell.appendChild(tile);
 
+      const pointWord = points === 1 ? "punkt" : "punkti";
       cell.setAttribute(
         "aria-label",
-        `Row ${row + 1}, Column ${col + 1}, letter ${letter.toUpperCase()}, ${points} points`
+        `Rida ${row + 1}, veerg ${col + 1}, täht ${letter.toUpperCase()}, ${points} ${pointWord}`
       );
     } else {
       if (label) label.style.display = "";
       if (star) star.style.display = "";
 
       const premium = getPremiumType(row, col);
-      const premiumLabel = premium ? `, ${premium} premium square` : "";
+      const premiumLabel = premium ? `, ${PREMIUM_DESCRIPTIONS[premium]}` : "";
       cell.setAttribute(
         "aria-label",
-        `Row ${row + 1}, Column ${col + 1}${premiumLabel}, empty`
+        `Rida ${row + 1}, veerg ${col + 1}${premiumLabel}, tühi`
       );
     }
   });
@@ -193,7 +200,7 @@ export function showBlankPicker(callback) {
   modal.className = "modal blank-picker";
 
   const title = document.createElement("h2");
-  title.textContent = "Choose a letter for the blank tile";
+  title.textContent = "Vali tühjale klotsile täht";
   modal.appendChild(title);
 
   const grid = document.createElement("div");
@@ -203,7 +210,7 @@ export function showBlankPicker(callback) {
     const btn = document.createElement("button");
     btn.className = "blank-picker__letter";
     btn.textContent = letter;
-    btn.setAttribute("aria-label", `Select letter ${letter}`);
+    btn.setAttribute("aria-label", `Vali täht ${letter}`);
     btn.addEventListener("click", () => {
       _closeBlankPicker();
       if (pendingBlankCallback) {

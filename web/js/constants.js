@@ -95,6 +95,25 @@ export const DOUBLE_LETTER_SCORE = new Set([
 ]);
 
 /**
+ * Estonian display labels for premium squares.
+ * Matches the desktop (Pygame) UI: S = sõna, T = täht.
+ */
+export const PREMIUM_LABELS = {
+  TW: "3×S",
+  DW: "2×S",
+  TL: "3×T",
+  DL: "2×T",
+};
+
+/** Estonian premium square descriptions for screen readers. */
+export const PREMIUM_DESCRIPTIONS = {
+  TW: "kolmekordne sõna",
+  DW: "kahekordne sõna",
+  TL: "kolmekordne täht",
+  DL: "kahekordne täht",
+};
+
+/**
  * Get the premium type for a board position.
  * @param {number} row
  * @param {number} col

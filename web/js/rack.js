@@ -48,7 +48,7 @@ export function initRack(container, callbacks) {
   rackEl = document.createElement("div");
   rackEl.className = "rack";
   rackEl.setAttribute("role", "list");
-  rackEl.setAttribute("aria-label", "Your tile rack");
+  rackEl.setAttribute("aria-label", "Sinu täheriiul");
   container.appendChild(rackEl);
 }
 
@@ -247,8 +247,8 @@ export function updateRack(rack) {
     tile.setAttribute(
       "aria-label",
       letter === "_"
-        ? "Blank tile, 0 points"
-        : `Letter ${letter.toUpperCase()}, ${points} points`
+        ? "Tühi klots, 0 punkti"
+        : `Täht ${letter.toUpperCase()}, ${points} ${points === 1 ? "punkt" : "punkti"}`
     );
 
     rackEl.appendChild(tile);
