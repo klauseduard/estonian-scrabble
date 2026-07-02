@@ -1,0 +1,8 @@
+# Words the Hunspell dictionary accepts but that are NOT valid Estonian
+# words for Scrabble play. Exact lowercase forms, one per line.
+# Lines starting with # are comments. See GitHub issue #32.
+#
+# "öis" is accepted via a bogus suffix derivation of "öiga"; it is not
+# an Estonian word.
+
+öis

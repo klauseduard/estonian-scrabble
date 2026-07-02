@@ -1,0 +1,12 @@
+# Estonian words missing from the upstream et_EE Hunspell dictionary
+# (or lost by the Scrabble patch in tools/patch_dictionary.py).
+#
+# Format: one word per line, optionally followed by a MODEL word —
+# an existing dictionary entry the word inflects like. The patch tool
+# clones the model's principal-part entries (model, model+d, model+ga),
+# so the word's full case paradigm validates too.
+#
+# Example: "maantee tee" makes maantee inflect like tee
+# (maanteed, maanteega, maanteedest, maanteel, ...).
+
+maantee tee

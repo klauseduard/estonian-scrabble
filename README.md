@@ -201,6 +201,11 @@ Report bugs or suggest features: [GitHub Issues](https://github.com/klauseduard/
 ├── docs/                  # Additional documentation
 ├── main.py                # Main game entry point
 ├── wordlist.py            # Hunspell dictionary integration (spylls)
+├── tools/
+│   └── patch_dictionary.py # Patches the dictionary for Scrabble (issue #32)
+├── data/
+│   ├── extra_words.txt    # Words to accept beyond the dictionary
+│   └── blocked_words.txt  # Words to reject despite the dictionary
 ├── requirements.txt       # Python dependencies
 └── README.md              # This file
 ```
@@ -275,7 +280,7 @@ When adding new features:
 - AI opponent with adjustable difficulty
 - Statistics tracking (highest scores, longest words)
 - Save/resume games across server restarts
-- Improved word validation (spylls has [known false positives](https://github.com/klauseduard/estonian-scrabble/issues/32))
+- Word list from EKILEX for authoritative validation (the Hunspell dictionary is patched against [known false positives](https://github.com/klauseduard/estonian-scrabble/issues/32); report leftovers via `data/blocked_words.txt`)
 
 ## License
 

@@ -1,0 +1,108 @@
+"""Regression tests for Scrabble word validation (GitHub issue #32).
+
+The upstream et_EE Hunspell dictionary lets abbreviations act as compound
+parts, accepting garbage like 'tköis' (= tk + öis). These tests pin the
+behaviour of the patched dictionary (tools/patch_dictionary.py) plus the
+blocklist and vowelless guard in WordList.
+"""
+
+import unittest
+
+try:
+    import spylls  # noqa: F401
+
+    HAS_SPYLLS = True
+except ImportError:
+    HAS_SPYLLS = False
+
+from wordlist import WordList
+
+
+@unittest.skipUnless(HAS_SPYLLS, "spylls not installed")
+class TestWordValidation(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.wordlist = WordList()
+        if cls.wordlist._dict is None:
+            raise unittest.SkipTest("Hunspell dictionary not available")
+
+    def assert_valid(self, words):
+        for word in words:
+            with self.subTest(word=word):
+                self.assertTrue(self.wordlist.is_valid_word(word), f"{word!r} should be valid")
+
+    def assert_invalid(self, words):
+        for word in words:
+            with self.subTest(word=word):
+                self.assertFalse(self.wordlist.is_valid_word(word), f"{word!r} should be invalid")
+
+    def test_known_false_positives_rejected(self):
+        """The garbage compounds from issue #32 must not validate."""
+        self.assert_invalid(["tköis", "mköis", "kköiserbl"])
+
+    def test_abbreviations_rejected(self):
+        """Abbreviations are valid for spell-checking but not for Scrabble."""
+        self.assert_invalid(["tk", "lk", "nt", "tv", "gb", "hz", "rbl"])
+
+    def test_blocked_words_rejected(self):
+        """Words from data/blocked_words.txt are rejected even if Hunspell accepts them."""
+        self.assert_invalid(["öis", "ÖIS"])
+
+    def test_simple_words_accepted(self):
+        self.assert_valid(["maja", "kass", "tee", "köis", "õõtsuma", "aknad"])
+
+    def test_inflected_forms_accepted(self):
+        """Morphological validation must survive the patch."""
+        self.assert_valid(["majaga", "majadest", "kassi", "kassidele", "teed"])
+
+    def test_real_compounds_accepted(self):
+        """Legitimate compounds (including 2-letter heads like öö) must survive."""
+        self.assert_valid(
+            [
+                "ööpäev",
+                "öötöö",
+                "ööklubi",
+                "jalgpall",
+                "raudtee",
+                "käsitöö",
+                "lennujaam",
+                "jääkaru",
+            ]
+        )
+
+    def test_extra_words_accepted_with_inflections(self):
+        """Words from data/extra_words.txt validate, including inflected forms.
+
+        'maantee' is missing from the upstream dictionary (it was only
+        accepted through the garbage parse maa + nt + ee) and is re-added
+        with the inflection flags of its model word 'tee'.
+        """
+        self.assert_valid(["maantee", "maanteed", "maanteega"])
+
+    def test_garbage_prefix_words_rejected(self):
+        """Consonant junk glued onto real words must not validate.
+
+        Against the unpatched dictionary, 61 of these 100 generated words
+        were accepted. The four exceptions below are plausibly real words
+        (muks, puks, luks, tuks), so they are tolerated.
+        """
+        bases = ["köis", "maja", "kass", "tee", "pall", "töö", "meri", "laud", "uks", "sild"]
+        prefixes = ["t", "k", "m", "p", "l", "nt", "tk", "lk", "kk", "hj"]
+        tolerated = {"tuks", "muks", "puks", "luks"}
+        accepted = [
+            word
+            for word in (p + b for p in prefixes for b in bases)
+            if self.wordlist.is_valid_word(word)
+        ]
+        unexpected = [w for w in accepted if w not in tolerated]
+        self.assertEqual(unexpected, [], f"garbage words accepted: {unexpected}")
+
+    def test_vowelless_words_rejected(self):
+        self.assert_invalid(["b", "t", "prst", "krt"])
+
+    def test_nonsense_rejected(self):
+        self.assert_invalid(["xyzzy", "qwrty", "asdfgh"])
+
+
+if __name__ == "__main__":
+    unittest.main()
