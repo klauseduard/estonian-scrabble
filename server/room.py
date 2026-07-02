@@ -30,6 +30,7 @@ class Room:
         self.game: Optional[GameState] = None
         self.started: bool = False
         self.last_move: Optional[Dict[str, Any]] = None
+        self.move_history: List[Dict[str, Any]] = []
         self.public: bool = False  # visible in lobby for strangers to join
         # Challenge support: snapshot of game state before last commit
         self._pre_commit_snapshot: Optional[GameState] = None
@@ -89,6 +90,11 @@ class Room:
     def has_disconnected_player(self, name: str) -> bool:
         """Check if a player with this name is disconnected and can reconnect."""
         return any(p["name"] == name and p["ws"] is None for p in self.players)
+
+    def record_move(self, move: Dict[str, Any]):
+        """Set the last move and append it to the game's move history."""
+        self.last_move = move
+        self.move_history.append(move)
 
     async def broadcast(self, message: Dict[str, Any], exclude: Optional[WebSocket] = None):
         """Send a JSON message to all connected players, optionally excluding one."""
@@ -195,6 +201,7 @@ class Room:
                 continue
             state = serialize_game_state(self.game, i, last_move=self.last_move)
             state["your_player_index"] = i
+            state["move_history"] = self.move_history
             await ws.send_json(state)
 
     async def broadcast_game_over(self):

@@ -325,6 +325,58 @@ class TestWebSocketFlow(unittest.TestCase):
         self.assertIn("Not your turn", msg["message"])
 
 
+class TestMoveHistory(unittest.TestCase):
+    """The room keeps a full move history and sends it with the game state."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def test_record_move_sets_last_move_and_appends(self):
+        room = Room("ABCD")
+        first = {"action": "pass", "player_name": "Alice"}
+        second = {"action": "exchange", "player_name": "Bob", "tile_count": 3}
+        room.record_move(first)
+        room.record_move(second)
+        self.assertIs(room.last_move, second)
+        self.assertEqual(room.move_history, [first, second])
+
+    def test_pass_and_exchange_handlers_append_history(self):
+        from server.app import (
+            _handle_create_room,
+            _handle_join_room,
+            _handle_pass_turn,
+            room_manager,
+        )
+
+        room_manager.rooms.clear()
+        ws1, ws2 = _make_ws(), _make_ws()
+        room = self._run(_handle_create_room(ws1, {"player_name": "Alice"}))
+        self._run(_handle_join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
+        room.game = _create_game(2)
+        room.game.players[0].name = "Alice"
+        room.game.players[1].name = "Bob"
+        room.started = True
+
+        self._run(_handle_pass_turn(ws1, room))
+        self.assertEqual(len(room.move_history), 1)
+        self.assertEqual(room.move_history[0]["action"], "pass")
+        self.assertEqual(room.move_history[0]["player_name"], "Alice")
+
+        self._run(_handle_pass_turn(ws2, room))
+        self.assertEqual(len(room.move_history), 2)
+
+    def test_broadcast_game_state_includes_move_history(self):
+        room = Room("ABCD")
+        room.game = _create_game(2)
+        ws = _make_ws()
+        room.add_player("Alice", ws)
+        room.record_move({"action": "pass", "player_name": "Alice"})
+
+        self._run(room.broadcast_game_state())
+        payload = ws.send_json.call_args[0][0]
+        self.assertEqual(payload["move_history"], [{"action": "pass", "player_name": "Alice"}])
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 

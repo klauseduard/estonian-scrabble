@@ -105,6 +105,13 @@ const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSendBtn = document.getElementById("chat-send");
 
+/* Panel tab elements (chat / move history) */
+const tabChatBtn = document.getElementById("tab-chat");
+const tabHistoryBtn = document.getElementById("tab-history");
+const chatSection = document.getElementById("chat-section");
+const historySection = document.getElementById("history-section");
+const moveHistoryEl = document.getElementById("move-history");
+
 /* ------------------------------------------------------------------ */
 /*  View routing                                                       */
 /* ------------------------------------------------------------------ */
@@ -546,6 +553,7 @@ function _renderGame() {
   });
 
   updateRack(gameState.rack || []);
+  _renderMoveHistory(gameState.move_history || []);
 
   _renderScorePanel();
   _renderGameInfo(isMyTurn);
@@ -1034,6 +1042,86 @@ chatInput.addEventListener("keydown", (e) => {
     _sendChatMessage();
   }
 });
+
+/* ------------------------------------------------------------------ */
+/*  Panel tabs: chat / move history                                    */
+/* ------------------------------------------------------------------ */
+
+function _selectPanelTab(showHistory) {
+  chatSection.classList.toggle("hidden", showHistory);
+  historySection.classList.toggle("hidden", !showHistory);
+  tabChatBtn.classList.toggle("panel-tab--active", !showHistory);
+  tabHistoryBtn.classList.toggle("panel-tab--active", showHistory);
+  tabChatBtn.setAttribute("aria-selected", String(!showHistory));
+  tabHistoryBtn.setAttribute("aria-selected", String(showHistory));
+  if (showHistory) {
+    moveHistoryEl.scrollTop = moveHistoryEl.scrollHeight;
+  } else {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+}
+
+tabChatBtn.addEventListener("click", () => _selectPanelTab(false));
+tabHistoryBtn.addEventListener("click", () => _selectPanelTab(true));
+
+/**
+ * Rebuild the move history list from the server-provided history.
+ * @param {object[]} history - list of move records
+ */
+function _renderMoveHistory(history) {
+  while (moveHistoryEl.firstChild) {
+    moveHistoryEl.removeChild(moveHistoryEl.firstChild);
+  }
+
+  if (!history || history.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "move-history__empty";
+    empty.textContent = "Käike pole veel tehtud";
+    moveHistoryEl.appendChild(empty);
+    return;
+  }
+
+  for (const move of history) {
+    const li = document.createElement("li");
+    li.className = "move-history__entry";
+
+    if (move.action === "word") {
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "move-history__player";
+      nameSpan.textContent = move.player_name;
+
+      const scoreSpan = document.createElement("span");
+      scoreSpan.className = "move-history__score";
+      scoreSpan.textContent = `${move.total_score} p`;
+
+      const words = (move.words || []).map((w) => w.word.toUpperCase()).join(", ");
+      const textSpan = document.createElement("span");
+      textSpan.textContent = move.forced ? `${words} ⚠` : words;
+      if (move.forced) {
+        textSpan.title = "Sõnastikuväline sõna, mängijate heakskiidul";
+      }
+
+      li.appendChild(nameSpan);
+      li.appendChild(scoreSpan);
+      li.appendChild(textSpan);
+    } else {
+      li.classList.add("move-history__entry--event");
+      if (move.action === "pass") {
+        li.textContent = `${move.player_name} jättis vahele`;
+      } else if (move.action === "exchange") {
+        li.textContent = `${move.player_name} vahetas ${move.tile_count || 0} tähte`;
+      } else if (move.action === "challenge_accepted") {
+        li.textContent = `${move.challenged} võttis käigu tagasi`;
+      } else {
+        continue;
+      }
+    }
+
+    moveHistoryEl.appendChild(li);
+  }
+
+  moveHistoryEl.scrollTop = moveHistoryEl.scrollHeight;
+}
 
 function _resetClientState() {
   myPlayerIndex = null;

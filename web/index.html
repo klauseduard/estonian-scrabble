@@ -95,15 +95,23 @@
         <div id="score-preview" class="score-preview"></div>
       </main>
 
-      <!-- Right: game info + chat -->
+      <!-- Right: game info + chat / move history -->
       <aside id="game-info-panel" class="panel game-info-panel">
         <div id="game-room-code" class="game-room-code"></div>
         <div id="tiles-remaining" class="tiles-remaining"></div>
-        <h3 class="chat-heading">Vestlus</h3>
-        <div id="chat-messages" class="chat-messages"></div>
-        <div class="chat-input-area">
-          <textarea id="chat-input" class="input chat-input" maxlength="200" rows="2" placeholder="Kirjuta sõnum..."></textarea>
-          <button id="chat-send" class="btn btn--primary btn--small chat-send-btn">Saada</button>
+        <div class="panel-tabs" role="tablist">
+          <button id="tab-chat" class="panel-tab panel-tab--active" role="tab" aria-selected="true">Vestlus</button>
+          <button id="tab-history" class="panel-tab" role="tab" aria-selected="false">Käigud</button>
+        </div>
+        <div id="chat-section" class="panel-section" role="tabpanel">
+          <div id="chat-messages" class="chat-messages"></div>
+          <div class="chat-input-area">
+            <textarea id="chat-input" class="input chat-input" maxlength="200" rows="2" placeholder="Kirjuta sõnum..."></textarea>
+            <button id="chat-send" class="btn btn--primary btn--small chat-send-btn">Saada</button>
+          </div>
+        </div>
+        <div id="history-section" class="panel-section hidden" role="tabpanel">
+          <ol id="move-history" class="move-history" aria-label="Käikude ajalugu"></ol>
         </div>
       </aside>
     </div>

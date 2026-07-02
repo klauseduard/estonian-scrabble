@@ -271,6 +271,7 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
         if room.game is not None:
             state = serialize_game_state(room.game, player_index, last_move=room.last_move)
             state["your_player_index"] = player_index
+            state["move_history"] = room.move_history
             await ws.send_json(state)
         return room
 
@@ -430,7 +431,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
         await _send_error(ws, "Invalid placement — cannot commit")
         return
 
-    room.last_move = {
+    room.record_move({
         "action": "word",
         "player_name": player_name,
         "words": words,
@@ -438,7 +439,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
         "tiles": placed_positions,
         "challengeable": True,
         "forced": force,
-    }
+    })
 
     # Post move to chat with score breakdown
     word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
@@ -493,10 +494,10 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
     room.clear_challenge()
     game.next_player()
 
-    room.last_move = {
+    room.record_move({
         "action": "pass",
         "player_name": player_name,
-    }
+    })
 
     await room.broadcast({
         "type": "chat",
@@ -544,11 +545,11 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         await _send_error(ws, "Cannot exchange tiles")
         return
 
-    room.last_move = {
+    room.record_move({
         "action": "exchange",
         "player_name": player_name,
         "tile_count": count,
-    }
+    })
 
     await room.broadcast({
         "type": "chat",
@@ -707,11 +708,11 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         await _send_error(ws, "Cannot undo — no snapshot available")
         return
 
-    room.last_move = {
+    room.record_move({
         "action": "challenge_accepted",
         "challenger": challenger,
         "challenged": challenged,
-    }
+    })
 
     await room.broadcast({
         "type": "challenge_resolved",
