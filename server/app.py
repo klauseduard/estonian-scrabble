@@ -1,20 +1,29 @@
 """FastAPI application with WebSocket endpoint for multiplayer Estonian Scrabble."""
 
+import logging
 import random
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from game.constants import LETTER_DISTRIBUTION
 from game.state import GameState
 
 from .room import Room, RoomManager
 from .serialization import serialize_game_state
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Estonian Scrabble Server")
 room_manager = RoomManager()
+
+# Letters a blank tile may be designated as (everything except the blank itself)
+_VALID_LETTERS = frozenset(k for k in LETTER_DISTRIBUTION if k != "_")
+_MAX_NAME_LENGTH = 20
+_MAX_CHAT_LENGTH = 200
 
 
 @app.get("/health")
@@ -174,14 +183,45 @@ async def _send_error(ws: WebSocket, message: str):
     await ws.send_json({"type": "error", "message": message})
 
 
+def _get_int(data: Dict[str, Any], key: str) -> Optional[int]:
+    """Return data[key] if it is a real int (bool excluded), else None."""
+    value = data.get(key)
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
+def _get_board_position(game: GameState, data: Dict[str, Any]) -> Optional[tuple]:
+    """Return a validated (row, col) from the payload, or None."""
+    row = _get_int(data, "row")
+    col = _get_int(data, "col")
+    if row is None or col is None:
+        return None
+    if not (0 <= row < game.board_size and 0 <= col < game.board_size):
+        return None
+    return row, col
+
+
+def _clean_player_name(data: Dict[str, Any], default: str) -> Optional[str]:
+    """Return a validated, length-capped player name, or None if malformed."""
+    name = data.get("player_name", default)
+    if not isinstance(name, str):
+        return None
+    name = name.strip()[:_MAX_NAME_LENGTH]
+    return name or default
+
+
 def _is_force_pending(room: Room) -> bool:
     """Check if a forced word is waiting for all players to acknowledge."""
     return bool(room._force_required_acks and not room._force_required_acks.issubset(room._force_acks))
 
 
-async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Room:
+async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[Room]:
     """Handle the ``create_room`` action and return the new Room."""
-    player_name = data.get("player_name", "Player 1")
+    player_name = _clean_player_name(data, "Player 1")
+    if player_name is None:
+        await _send_error(ws, "Invalid player name")
+        return None
     room = room_manager.create_room()
     room.public = bool(data.get("public", False))
     player_index = room.add_player(player_name, ws)
@@ -201,7 +241,10 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
     reconnect them to their existing slot instead of rejecting.
     """
     room_code = data.get("room_code", "")
-    player_name = data.get("player_name", "Player")
+    player_name = _clean_player_name(data, "Player")
+    if not isinstance(room_code, str) or player_name is None:
+        await _send_error(ws, "Invalid room code or player name")
+        return None
     room = room_manager.get_room(room_code)
 
     if room is None:
@@ -296,13 +339,23 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Not your turn")
         return
 
-    row = data.get("row")
-    col = data.get("col")
-    tile_idx = data.get("tile_idx")
+    pos = _get_board_position(game, data)
+    tile_idx = _get_int(data, "tile_idx")
 
-    if row is None or col is None or tile_idx is None:
-        await _send_error(ws, "Missing row, col, or tile_idx")
+    if pos is None or tile_idx is None:
+        await _send_error(ws, "Missing or invalid row, col, or tile_idx")
         return
+    row, col = pos
+
+    if not 0 <= tile_idx < len(game.current_player.rack):
+        await _send_error(ws, "Invalid tile_idx")
+        return
+
+    designated_letter = data.get("designated_letter")
+    if designated_letter is not None:
+        if not isinstance(designated_letter, str) or designated_letter.lower() not in _VALID_LETTERS:
+            await _send_error(ws, "Invalid designated_letter")
+            return
 
     if _is_force_pending(room):
         await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
@@ -310,7 +363,6 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
 
     room.clear_challenge()  # Next player is acting, challenge window closed
 
-    designated_letter = data.get("designated_letter")
     success = game.place_tile(row, col, tile_idx, designated_letter=designated_letter)
     if not success:
         await _send_error(ws, "Invalid tile placement")
@@ -332,11 +384,11 @@ async def _handle_remove_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Not your turn")
         return
 
-    row = data.get("row")
-    col = data.get("col")
-    if row is None or col is None:
-        await _send_error(ws, "Missing row or col")
+    pos = _get_board_position(game, data)
+    if pos is None:
+        await _send_error(ws, "Missing or invalid row or col")
         return
+    row, col = pos
 
     success = game.remove_tile(row, col)
     if not success:
@@ -471,8 +523,12 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         return
 
     tile_indices = data.get("tile_indices")
-    if tile_indices is None:
-        await _send_error(ws, "Missing tile_indices")
+    if (
+        not isinstance(tile_indices, list)
+        or len(tile_indices) > 7
+        or not all(isinstance(i, int) and not isinstance(i, bool) for i in tile_indices)
+    ):
+        await _send_error(ws, "Missing or invalid tile_indices")
         return
 
     if _is_force_pending(room):
@@ -519,15 +575,14 @@ async def _handle_designate_blank(ws: WebSocket, room: Room, data: Dict[str, Any
         await _send_error(ws, "Not your turn")
         return
 
-    row = data.get("row")
-    col = data.get("col")
+    pos = _get_board_position(game, data)
     letter = data.get("letter")
 
-    if row is None or col is None or letter is None:
-        await _send_error(ws, "Missing row, col, or letter")
+    if pos is None or not isinstance(letter, str) or letter.lower() not in _VALID_LETTERS:
+        await _send_error(ws, "Missing or invalid row, col, or letter")
         return
+    row, col = pos
 
-    pos = (row, col)
     if pos not in game.current_turn_tiles or pos not in game.blank_designations:
         await _send_error(ws, "No blank tile at that position")
         return
@@ -549,7 +604,10 @@ async def _handle_chat(ws: WebSocket, room: Room, data: Dict[str, Any]):
     else:
         player_name = room.players[player_index]["name"]
 
-    text = data.get("text", "")[:200]
+    text = data.get("text")
+    if not isinstance(text, str):
+        return
+    text = text[:_MAX_CHAT_LENGTH]
     if not text.strip():
         return
 
@@ -594,6 +652,9 @@ async def _handle_challenge(ws: WebSocket, room: Room):
         return
 
     challenger_index = room.get_player_index(ws)
+    if challenger_index is None:
+        await _send_error(ws, "You are not in this room")
+        return
     challenger_name = room.players[challenger_index]["name"]
 
     # Can't challenge your own move
@@ -630,6 +691,9 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         return
 
     player_index = room.get_player_index(ws)
+    if player_index is None:
+        await _send_error(ws, "You are not in this room")
+        return
     player_name = room.players[player_index]["name"]
 
     if player_name != room._challenge_pending["challenged"]:
@@ -670,6 +734,9 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
         return
 
     player_index = room.get_player_index(ws)
+    if player_index is None:
+        await _send_error(ws, "You are not in this room")
+        return
     player_name = room.players[player_index]["name"]
 
     if player_name != room._challenge_pending["challenged"]:
@@ -697,92 +764,132 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
 
 # ---- WebSocket endpoint ----
 
+async def _dispatch(ws: WebSocket, room: Room | None, data: Dict[str, Any]) -> Room | None:
+    """Dispatch one client message to its handler. Returns the (possibly new) room."""
+    action = data.get("action")
+
+    if action == "create_room":
+        return await _handle_create_room(ws, data) or room
+
+    elif action == "join_room":
+        return (await _handle_join_room(ws, data)) or room
+
+    elif room is None:
+        await _send_error(ws, "Join or create a room first")
+
+    elif action == "start_game":
+        await _handle_start_game(ws, room)
+
+    elif action == "place_tile":
+        await _handle_place_tile(ws, room, data)
+
+    elif action == "remove_tile":
+        await _handle_remove_tile(ws, room, data)
+
+    elif action == "commit_turn":
+        await _handle_commit_turn(ws, room)
+
+    elif action == "force_commit":
+        await _handle_force_commit(ws, room)
+
+    elif action == "pass_turn":
+        await _handle_pass_turn(ws, room)
+
+    elif action == "exchange_tiles":
+        await _handle_exchange_tiles(ws, room, data)
+
+    elif action == "designate_blank":
+        await _handle_designate_blank(ws, room, data)
+
+    elif action == "chat":
+        await _handle_chat(ws, room, data)
+
+    elif action == "force_ack":
+        await _handle_force_ack(ws, room)
+
+    elif action == "challenge":
+        await _handle_challenge(ws, room)
+
+    elif action == "challenge_accept":
+        await _handle_challenge_accept(ws, room)
+
+    elif action == "challenge_refuse":
+        await _handle_challenge_refuse(ws, room)
+
+    else:
+        await _send_error(ws, f"Unknown action: {action}")
+
+    return room
+
+
+async def _cleanup_connection(room: Room | None, ws: WebSocket):
+    """Release the player's slot (or preserve it for reconnection) after a socket dies."""
+    if room is None:
+        return
+    if room.started:
+        # Game in progress: preserve slot for reconnection
+        idx = room.disconnect_player(ws)
+        if idx is not None:
+            player_name = room.players[idx]["name"]
+            await room.broadcast({
+                "type": "player_disconnected",
+                "player_name": player_name,
+            })
+        # Clean up room only if ALL players disconnected
+        if room.connected_count == 0:
+            room_manager.remove_room(room.code)
+    else:
+        # Waiting room: remove player entirely
+        room.remove_player(ws)
+        if room.player_count == 0:
+            room_manager.remove_room(room.code)
+        else:
+            await room.broadcast({
+                "type": "player_left",
+                "player_count": room.player_count,
+            })
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
-    """Main WebSocket endpoint. Clients send JSON actions, receive JSON events."""
+    """Main WebSocket endpoint. Clients send JSON actions, receive JSON events.
+
+    A malformed or malicious message must never take down the connection
+    loop with the player slot still attached: handler errors are caught and
+    answered with an error frame, and slot cleanup runs on every exit path.
+    """
     await ws.accept()
     room: Room | None = None
 
     try:
         while True:
-            data = await ws.receive_json()
-            action = data.get("action")
+            try:
+                data = await ws.receive_json()
+            except WebSocketDisconnect:
+                raise
+            except Exception:
+                # Not JSON / binary frame
+                await _send_error(ws, "Message must be a JSON object")
+                continue
 
-            if action == "create_room":
-                room = await _handle_create_room(ws, data)
+            if not isinstance(data, dict):
+                await _send_error(ws, "Message must be a JSON object")
+                continue
 
-            elif action == "join_room":
-                room = await _handle_join_room(ws, data)
-
-            elif room is None:
-                await _send_error(ws, "Join or create a room first")
-
-            elif action == "start_game":
-                await _handle_start_game(ws, room)
-
-            elif action == "place_tile":
-                await _handle_place_tile(ws, room, data)
-
-            elif action == "remove_tile":
-                await _handle_remove_tile(ws, room, data)
-
-            elif action == "commit_turn":
-                await _handle_commit_turn(ws, room)
-
-            elif action == "force_commit":
-                await _handle_force_commit(ws, room)
-
-            elif action == "pass_turn":
-                await _handle_pass_turn(ws, room)
-
-            elif action == "exchange_tiles":
-                await _handle_exchange_tiles(ws, room, data)
-
-            elif action == "designate_blank":
-                await _handle_designate_blank(ws, room, data)
-
-            elif action == "chat":
-                await _handle_chat(ws, room, data)
-
-            elif action == "force_ack":
-                await _handle_force_ack(ws, room)
-
-            elif action == "challenge":
-                await _handle_challenge(ws, room)
-
-            elif action == "challenge_accept":
-                await _handle_challenge_accept(ws, room)
-
-            elif action == "challenge_refuse":
-                await _handle_challenge_refuse(ws, room)
-
-            else:
-                await _send_error(ws, f"Unknown action: {action}")
+            try:
+                room = await _dispatch(ws, room, data)
+            except WebSocketDisconnect:
+                raise
+            except Exception:
+                logger.exception("Unhandled error for action %r", data.get("action"))
+                await _send_error(ws, f"Invalid request: {data.get('action')!r}")
 
     except WebSocketDisconnect:
-        if room is not None:
-            if room.started:
-                # Game in progress: preserve slot for reconnection
-                idx = room.disconnect_player(ws)
-                if idx is not None:
-                    player_name = room.players[idx]["name"]
-                    await room.broadcast({
-                        "type": "player_disconnected",
-                        "player_name": player_name,
-                    })
-                # Clean up room only if ALL players disconnected
-                if room.connected_count == 0:
-                    room_manager.remove_room(room.code)
-            else:
-                # Waiting room: remove player entirely
-                room.remove_player(ws)
-                if room.player_count == 0:
-                    room_manager.remove_room(room.code)
-                else:
-                    await room.broadcast({
-                        "type": "player_left",
-                        "player_count": room.player_count,
-                    })
+        pass
+    finally:
+        # Runs on disconnect AND on unexpected errors (e.g. a failed send),
+        # so a dying connection can never leave a stale player slot behind.
+        await _cleanup_connection(room, ws)
 
 
 # ---- Static file serving (must come AFTER the /ws route) ----
