@@ -10,9 +10,11 @@ RUN pip install --no-cache-dir -r requirements-server.txt
 COPY game/ game/
 COPY server/ server/
 COPY web/ web/
+COPY tools/ tools/
+COPY data/ data/
 COPY wordlist.py .
 
-# Pre-download Estonian Hunspell dictionary files so first request is fast
+# Pre-download and patch the Estonian Hunspell dictionary so first request is fast
 RUN python -c "from wordlist import WordList; WordList()"
 
 EXPOSE 8080
