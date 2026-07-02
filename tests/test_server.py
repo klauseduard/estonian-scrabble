@@ -325,5 +325,155 @@ class TestWebSocketFlow(unittest.TestCase):
         self.assertIn("Not your turn", msg["message"])
 
 
+class TestInputValidation(unittest.TestCase):
+    """Malformed WebSocket payloads must produce error frames, never exceptions.
+
+    An uncaught exception used to escape the receive loop and skip disconnect
+    cleanup, leaving a stale player slot and a wedged room (GitHub issue #34).
+    """
+
+    def setUp(self):
+        from server.app import (
+            _dispatch,
+            _handle_chat,
+            _handle_challenge,
+            _handle_create_room,
+            _handle_designate_blank,
+            _handle_exchange_tiles,
+            _handle_join_room,
+            _handle_place_tile,
+            _handle_remove_tile,
+            room_manager,
+        )
+
+        self.dispatch = _dispatch
+        self.chat = _handle_chat
+        self.challenge = _handle_challenge
+        self.designate_blank = _handle_designate_blank
+        self.exchange_tiles = _handle_exchange_tiles
+        self.place_tile = _handle_place_tile
+        self.remove_tile = _handle_remove_tile
+        room_manager.rooms.clear()
+
+        # A started 2-player room with a real (mock-wordlist) game
+        self.ws1, self.ws2 = _make_ws(), _make_ws()
+        self.room = self._run(_handle_create_room(self.ws1, {"player_name": "Alice"}))
+        self._run(
+            _handle_join_room(self.ws2, {"room_code": self.room.code, "player_name": "Bob"})
+        )
+        self.game = _create_game(2)
+        self.game.players[0].name = "Alice"
+        self.game.players[1].name = "Bob"
+        self.game.players[0].rack = ["a", "b", "c", "d", "e", "f", "_"]
+        self.room.game = self.game
+        self.room.started = True
+        self.ws1.send_json.reset_mock()
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _assert_error(self, ws):
+        msg = ws.send_json.call_args[0][0]
+        self.assertEqual(msg["type"], "error")
+
+    def test_place_tile_rejects_malformed_payloads(self):
+        payloads = [
+            {"row": "x", "col": 7, "tile_idx": 0},
+            {"row": 999, "col": 7, "tile_idx": 0},
+            {"row": [1], "col": 7, "tile_idx": 0},
+            {"row": 7, "col": -1, "tile_idx": 0},
+            {"row": 7, "col": 7, "tile_idx": "0"},
+            {"row": 7, "col": 7, "tile_idx": 99},
+            {"row": 7, "col": 7, "tile_idx": True},
+            {"row": 7, "col": 7},
+            {"row": 7, "col": 7, "tile_idx": 0, "designated_letter": "qq"},
+            {"row": 7, "col": 7, "tile_idx": 0, "designated_letter": 5},
+        ]
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                self.ws1.send_json.reset_mock()
+                self._run(self.place_tile(self.ws1, self.room, payload))
+                self._assert_error(self.ws1)
+                self.assertEqual(self.game.current_turn_tiles, set())
+
+    def test_place_tile_still_works_with_valid_payload(self):
+        self._run(self.place_tile(self.ws1, self.room, {"row": 7, "col": 7, "tile_idx": 0}))
+        self.assertIn((7, 7), self.game.current_turn_tiles)
+
+    def test_remove_tile_rejects_malformed_payloads(self):
+        for payload in [{"row": [1], "col": 7}, {"row": 7}, {"row": 7, "col": 99}]:
+            with self.subTest(payload=payload):
+                self.ws1.send_json.reset_mock()
+                self._run(self.remove_tile(self.ws1, self.room, payload))
+                self._assert_error(self.ws1)
+
+    def test_exchange_tiles_rejects_malformed_payloads(self):
+        payloads = [
+            {"tile_indices": 5},
+            {"tile_indices": ["a"]},
+            {"tile_indices": [True]},
+            {"tile_indices": list(range(50))},
+            {},
+        ]
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                self.ws1.send_json.reset_mock()
+                self._run(self.exchange_tiles(self.ws1, self.room, payload))
+                self._assert_error(self.ws1)
+
+    def test_designate_blank_rejects_invalid_letter(self):
+        # Place the blank first (rack index 6)
+        self._run(
+            self.place_tile(
+                self.ws1, self.room, {"row": 7, "col": 7, "tile_idx": 6, "designated_letter": "a"}
+            )
+        )
+        for payload in [
+            {"row": 7, "col": 7, "letter": "qwerty"},
+            {"row": 7, "col": 7, "letter": 5},
+            {"row": 7, "col": 7},
+            {"row": "x", "col": 7, "letter": "a"},
+        ]:
+            with self.subTest(payload=payload):
+                self.ws1.send_json.reset_mock()
+                self._run(self.designate_blank(self.ws1, self.room, payload))
+                self._assert_error(self.ws1)
+        # Board still holds the original designation
+        self.assertEqual(self.game.board[7][7], "a")
+
+    def test_chat_ignores_non_string_text(self):
+        for payload in [{"text": 123}, {"text": ["hi"]}, {}]:
+            with self.subTest(payload=payload):
+                self.ws1.send_json.reset_mock()
+                self.ws2.send_json.reset_mock()
+                self._run(self.chat(self.ws1, self.room, payload))
+                self.ws2.send_json.assert_not_called()
+
+    def test_challenge_from_unknown_socket_gets_error(self):
+        self.room.save_snapshot("Alice")
+        stranger = _make_ws()
+        self._run(self.challenge(stranger, self.room))
+        self._assert_error(stranger)
+
+    def test_dispatch_rejects_non_dict_action_and_unknown_action(self):
+        ws = _make_ws()
+        room = self._run(self.dispatch(ws, self.room, {"action": "no_such_action"}))
+        self.assertIs(room, self.room)
+        self._assert_error(ws)
+
+    def test_create_room_rejects_non_string_name(self):
+        ws = _make_ws()
+        result = self._run(self.dispatch(ws, None, {"action": "create_room", "player_name": 42}))
+        self.assertIsNone(result)
+        self._assert_error(ws)
+
+    def test_join_failure_keeps_existing_room_binding(self):
+        """A failed join must not detach the socket from its current room."""
+        result = self._run(
+            self.dispatch(self.ws1, self.room, {"action": "join_room", "room_code": "ZZZZ"})
+        )
+        self.assertIs(result, self.room)
+
+
 if __name__ == "__main__":
     unittest.main()
