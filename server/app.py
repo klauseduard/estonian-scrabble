@@ -401,6 +401,7 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
             state = serialize_game_state(room.game, player_index, last_move=room.last_move)
             state["your_player_index"] = player_index
             state["move_history"] = room.move_history
+            state["ai_players"] = sorted(room.ai_players)
             await ws.send_json(state)
         return room
 
@@ -642,8 +643,24 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
     await _do_commit(ws, room, force=False)
 
 
+def _has_human_opponent(room: Room, player_index: Optional[int]) -> bool:
+    """Whether any player other than *player_index* is human."""
+    return any(
+        i != player_index and i not in room.ai_players
+        for i in range(len(room.players))
+    )
+
+
 async def _handle_force_commit(ws: WebSocket, room: Room):
-    """Force-commit the current turn, bypassing word validation."""
+    """Force-commit the current turn, bypassing word validation.
+
+    Forced words need human approval; with no human opponents the
+    approval set would be empty and any garbage word would commit
+    unopposed, so force-commit is rejected outright (see issue #37).
+    """
+    if not _has_human_opponent(room, room.get_player_index(ws)):
+        await _send_error(ws, "Arvuti vastu ei saa sõnastikuväliseid sõnu mängida")
+        return
     await _do_commit(ws, room, force=True)
 
 

@@ -377,6 +377,59 @@ class TestMoveHistory(unittest.TestCase):
         self.assertEqual(payload["move_history"], [{"action": "pass", "player_name": "Alice"}])
 
 
+class TestForceCommitVsAI(unittest.TestCase):
+    """Force-commit is rejected without human opponents (issue #37).
+
+    With only AI opponents the approval set would be empty and any
+    garbage word would commit unopposed.
+    """
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_room(self, opponent_is_ai):
+        from server.app import _handle_create_room, room_manager
+
+        room_manager.rooms.clear()
+        ws = _make_ws()
+        room = self._run(_handle_create_room(ws, {"player_name": "Klaus"}))
+        if opponent_is_ai:
+            room.add_ai_player("Arvuti", "medium")
+        else:
+            room.add_player("Mari", _make_ws())
+        room.game = _create_game(2)
+        room.game.players[0].name = "Klaus"
+        room.game.players[1].name = "Arvuti" if opponent_is_ai else "Mari"
+        room.game.players[0].rack = ["z", "s"]
+        room.started = True
+        return ws, room
+
+    def test_force_commit_rejected_when_only_ai_opponents(self):
+        from server.app import _handle_force_commit
+
+        ws, room = self._make_room(opponent_is_ai=True)
+        ws.send_json.reset_mock()
+        self._run(_handle_force_commit(ws, room))
+        msg = ws.send_json.call_args[0][0]
+        self.assertEqual(msg["type"], "error")
+        self.assertIn("Arvuti vastu", msg["message"])
+        self.assertEqual(room.move_history, [])
+
+    def test_force_commit_allowed_with_human_opponent(self):
+        from server.app import _handle_force_commit
+
+        ws, room = self._make_room(opponent_is_ai=False)
+        ws.send_json.reset_mock()
+        # Place a garbage word so the force-commit has something to commit
+        room.game.place_tile(7, 7, 0)
+        room.game.place_tile(7, 8, 0)
+        self._run(_handle_force_commit(ws, room))
+        # Not rejected by the AI guard: the move committed
+        self.assertEqual(len(room.move_history), 1)
+        self.assertEqual(room.move_history[0]["action"], "word")
+        self.assertTrue(room.move_history[0]["forced"])
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 

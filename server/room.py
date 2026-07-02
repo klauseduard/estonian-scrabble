@@ -218,6 +218,7 @@ class Room:
             state = serialize_game_state(self.game, i, last_move=self.last_move)
             state["your_player_index"] = i
             state["move_history"] = self.move_history
+            state["ai_players"] = sorted(self.ai_players)
             await ws.send_json(state)
 
     async def broadcast_game_over(self):

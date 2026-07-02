@@ -651,8 +651,14 @@ function _renderControls(isMyTurn) {
   exchangeBtn.disabled =
     !isMyTurn || gameState.tiles_remaining < 7 || hasTilesPlaced;
 
-  /* Show "Palu heakskiitu" when tiles are placed but words are invalid */
-  const showForce = isMyTurn && hasTilesPlaced && !hasValidWords;
+  /* Show "Palu heakskiitu" when tiles are placed but words are invalid.
+     Hidden without human opponents — there is nobody to ask for approval
+     and the word would commit unopposed (the server rejects it too). */
+  const aiSet = new Set(gameState.ai_players || []);
+  const hasHumanOpponent = (gameState.players || []).some(
+    (p, i) => i !== myPlayerIndex && !aiSet.has(i)
+  );
+  const showForce = isMyTurn && hasTilesPlaced && !hasValidWords && hasHumanOpponent;
   forceSubmitBtn.classList.toggle("hidden", !showForce);
   forceSubmitBtn.disabled = !showForce;
 
