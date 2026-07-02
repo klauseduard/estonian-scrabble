@@ -35,12 +35,19 @@
         <div class="lobby__actions">
           <div class="lobby__action-col">
             <h3 class="lobby__action-heading">Uus mäng</h3>
-            <label class="label label--small" for="turn-timer-select">Käiguaeg</label>
+            <label class="label label--small" for="turn-timer-select">Ajakontroll</label>
             <select id="turn-timer-select" class="input input--compact lobby__select">
               <option value="" selected>Piiramatu</option>
-              <option value="60">1 minut</option>
-              <option value="120">2 minutit</option>
-              <option value="300">5 minutit</option>
+              <optgroup label="Aeg käigu kohta">
+                <option value="t60">1 minut</option>
+                <option value="t120">2 minutit</option>
+                <option value="t300">5 minutit</option>
+              </optgroup>
+              <optgroup label="Malekell — aeg mängu kohta">
+                <option value="g300">5 minutit</option>
+                <option value="g900">15 minutit</option>
+                <option value="g1500">25 minutit (turniir)</option>
+              </optgroup>
             </select>
             <label class="lobby__checkbox">
               <input type="checkbox" id="public-toggle"> Avalik

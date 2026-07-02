@@ -30,6 +30,12 @@ _MAX_CHAT_LENGTH = 200
 # Allowed per-turn time limits in seconds (issue #38); anything else → untimed
 _TURN_TIME_LIMITS = frozenset({60, 120, 300})
 
+# Allowed chess-clock budgets in seconds per player (issue #39)
+_GAME_TIME_LIMITS = frozenset({300, 900, 1500})
+
+# A player more than 10 minutes into chess-clock overtime gets auto-passed
+_MAX_OVERTIME = 600
+
 
 @app.get("/health")
 async def health_check():
@@ -222,25 +228,39 @@ def _is_force_pending(room: Room) -> bool:
 
 
 def _arm_turn_timer(room: Room):
-    """(Re)start the per-turn timer for the current player, if applicable.
+    """(Re)start the turn timing for the current player, if applicable.
 
-    The timer only runs for human players in rooms with a time limit,
-    and not while a forced word awaits approvals. AI turns are never
-    timed — the AI moves in seconds and cannot stall.
+    Handles both timing modes: the per-turn timer (#38, timeout =
+    auto-pass) and the chess clock (#39, time may run into penalized
+    overtime; the auto-pass only fires as an anti-stall backstop once
+    a player is more than _MAX_OVERTIME into overtime).
+
+    Timers only run for human players, and not while a forced word
+    awaits approvals. AI turns are never timed — the AI moves in
+    seconds and cannot stall.
     """
     room.cancel_turn_timer()
     game = room.game
-    if not room.turn_time_limit or game is None or game.game_over:
+    if game is None or game.game_over:
+        room.stop_clock()
         return
-    if game.current_player_idx in room.ai_players:
+    if game.current_player_idx in room.ai_players or _is_force_pending(room):
+        room.stop_clock()
         return
-    if _is_force_pending(room):
-        return
-    loop = asyncio.get_event_loop()
-    room._turn_deadline = loop.time() + room.turn_time_limit
-    room._turn_timer_task = asyncio.ensure_future(
-        _turn_timeout(room, game.current_player_idx, room.turn_time_limit)
-    )
+
+    if room.game_time_limit:
+        player_idx = game.current_player_idx
+        room.start_clock(player_idx)
+        backstop = max(0.0, room.clock_remaining[player_idx] + _MAX_OVERTIME)
+        room._turn_timer_task = asyncio.ensure_future(
+            _turn_timeout(room, player_idx, backstop)
+        )
+    elif room.turn_time_limit:
+        loop = asyncio.get_event_loop()
+        room._turn_deadline = loop.time() + room.turn_time_limit
+        room._turn_timer_task = asyncio.ensure_future(
+            _turn_timeout(room, game.current_player_idx, room.turn_time_limit)
+        )
 
 
 async def _turn_timeout(room: Room, player_idx: int, limit: float):
@@ -415,9 +435,12 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[R
         return None
     room = room_manager.create_room()
     room.public = bool(data.get("public", False))
-    limit = data.get("turn_time_limit")
-    if isinstance(limit, int) and not isinstance(limit, bool) and limit in _TURN_TIME_LIMITS:
-        room.turn_time_limit = limit
+    game_limit = data.get("game_time_limit")
+    turn_limit = data.get("turn_time_limit")
+    if isinstance(game_limit, int) and not isinstance(game_limit, bool) and game_limit in _GAME_TIME_LIMITS:
+        room.game_time_limit = game_limit  # chess clock wins if both are sent
+    elif isinstance(turn_limit, int) and not isinstance(turn_limit, bool) and turn_limit in _TURN_TIME_LIMITS:
+        room.turn_time_limit = turn_limit
     player_index = room.add_player(player_name, ws)
     await ws.send_json({
         "type": "room_created",
@@ -469,6 +492,7 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
             state["ai_players"] = sorted(room.ai_players)
             state["turn_time_limit"] = room.turn_time_limit
             state["turn_time_remaining"] = room.turn_time_remaining()
+            state["game_clock"] = room.clock_snapshot()
             await ws.send_json(state)
         return room
 
@@ -521,6 +545,7 @@ async def _handle_start_game(ws: WebSocket, room: Room):
     for i, player_info in enumerate(room.players):
         room.game.players[i].name = player_info["name"]
 
+    room.init_game_clock(room.player_count)
     room.started = True
     first_player_name = room.game.players[0].name
     await room.broadcast({
@@ -1109,6 +1134,7 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
         # Clean up room only if ALL players disconnected
         if room.connected_count == 0:
             room.cancel_turn_timer()
+            room.stop_clock()
             room_manager.remove_room(room.code)
     else:
         # Waiting room: remove player entirely

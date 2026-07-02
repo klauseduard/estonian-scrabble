@@ -37,6 +37,13 @@ class Room:
         self.turn_time_limit: Optional[float] = None
         self._turn_timer_task: Optional[Any] = None  # asyncio.Task
         self._turn_deadline: Optional[float] = None  # event-loop time
+        # Optional chess clock (issue #39): total seconds per player.
+        # clock_remaining may go negative — overtime is penalized 10 points
+        # per started minute at game end, per tournament rules.
+        self.game_time_limit: Optional[int] = None
+        self.clock_remaining: List[float] = []
+        self._clock_running_for: Optional[int] = None
+        self._clock_started_at: Optional[float] = None
         # AI player tracking — indices of players controlled by the AI engine
         self.ai_players: Set[int] = set()
         # Challenge support: snapshot of game state before last commit
@@ -129,6 +136,51 @@ class Room:
             self._turn_timer_task.cancel()
             self._turn_timer_task = None
         self._turn_deadline = None
+
+    # ---- Chess clock (issue #39) ----
+
+    def init_game_clock(self, num_players: int):
+        """Give every player their full time budget at game start."""
+        if self.game_time_limit:
+            self.clock_remaining = [float(self.game_time_limit)] * num_players
+
+    def start_clock(self, player_idx: int):
+        """Start the given player's clock (stopping whichever was running)."""
+        self.stop_clock()
+        self._clock_running_for = player_idx
+        self._clock_started_at = asyncio.get_event_loop().time()
+
+    def stop_clock(self):
+        """Stop the running clock and deduct the elapsed time."""
+        if self._clock_running_for is None:
+            return
+        elapsed = asyncio.get_event_loop().time() - self._clock_started_at
+        self.clock_remaining[self._clock_running_for] -= elapsed
+        self._clock_running_for = None
+        self._clock_started_at = None
+
+    def clock_snapshot(self) -> Optional[Dict[str, Any]]:
+        """Live per-player clock state for the game_state payload."""
+        if not self.game_time_limit or not self.clock_remaining:
+            return None
+        remaining = list(self.clock_remaining)
+        if self._clock_running_for is not None:
+            elapsed = asyncio.get_event_loop().time() - self._clock_started_at
+            remaining[self._clock_running_for] -= elapsed
+        return {
+            "remaining": [int(round(r)) for r in remaining],
+            "running_for": self._clock_running_for,
+        }
+
+    def time_penalties(self) -> Optional[List[int]]:
+        """Overtime penalties at game end: 10 points per started minute."""
+        if not self.game_time_limit or not self.clock_remaining:
+            return None
+        self.stop_clock()
+        return [
+            int(-(-max(0.0, -r) // 60)) * 10  # ceil(overtime / 60) * 10
+            for r in self.clock_remaining
+        ]
 
     async def broadcast(self, message: Dict[str, Any], exclude: Optional[WebSocket] = None):
         """Send a JSON message to all connected players, optionally excluding one."""
@@ -240,13 +292,15 @@ class Room:
             state["ai_players"] = sorted(self.ai_players)
             state["turn_time_limit"] = self.turn_time_limit
             state["turn_time_remaining"] = self.turn_time_remaining()
+            state["game_clock"] = self.clock_snapshot()
             await ws.send_json(state)
 
     async def broadcast_game_over(self):
         """Send the game-over payload to all players."""
         if self.game is None:
             return
-        payload = serialize_game_over(self.game)
+        self.cancel_turn_timer()
+        payload = serialize_game_over(self.game, time_penalties=self.time_penalties())
         await self.broadcast(payload)
 
 

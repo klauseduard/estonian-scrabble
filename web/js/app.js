@@ -122,6 +122,11 @@ const turnTimerEl = document.getElementById("turn-timer");
 let turnTimerDeadline = null;
 let turnTimerInterval = null;
 
+/* Chess clock state (issue #39): server snapshot + when we received it */
+let gameClock = null;
+let gameClockReceivedAt = 0;
+let gameClockInterval = null;
+
 /* ------------------------------------------------------------------ */
 /*  View routing                                                       */
 /* ------------------------------------------------------------------ */
@@ -585,6 +590,7 @@ function _renderGame() {
   updateRack(gameState.rack || []);
   _renderMoveHistory(gameState.move_history || []);
   _syncTurnTimer(gameState.turn_time_remaining);
+  _syncGameClock(gameState.game_clock);
 
   _renderScorePanel();
   _renderGameInfo(isMyTurn);
@@ -622,8 +628,60 @@ function _renderScorePanel() {
     scoreSpan.textContent = String(player.score);
     row.appendChild(scoreSpan);
 
+    if (gameClock) {
+      const clockSpan = document.createElement("span");
+      clockSpan.className = "score-row__clock";
+      clockSpan.dataset.playerIdx = String(i);
+      row.appendChild(clockSpan);
+    }
+
     scorePanel.appendChild(row);
   });
+  _renderGameClocks();
+}
+
+/**
+ * Compute a player's live remaining seconds from the last server snapshot.
+ * The running player's clock ticks locally between broadcasts.
+ */
+function _clockRemainingFor(idx) {
+  let remaining = gameClock.remaining[idx];
+  if (gameClock.running_for === idx) {
+    remaining -= Math.round((Date.now() - gameClockReceivedAt) / 1000);
+  }
+  return remaining;
+}
+
+function _formatClock(seconds) {
+  const sign = seconds < 0 ? "-" : "";
+  const abs = Math.abs(seconds);
+  return `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, "0")}`;
+}
+
+function _renderGameClocks() {
+  if (!gameClock) return;
+  scorePanel.querySelectorAll(".score-row__clock").forEach((el) => {
+    const idx = parseInt(el.dataset.playerIdx, 10);
+    const remaining = _clockRemainingFor(idx);
+    el.textContent = `⏱ ${_formatClock(remaining)}`;
+    el.classList.toggle("score-row__clock--overtime", remaining < 0);
+    el.classList.toggle(
+      "score-row__clock--urgent",
+      remaining >= 0 && remaining <= 30 && gameClock.running_for === idx
+    );
+  });
+}
+
+/** Sync chess-clock state from a game_state payload. */
+function _syncGameClock(clock) {
+  gameClock = clock || null;
+  gameClockReceivedAt = Date.now();
+  if (gameClock && !gameClockInterval) {
+    gameClockInterval = setInterval(_renderGameClocks, 1000);
+  } else if (!gameClock && gameClockInterval) {
+    clearInterval(gameClockInterval);
+    gameClockInterval = null;
+  }
 }
 
 function _renderGameInfo(isMyTurn) {
@@ -738,10 +796,15 @@ function _renderGameOver(scores) {
   const table = document.createElement("table");
   table.className = "game-over-table";
 
+  /* Show the chess-clock penalty column only when someone was penalized */
+  const hasTimePenalty = scores.some((s) => (s.time_penalty || 0) !== 0);
+
   const thead = document.createElement("thead");
   const headerRow = document.createElement("tr");
   const headers = hasDetails
-    ? ["Mängija", "Sõnad", "Tähed", "Boonus", "Kokku"]
+    ? hasTimePenalty
+      ? ["Mängija", "Sõnad", "Tähed", "Boonus", "Aeg", "Kokku"]
+      : ["Mängija", "Sõnad", "Tähed", "Boonus", "Kokku"]
     : ["Mängija", "Skoor"];
   for (const h of headers) {
     const th = document.createElement("th");
@@ -778,6 +841,14 @@ function _renderGameOver(scores) {
       if (s.tile_bonus > 0) tdBonus.style.color = "var(--turn-green)";
       tr.appendChild(tdBonus);
 
+      if (hasTimePenalty) {
+        const tdTime = document.createElement("td");
+        const penalty = s.time_penalty || 0;
+        tdTime.textContent = penalty !== 0 ? String(penalty) : "—";
+        if (penalty < 0) tdTime.style.color = "var(--btn-danger)";
+        tr.appendChild(tdTime);
+      }
+
       const tdFinal = document.createElement("td");
       tdFinal.textContent = String(s.final_score);
       tdFinal.style.fontWeight = "700";
@@ -799,6 +870,13 @@ function _renderGameOver(scores) {
     note.className = "game-over-note";
     note.textContent = "Tähed: allesjäänud tähtede väärtus lahutatakse skoorist. " +
       "Boonus: tühjaks mänginud mängija saab teiste allesjäänud tähtede väärtuse.";
+    gameOverScores.appendChild(note);
+  }
+
+  if (hasTimePenalty) {
+    const note = document.createElement("p");
+    note.className = "game-over-note";
+    note.textContent = "Aeg: malekella ületamine maksab 10 punkti iga alanud minuti eest.";
     gameOverScores.appendChild(note);
   }
 }
@@ -932,8 +1010,12 @@ createBtn.addEventListener("click", async () => {
   }
   lobbyError.textContent = "";
   if (!ws) await connectWebSocket();
-  const limit = parseInt(turnTimerSelect.value, 10);
-  ws.createRoom(name, publicToggle.checked, Number.isNaN(limit) ? null : limit);
+  /* Value is "t<seconds>" (per-turn), "g<seconds>" (chess clock), or "" */
+  const choice = turnTimerSelect.value;
+  const seconds = parseInt(choice.slice(1), 10);
+  const turnLimit = choice.startsWith("t") && !Number.isNaN(seconds) ? seconds : null;
+  const gameLimit = choice.startsWith("g") && !Number.isNaN(seconds) ? seconds : null;
+  ws.createRoom(name, publicToggle.checked, turnLimit, gameLimit);
 });
 
 joinBtn.addEventListener("click", async () => {

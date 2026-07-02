@@ -76,8 +76,14 @@ def serialize_game_state(
     return data
 
 
-def serialize_game_over(game: GameState) -> Dict[str, Any]:
-    """Build the game-over payload with final scores and end-game breakdown."""
+def serialize_game_over(
+    game: GameState, time_penalties: Optional[List[int]] = None
+) -> Dict[str, Any]:
+    """Build the game-over payload with final scores and end-game breakdown.
+
+    *time_penalties* is an optional per-player-index list of chess-clock
+    overtime penalties (positive numbers of points to subtract, issue #39).
+    """
     details = getattr(game, "end_game_details", None)
     if details:
         scores = [
@@ -101,6 +107,13 @@ def serialize_game_over(game: GameState) -> Dict[str, Any]:
             }
             for player in game.players
         ]
+
+    # end_game_details preserves player order, so index alignment holds
+    for i, entry in enumerate(scores):
+        penalty = time_penalties[i] if time_penalties and i < len(time_penalties) else 0
+        entry["time_penalty"] = -penalty
+        entry["final_score"] -= penalty
+
     return {
         "type": "game_over",
         "scores": scores,

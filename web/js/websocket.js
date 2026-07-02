@@ -102,14 +102,16 @@ class ScrabbleWebSocket {
   /**
    * @param {string} playerName
    * @param {boolean} [isPublic=false]
-   * @param {number|null} [turnTimeLimit=null] - seconds per turn, or null for untimed
+   * @param {number|null} [turnTimeLimit=null] - seconds per turn, or null
+   * @param {number|null} [gameTimeLimit=null] - chess-clock seconds per player, or null
    */
-  createRoom(playerName, isPublic = false, turnTimeLimit = null) {
+  createRoom(playerName, isPublic = false, turnTimeLimit = null, gameTimeLimit = null) {
     this.send({
       action: "create_room",
       player_name: playerName,
       public: isPublic,
       turn_time_limit: turnTimeLimit,
+      game_time_limit: gameTimeLimit,
     });
   }
 

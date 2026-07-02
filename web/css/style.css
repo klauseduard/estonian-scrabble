@@ -537,6 +537,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   padding: 8px 10px;
   border-radius: 6px;
   margin-bottom: 4px;
@@ -775,6 +776,25 @@ body {
 .turn-timer--urgent {
   color: #E57373;
   animation: timerPulse 1s ease-in-out infinite;
+}
+
+.score-row__clock {
+  display: block;
+  width: 100%;
+  font-size: 12px;
+  color: #AAB;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.score-row__clock--urgent {
+  color: #E57373;
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+.score-row__clock--overtime {
+  color: #E57373;
+  font-weight: 700;
 }
 
 @keyframes timerPulse {

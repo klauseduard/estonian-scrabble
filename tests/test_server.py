@@ -518,6 +518,104 @@ class TestTurnTimer(unittest.TestCase):
         self.assertEqual(room.move_history, [])  # no timeout fired
 
 
+class TestChessClock(unittest.TestCase):
+    """Tournament chess clock with overtime penalties (issue #39)."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_started_room(self, **create_payload):
+        from server.app import _handle_create_room, _handle_join_room, room_manager
+
+        room_manager.rooms.clear()
+        ws1, ws2 = _make_ws(), _make_ws()
+        room = self._run(_handle_create_room(ws1, {"player_name": "Alice", **create_payload}))
+        self._run(_handle_join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
+        room.game = _create_game(2)
+        room.game.players[0].name = "Alice"
+        room.game.players[1].name = "Bob"
+        room.init_game_clock(2)
+        room.started = True
+        return room
+
+    def test_create_room_accepts_allowed_budgets(self):
+        for limit in (300, 900, 1500):
+            with self.subTest(limit=limit):
+                room = self._make_started_room(game_time_limit=limit)
+                self.assertEqual(room.game_time_limit, limit)
+                self.assertEqual(room.clock_remaining, [float(limit)] * 2)
+
+    def test_create_room_rejects_invalid_budgets(self):
+        for limit in (299, "900", True, -300):
+            with self.subTest(limit=limit):
+                room = self._make_started_room(game_time_limit=limit)
+                self.assertIsNone(room.game_time_limit)
+
+    def test_chess_clock_wins_over_turn_timer(self):
+        room = self._make_started_room(game_time_limit=900, turn_time_limit=60)
+        self.assertEqual(room.game_time_limit, 900)
+        self.assertIsNone(room.turn_time_limit)
+
+    def test_clock_deducts_elapsed_time(self):
+        room = self._make_started_room(game_time_limit=300)
+
+        async def scenario():
+            room.start_clock(0)
+            await asyncio.sleep(0.1)
+            room.stop_clock()
+
+        self._run(scenario())
+        self.assertLess(room.clock_remaining[0], 300.0)
+        self.assertEqual(room.clock_remaining[1], 300.0)
+
+    def test_clock_snapshot_reflects_running_player(self):
+        room = self._make_started_room(game_time_limit=300)
+
+        async def scenario():
+            room.start_clock(1)
+            return room.clock_snapshot()
+
+        snap = self._run(scenario())
+        room.stop_clock()
+        self.assertEqual(snap["running_for"], 1)
+        self.assertEqual(len(snap["remaining"]), 2)
+
+    def test_time_penalties_ten_points_per_started_minute(self):
+        room = self._make_started_room(game_time_limit=300)
+        room.clock_remaining = [-1.0, 130.0]  # 1s overtime vs no overtime
+        self.assertEqual(room.time_penalties(), [10, 0])
+        room.clock_remaining = [-61.0, -120.0]  # 2nd minute started vs exactly 2 min
+        self.assertEqual(room.time_penalties(), [20, 20])
+
+    def test_game_over_payload_applies_penalties(self):
+        from server.serialization import serialize_game_over
+
+        game = _create_game(2)
+        game.players[0].score = 100
+        game.players[1].score = 90
+        payload = serialize_game_over(game, time_penalties=[30, 0])
+        self.assertEqual(payload["scores"][0]["time_penalty"], -30)
+        self.assertEqual(payload["scores"][0]["final_score"], 70)
+        self.assertEqual(payload["scores"][1]["time_penalty"], 0)
+        self.assertEqual(payload["scores"][1]["final_score"], 90)
+
+    def test_deep_overtime_backstop_auto_passes(self):
+        from server.app import _arm_turn_timer
+
+        room = self._make_started_room(game_time_limit=300)
+        room.clock_remaining = [-601.0, 300.0]  # Alice past the overtime cap
+
+        async def scenario():
+            _arm_turn_timer(room)
+            await asyncio.sleep(0.1)
+
+        self._run(scenario())
+        room.stop_clock()
+        self.assertEqual(room.game.current_player_idx, 1)
+        self.assertEqual(len(room.move_history), 1)
+        self.assertTrue(room.move_history[0]["timeout"])
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 
