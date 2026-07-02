@@ -430,6 +430,94 @@ class TestForceCommitVsAI(unittest.TestCase):
         self.assertTrue(room.move_history[0]["forced"])
 
 
+class TestTurnTimer(unittest.TestCase):
+    """Optional per-turn time limit (issue #38)."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_started_room(self, turn_time_limit=None):
+        from server.app import _handle_create_room, _handle_join_room, room_manager
+
+        room_manager.rooms.clear()
+        ws1, ws2 = _make_ws(), _make_ws()
+        payload = {"player_name": "Alice"}
+        if turn_time_limit is not None:
+            payload["turn_time_limit"] = turn_time_limit
+        room = self._run(_handle_create_room(ws1, payload))
+        self._run(_handle_join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
+        room.game = _create_game(2)
+        room.game.players[0].name = "Alice"
+        room.game.players[1].name = "Bob"
+        room.started = True
+        return room
+
+    def test_create_room_accepts_allowed_limits(self):
+        for limit in (60, 120, 300):
+            with self.subTest(limit=limit):
+                room = self._make_started_room(turn_time_limit=limit)
+                self.assertEqual(room.turn_time_limit, limit)
+
+    def test_create_room_rejects_invalid_limits(self):
+        for limit in (45, -1, "60", True, 10_000):
+            with self.subTest(limit=limit):
+                room = self._make_started_room(turn_time_limit=limit)
+                self.assertIsNone(room.turn_time_limit)
+
+    def test_timer_not_armed_when_untimed_or_ai_turn(self):
+        from server.app import _arm_turn_timer
+
+        room = self._make_started_room()
+        _arm_turn_timer(room)
+        self.assertIsNone(room._turn_timer_task)
+
+        room.turn_time_limit = 60
+        room.ai_players = {room.game.current_player_idx}
+        _arm_turn_timer(room)
+        self.assertIsNone(room._turn_timer_task)
+        room.cancel_turn_timer()
+
+    def test_timeout_auto_passes_and_records_history(self):
+        from server.app import _arm_turn_timer
+
+        room = self._make_started_room()
+        room.turn_time_limit = 0.05  # directly set a tiny limit for the test
+
+        async def scenario():
+            _arm_turn_timer(room)
+            self.assertIsNotNone(room._turn_timer_task)
+            self.assertIsNotNone(room.turn_time_remaining())
+            # Prevent the handler re-arming for the next player after the
+            # timeout fires, so exactly one auto-pass happens.
+            room.turn_time_limit = None
+            await asyncio.sleep(0.2)
+
+        self._run(scenario())
+        self.assertEqual(room.game.current_player_idx, 1)  # turn advanced
+        self.assertEqual(len(room.move_history), 1)
+        move = room.move_history[0]
+        self.assertEqual(move["action"], "pass")
+        self.assertTrue(move["timeout"])
+        self.assertEqual(move["player_name"], "Alice")
+
+    def test_rearm_cancels_previous_timer(self):
+        from server.app import _arm_turn_timer
+
+        room = self._make_started_room()
+        room.turn_time_limit = 60
+
+        async def scenario():
+            _arm_turn_timer(room)
+            first_task = room._turn_timer_task
+            _arm_turn_timer(room)
+            await asyncio.sleep(0)
+            self.assertTrue(first_task.cancelled() or first_task.done())
+            room.cancel_turn_timer()
+
+        self._run(scenario())
+        self.assertEqual(room.move_history, [])  # no timeout fired
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 

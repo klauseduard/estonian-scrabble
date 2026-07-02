@@ -1,5 +1,6 @@
 """Room management for multiplayer Scrabble over WebSockets."""
 
+import asyncio
 import random
 import string
 from typing import Any, Dict, List, Optional, Set
@@ -32,6 +33,10 @@ class Room:
         self.last_move: Optional[Dict[str, Any]] = None
         self.move_history: List[Dict[str, Any]] = []
         self.public: bool = False  # visible in lobby for strangers to join
+        # Optional per-turn time limit in seconds (issue #38); None = untimed
+        self.turn_time_limit: Optional[float] = None
+        self._turn_timer_task: Optional[Any] = None  # asyncio.Task
+        self._turn_deadline: Optional[float] = None  # event-loop time
         # AI player tracking — indices of players controlled by the AI engine
         self.ai_players: Set[int] = set()
         # Challenge support: snapshot of game state before last commit
@@ -110,6 +115,20 @@ class Room:
         """Set the last move and append it to the game's move history."""
         self.last_move = move
         self.move_history.append(move)
+
+    def turn_time_remaining(self) -> Optional[int]:
+        """Seconds left on the current turn's timer, or None if untimed."""
+        if self._turn_deadline is None:
+            return None
+        loop = asyncio.get_event_loop()
+        return max(0, int(round(self._turn_deadline - loop.time())))
+
+    def cancel_turn_timer(self):
+        """Cancel any running turn timer."""
+        if self._turn_timer_task is not None:
+            self._turn_timer_task.cancel()
+            self._turn_timer_task = None
+        self._turn_deadline = None
 
     async def broadcast(self, message: Dict[str, Any], exclude: Optional[WebSocket] = None):
         """Send a JSON message to all connected players, optionally excluding one."""
@@ -219,6 +238,8 @@ class Room:
             state["your_player_index"] = i
             state["move_history"] = self.move_history
             state["ai_players"] = sorted(self.ai_players)
+            state["turn_time_limit"] = self.turn_time_limit
+            state["turn_time_remaining"] = self.turn_time_remaining()
             await ws.send_json(state)
 
     async def broadcast_game_over(self):

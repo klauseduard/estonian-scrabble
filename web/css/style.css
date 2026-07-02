@@ -747,11 +747,52 @@ body {
   align-self: flex-end;
 }
 
+.turn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
 .turn-indicator {
   font-size: 14px;
   padding: 6px 16px;
   border-radius: 20px;
   margin-bottom: 8px;
+}
+
+.turn-row .turn-indicator {
+  margin-bottom: 0;
+}
+
+.turn-timer {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-light);
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-timer--urgent {
+  color: #E57373;
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+@keyframes timerPulse {
+  50% { opacity: 0.5; }
+}
+
+.label--small {
+  display: block;
+  font-size: 12px;
+  color: #AAB;
+  text-align: left;
+  margin-bottom: 4px;
+}
+
+.lobby__select {
+  width: 100%;
+  margin-bottom: 10px;
+  cursor: pointer;
 }
 
 .turn-indicator--your-turn {

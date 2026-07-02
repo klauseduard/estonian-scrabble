@@ -117,6 +117,11 @@ const chatSection = document.getElementById("chat-section");
 const historySection = document.getElementById("history-section");
 const moveHistoryEl = document.getElementById("move-history");
 
+/* Turn timer elements/state (issue #38) */
+const turnTimerEl = document.getElementById("turn-timer");
+let turnTimerDeadline = null;
+let turnTimerInterval = null;
+
 /* ------------------------------------------------------------------ */
 /*  View routing                                                       */
 /* ------------------------------------------------------------------ */
@@ -456,7 +461,9 @@ function _showLastMoveBanner(lastMove) {
     const words = (lastMove.words || []).map((w) => w.word.toUpperCase()).join(", ");
     text = `${lastMove.player_name} mängis ${words} — ${lastMove.total_score} punkti`;
   } else if (lastMove.action === "pass") {
-    text = `${lastMove.player_name} jättis käigu vahele`;
+    text = lastMove.timeout
+      ? `Aeg sai otsa — ${lastMove.player_name} jättis käigu vahele`
+      : `${lastMove.player_name} jättis käigu vahele`;
   } else if (lastMove.action === "exchange") {
     const n = lastMove.tile_count || 0;
     text = `${lastMove.player_name} vahetas ${n} tähe${n !== 1 ? "d" : ""}`;
@@ -577,6 +584,7 @@ function _renderGame() {
 
   updateRack(gameState.rack || []);
   _renderMoveHistory(gameState.move_history || []);
+  _syncTurnTimer(gameState.turn_time_remaining);
 
   _renderScorePanel();
   _renderGameInfo(isMyTurn);
@@ -914,6 +922,7 @@ function showError(message) {
 /* ------------------------------------------------------------------ */
 
 const publicToggle = document.getElementById("public-toggle");
+const turnTimerSelect = document.getElementById("turn-timer-select");
 
 createBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
@@ -923,7 +932,8 @@ createBtn.addEventListener("click", async () => {
   }
   lobbyError.textContent = "";
   if (!ws) await connectWebSocket();
-  ws.createRoom(name, publicToggle.checked);
+  const limit = parseInt(turnTimerSelect.value, 10);
+  ws.createRoom(name, publicToggle.checked, Number.isNaN(limit) ? null : limit);
 });
 
 joinBtn.addEventListener("click", async () => {
@@ -1077,6 +1087,43 @@ chatInput.addEventListener("keydown", (e) => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  Turn timer countdown (issue #38)                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Sync the countdown to the server's remaining seconds (or hide it).
+ * The client ticks locally between game_state broadcasts.
+ * @param {number|null|undefined} remainingSeconds
+ */
+function _syncTurnTimer(remainingSeconds) {
+  if (remainingSeconds === null || remainingSeconds === undefined) {
+    turnTimerDeadline = null;
+    if (turnTimerInterval) {
+      clearInterval(turnTimerInterval);
+      turnTimerInterval = null;
+    }
+    turnTimerEl.classList.add("hidden");
+    return;
+  }
+
+  turnTimerDeadline = Date.now() + remainingSeconds * 1000;
+  turnTimerEl.classList.remove("hidden");
+  _renderTurnTimer();
+  if (!turnTimerInterval) {
+    turnTimerInterval = setInterval(_renderTurnTimer, 1000);
+  }
+}
+
+function _renderTurnTimer() {
+  if (turnTimerDeadline === null) return;
+  const remaining = Math.max(0, Math.round((turnTimerDeadline - Date.now()) / 1000));
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  turnTimerEl.textContent = `⏱ ${m}:${String(s).padStart(2, "0")}`;
+  turnTimerEl.classList.toggle("turn-timer--urgent", remaining <= 15);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Panel tabs: chat / move history                                    */
 /* ------------------------------------------------------------------ */
 
@@ -1140,7 +1187,9 @@ function _renderMoveHistory(history) {
     } else {
       li.classList.add("move-history__entry--event");
       if (move.action === "pass") {
-        li.textContent = `${move.player_name} jättis vahele`;
+        li.textContent = move.timeout
+          ? `${move.player_name} jättis vahele (aeg sai otsa)`
+          : `${move.player_name} jättis vahele`;
       } else if (move.action === "exchange") {
         li.textContent = `${move.player_name} vahetas ${move.tile_count || 0} tähte`;
       } else if (move.action === "challenge_accepted") {

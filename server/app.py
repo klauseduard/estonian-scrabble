@@ -27,6 +27,9 @@ _VALID_LETTERS = frozenset(k for k in LETTER_DISTRIBUTION if k != "_")
 _MAX_NAME_LENGTH = 20
 _MAX_CHAT_LENGTH = 200
 
+# Allowed per-turn time limits in seconds (issue #38); anything else → untimed
+_TURN_TIME_LIMITS = frozenset({60, 120, 300})
+
 
 @app.get("/health")
 async def health_check():
@@ -218,6 +221,62 @@ def _is_force_pending(room: Room) -> bool:
     return bool(room._force_required_acks and not room._force_required_acks.issubset(room._force_acks))
 
 
+def _arm_turn_timer(room: Room):
+    """(Re)start the per-turn timer for the current player, if applicable.
+
+    The timer only runs for human players in rooms with a time limit,
+    and not while a forced word awaits approvals. AI turns are never
+    timed — the AI moves in seconds and cannot stall.
+    """
+    room.cancel_turn_timer()
+    game = room.game
+    if not room.turn_time_limit or game is None or game.game_over:
+        return
+    if game.current_player_idx in room.ai_players:
+        return
+    if _is_force_pending(room):
+        return
+    loop = asyncio.get_event_loop()
+    room._turn_deadline = loop.time() + room.turn_time_limit
+    room._turn_timer_task = asyncio.ensure_future(
+        _turn_timeout(room, game.current_player_idx, room.turn_time_limit)
+    )
+
+
+async def _turn_timeout(room: Room, player_idx: int, limit: float):
+    """Auto-pass the player's turn when their time runs out."""
+    try:
+        await asyncio.sleep(limit)
+    except asyncio.CancelledError:
+        return
+    room._turn_timer_task = None
+    room._turn_deadline = None
+
+    game = room.game
+    if game is None or game.game_over or game.current_player_idx != player_idx:
+        return
+
+    player_name = game.players[player_idx].name
+    room.clear_challenge()
+    game.next_player()
+    room.record_move({
+        "action": "pass",
+        "player_name": player_name,
+        "timeout": True,
+    })
+    await room.broadcast({
+        "type": "chat",
+        "player_name": "Süsteem",
+        "text": f"Aeg sai otsa — {player_name} jättis käigu vahele.",
+    })
+    if game.game_over:
+        await room.broadcast_game_over()
+    else:
+        _arm_turn_timer(room)
+        await room.broadcast_game_state()
+        await _maybe_run_ai_turn(room)
+
+
 async def _maybe_run_ai_turn(room: Room):
     """If the current player is an AI, schedule their turn execution."""
     game = room.game
@@ -292,6 +351,7 @@ async def _execute_ai_turn(room: Room):
         if game.game_over:
             await room.broadcast_game_over()
         else:
+            _arm_turn_timer(room)
             await room.broadcast_game_state()
             await _maybe_run_ai_turn(room)
     else:
@@ -315,6 +375,7 @@ async def _execute_ai_turn(room: Room):
             # Shouldn't happen with AI-generated moves, but handle gracefully
             game.next_player()
             room.record_move({"action": "pass", "player_name": player_name})
+            _arm_turn_timer(room)
             await room.broadcast_game_state()
             await _maybe_run_ai_turn(room)
             return
@@ -341,6 +402,7 @@ async def _execute_ai_turn(room: Room):
         if game.game_over:
             await room.broadcast_game_over()
         else:
+            _arm_turn_timer(room)
             await room.broadcast_game_state()
             await _maybe_run_ai_turn(room)
 
@@ -353,6 +415,9 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[R
         return None
     room = room_manager.create_room()
     room.public = bool(data.get("public", False))
+    limit = data.get("turn_time_limit")
+    if isinstance(limit, int) and not isinstance(limit, bool) and limit in _TURN_TIME_LIMITS:
+        room.turn_time_limit = limit
     player_index = room.add_player(player_name, ws)
     await ws.send_json({
         "type": "room_created",
@@ -402,6 +467,8 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
             state["your_player_index"] = player_index
             state["move_history"] = room.move_history
             state["ai_players"] = sorted(room.ai_players)
+            state["turn_time_limit"] = room.turn_time_limit
+            state["turn_time_remaining"] = room.turn_time_remaining()
             await ws.send_json(state)
         return room
 
@@ -460,6 +527,7 @@ async def _handle_start_game(ws: WebSocket, room: Room):
         "type": "game_started",
         "first_player": first_player_name,
     })
+    _arm_turn_timer(room)
     await room.broadcast_game_state()
     await _maybe_run_ai_turn(room)
 
@@ -634,6 +702,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
     if game.game_over:
         await room.broadcast_game_over()
     else:
+        _arm_turn_timer(room)
         await room.broadcast_game_state()
         await _maybe_run_ai_turn(room)
 
@@ -698,6 +767,7 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
     if game.game_over:
         await room.broadcast_game_over()
     else:
+        _arm_turn_timer(room)
         await room.broadcast_game_state()
         await _maybe_run_ai_turn(room)
 
@@ -748,6 +818,7 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         "text": f"{player_name} vahetas {count} tähe{'d' if count != 1 else 't'}.",
     })
 
+    _arm_turn_timer(room)
     await room.broadcast_game_state()
     await _maybe_run_ai_turn(room)
 
@@ -830,6 +901,7 @@ async def _handle_force_ack(ws: WebSocket, room: Room):
         # All players approved — clear challenge window and draw tiles
         room.clear_challenge(force_check=False)
         await room.broadcast({"type": "force_approved"})
+        _arm_turn_timer(room)
         await room.broadcast_game_state()
         await _maybe_run_ai_turn(room)
 
@@ -918,6 +990,7 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         "player_name": "Süsteem",
         "text": f"{challenged} võttis käigu tagasi.",
     })
+    _arm_turn_timer(room)
     await room.broadcast_game_state()
     await _maybe_run_ai_turn(room)
 
@@ -1035,11 +1108,13 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
             })
         # Clean up room only if ALL players disconnected
         if room.connected_count == 0:
+            room.cancel_turn_timer()
             room_manager.remove_room(room.code)
     else:
         # Waiting room: remove player entirely
         room.remove_player(ws)
         if room.player_count == 0:
+            room.cancel_turn_timer()
             room_manager.remove_room(room.code)
         else:
             await room.broadcast({

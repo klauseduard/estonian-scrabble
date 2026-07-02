@@ -35,6 +35,13 @@
         <div class="lobby__actions">
           <div class="lobby__action-col">
             <h3 class="lobby__action-heading">Uus mäng</h3>
+            <label class="label label--small" for="turn-timer-select">Käiguaeg</label>
+            <select id="turn-timer-select" class="input input--compact lobby__select">
+              <option value="" selected>Piiramatu</option>
+              <option value="60">1 minut</option>
+              <option value="120">2 minutit</option>
+              <option value="300">5 minutit</option>
+            </select>
             <label class="lobby__checkbox">
               <input type="checkbox" id="public-toggle"> Avalik
             </label>
@@ -92,7 +99,10 @@
           <button id="forced-word-challenge" class="btn btn--warning btn--small">Vaidlusta</button>
           <button id="forced-word-ok" class="btn btn--secondary btn--small">OK</button>
         </div>
-        <div id="turn-indicator" class="turn-indicator"></div>
+        <div class="turn-row">
+          <div id="turn-indicator" class="turn-indicator"></div>
+          <div id="turn-timer" class="turn-timer hidden" aria-live="off"></div>
+        </div>
         <div id="board-container" class="board-container"></div>
         <div id="score-preview" class="score-preview"></div>
       </main>
