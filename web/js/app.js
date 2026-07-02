@@ -72,6 +72,7 @@ const waitingPlayerList = document.getElementById("waiting-player-list");
 const startGameBtn = document.getElementById("start-game-btn");
 const addAiBtn = document.getElementById("add-ai-btn");
 const copyCodeBtn = document.getElementById("copy-code-btn");
+const waitingStatus = document.getElementById("waiting-status");
 
 /* Game elements */
 const boardContainer = document.getElementById("board-container");
@@ -386,6 +387,13 @@ function _renderWaitingPlayers() {
     startGameBtn.disabled = waitingPlayers.length < 2;
     /* Hide add-ai button when room is full */
     addAiBtn.classList.toggle("hidden", waitingPlayers.length >= 4);
+    /* Explain why the start button is disabled */
+    waitingStatus.textContent =
+      waitingPlayers.length < 2
+        ? "Mängu alustamiseks on vaja vähemalt kahte mängijat — jaga toa koodi või lisa arvutimängija."
+        : "";
+  } else {
+    waitingStatus.textContent = "Mängu alustab toa looja.";
   }
 }
 

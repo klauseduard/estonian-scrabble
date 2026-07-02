@@ -358,7 +358,36 @@ body {
 .waiting__players {
   list-style: none;
   text-align: left;
+  margin-bottom: 6px;
+}
+
+/* "Add AI" renders as an empty player slot attached to the list */
+.waiting__add-ai {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
   margin-bottom: 24px;
+  background: none;
+  border: 1px dashed var(--panel-border);
+  border-radius: 6px;
+  color: #889;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.waiting__add-ai:hover {
+  color: var(--text-light);
+  border-color: #889;
+}
+
+.waiting__status {
+  font-size: 13px;
+  color: #AAB;
+  margin-top: 10px;
+  text-align: center;
+  min-height: 18px;
 }
 
 .waiting__players li {
