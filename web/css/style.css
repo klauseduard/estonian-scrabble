@@ -386,6 +386,11 @@ body {
   background: var(--btn-primary);
 }
 
+.badge--ai {
+  background: var(--turn-green);
+  color: var(--text-dark);
+}
+
 .lobby__checkbox {
   display: flex;
   align-items: center;

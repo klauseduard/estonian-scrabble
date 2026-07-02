@@ -1,5 +1,6 @@
 """FastAPI application with WebSocket endpoint for multiplayer Estonian Scrabble."""
 
+import asyncio
 import logging
 import random
 from pathlib import Path
@@ -9,6 +10,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+from game.ai_player import select_move
 from game.constants import LETTER_DISTRIBUTION
 from game.state import GameState
 
@@ -216,6 +218,133 @@ def _is_force_pending(room: Room) -> bool:
     return bool(room._force_required_acks and not room._force_required_acks.issubset(room._force_acks))
 
 
+async def _maybe_run_ai_turn(room: Room):
+    """If the current player is an AI, schedule their turn execution."""
+    game = room.game
+    if game is None or game.game_over:
+        return
+    player_idx = game.current_player_idx
+    if player_idx not in room.ai_players:
+        return
+    # Fire-and-forget so we don't block the caller
+    asyncio.ensure_future(_execute_ai_turn(room))
+
+
+async def _execute_ai_turn(room: Room):
+    """Execute the AI player's turn in a thread pool.
+
+    The AI validates its candidate words against the STRICT dictionary
+    (compounding disabled) — brute-force move generation finds compound
+    seams a human never would (see issue #33). Its moves are committed
+    with an immediate tile draw and no challenge snapshot: AI moves are
+    not challengeable (#37); the recourse for a bad word is the
+    blocklist.
+    """
+    game = room.game
+    if game is None or game.game_over:
+        return
+
+    player_idx = game.current_player_idx
+    if player_idx not in room.ai_players:
+        return
+
+    # Small delay for natural feel
+    await asyncio.sleep(1.5)
+
+    # Re-check after delay (game state may have changed)
+    if game.game_over or game.current_player_idx != player_idx:
+        return
+
+    # Run AI computation in executor (don't block event loop)
+    loop = asyncio.get_event_loop()
+    rack = list(game.players[player_idx].rack)
+    board = [row[:] for row in game.board]
+    difficulty = room.players[player_idx].get("difficulty", "medium")
+
+    first_move = game.first_move
+    # game.wordlist.strict is resolved inside the executor: its first
+    # access loads the strict dictionary (~seconds) and must not block
+    # the event loop.
+    move = await loop.run_in_executor(
+        None,
+        lambda: select_move(board, rack, game.wordlist.strict, first_move, difficulty),
+    )
+
+    # Re-check again after executor completes
+    if game.game_over or game.current_player_idx != player_idx:
+        return
+
+    player_name = game.players[player_idx].name
+
+    if move is None:
+        # No valid move — pass
+        room.clear_challenge()
+        game.next_player()
+        room.record_move({
+            "action": "pass",
+            "player_name": player_name,
+        })
+        await room.broadcast({
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{player_name} jättis käigu vahele.",
+        })
+        if game.game_over:
+            await room.broadcast_game_over()
+        else:
+            await room.broadcast_game_state()
+            await _maybe_run_ai_turn(room)
+    else:
+        # Place tiles and commit
+        room.clear_challenge()
+        for row, col, letter in move.tiles:
+            tile_idx = game.current_player.rack.index(letter)
+            game.place_tile(row, col, tile_idx)
+        game.validate_current_placement()
+
+        # Capture score info before commit
+        score_breakdown = game.calculate_turn_score()
+        words = [{"word": w, "score": s} for w, s in score_breakdown]
+        total_score = sum(s for _, s in score_breakdown)
+        placed_positions = [{"row": r, "col": c} for r, c in game.current_turn_tiles]
+
+        # No snapshot and no deferred draw: AI moves are not challengeable
+        # and nobody can peek at the AI's rack.
+        success = game.commit_turn(force=False, defer_draw=False)
+        if not success:
+            # Shouldn't happen with AI-generated moves, but handle gracefully
+            game.next_player()
+            room.record_move({"action": "pass", "player_name": player_name})
+            await room.broadcast_game_state()
+            await _maybe_run_ai_turn(room)
+            return
+
+        room.record_move({
+            "action": "word",
+            "player_name": player_name,
+            "words": words,
+            "total_score": total_score,
+            "tiles": placed_positions,
+            "challengeable": False,
+            "forced": False,
+        })
+
+        # Post move to chat
+        word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
+        chat_text = " + ".join(word_parts) + f" = {total_score} p."
+        await room.broadcast({
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{player_name}: {chat_text}",
+        })
+
+        if game.game_over:
+            await room.broadcast_game_over()
+        else:
+            await room.broadcast_game_state()
+            await _maybe_run_ai_turn(room)
+
+
 async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[Room]:
     """Handle the ``create_room`` action and return the new Room."""
     player_name = _clean_player_name(data, "Player 1")
@@ -314,6 +443,11 @@ async def _handle_start_game(ws: WebSocket, room: Room):
     # Randomize player order
     random.shuffle(room.players)
 
+    # Rebuild AI player index set after shuffle
+    room.ai_players = {
+        i for i, p in enumerate(room.players) if p.get("difficulty") is not None
+    }
+
     room.game = GameState(num_players=room.player_count)
     # Overwrite default player names with the ones chosen in the lobby
     for i, player_info in enumerate(room.players):
@@ -326,6 +460,44 @@ async def _handle_start_game(ws: WebSocket, room: Room):
         "first_player": first_player_name,
     })
     await room.broadcast_game_state()
+    await _maybe_run_ai_turn(room)
+
+
+async def _handle_add_ai(ws: WebSocket, room: Room, data: Dict[str, Any]):
+    """Add an AI player to the room (host only, before game starts)."""
+    if room.started:
+        await _send_error(ws, "Game already started")
+        return
+
+    # Only the host (first player) can add AI players
+    host_idx = room.get_player_index(ws)
+    if host_idx != 0:
+        await _send_error(ws, "Only the host can add AI players")
+        return
+
+    if room.player_count >= 4:
+        await _send_error(ws, "Room is full")
+        return
+
+    difficulty = data.get("difficulty", "medium")
+    if difficulty not in ("easy", "medium", "hard"):
+        difficulty = "medium"
+
+    # Generate AI name
+    existing_ai_count = len(room.ai_players)
+    if existing_ai_count == 0:
+        ai_name = "Arvuti"
+    else:
+        ai_name = f"Arvuti {existing_ai_count + 1}"
+
+    room.add_ai_player(ai_name, difficulty)
+
+    await room.broadcast({
+        "type": "player_joined",
+        "player_name": ai_name,
+        "player_count": room.player_count,
+        "is_ai": True,
+    })
 
 
 async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
@@ -462,6 +634,7 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
         await room.broadcast_game_over()
     else:
         await room.broadcast_game_state()
+        await _maybe_run_ai_turn(room)
 
 
 async def _handle_commit_turn(ws: WebSocket, room: Room):
@@ -509,6 +682,7 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         await room.broadcast_game_over()
     else:
         await room.broadcast_game_state()
+        await _maybe_run_ai_turn(room)
 
 
 async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]):
@@ -558,6 +732,7 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
     })
 
     await room.broadcast_game_state()
+    await _maybe_run_ai_turn(room)
 
 
 async def _handle_designate_blank(ws: WebSocket, room: Room, data: Dict[str, Any]):
@@ -639,6 +814,7 @@ async def _handle_force_ack(ws: WebSocket, room: Room):
         room.clear_challenge(force_check=False)
         await room.broadcast({"type": "force_approved"})
         await room.broadcast_game_state()
+        await _maybe_run_ai_turn(room)
 
 
 async def _handle_challenge(ws: WebSocket, room: Room):
@@ -726,6 +902,7 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         "text": f"{challenged} võttis käigu tagasi.",
     })
     await room.broadcast_game_state()
+    await _maybe_run_ai_turn(room)
 
 
 async def _handle_challenge_refuse(ws: WebSocket, room: Room):
@@ -780,6 +957,9 @@ async def _dispatch(ws: WebSocket, room: Room | None, data: Dict[str, Any]) -> R
 
     elif action == "start_game":
         await _handle_start_game(ws, room)
+
+    elif action == "add_ai":
+        await _handle_add_ai(ws, room, data)
 
     elif action == "place_tile":
         await _handle_place_tile(ws, room, data)

@@ -40,6 +40,7 @@ class WordList:
         self._ensure_dictionary()
         self._load_dictionary()
         self._blocked = self._load_blocked_words()
+        self._strict = None
 
     def _setup_logging(self):
         """Set up logging configuration."""
@@ -104,6 +105,54 @@ class WordList:
             return False
         # No real Estonian word is vowelless; Hunspell would accept
         # abbreviations like 'tk' or 'lk' here.
+        if not set(word) & _VOWELS:
+            return False
+        return self._dict.lookup(word)
+
+    @property
+    def strict(self) -> "StrictWordList":
+        """Strict validator for AI move generation (compounding disabled).
+
+        Hunspell compounding lets any compound-flagged words concatenate,
+        which brute-force move search exploits to find garbage a human
+        never would (issue #33). The strict dictionary rejects all
+        compounds: false negatives are harmless for the AI, false
+        positives are fatal.
+        """
+        if self._strict is None:
+            self._strict = StrictWordList(self._blocked, self.logger)
+        return self._strict
+
+
+class StrictWordList:
+    """Word validator over the no-compound dictionary variant.
+
+    Shares the blocklist and vowelless guard with :class:`WordList`.
+    Used for AI candidate validation only — humans are validated with
+    the permissive dictionary plus the challenge system.
+    """
+
+    def __init__(self, blocked: Set[str], logger: logging.Logger):
+        self._blocked = blocked
+        self.logger = logger
+        try:
+            from spylls.hunspell import Dictionary
+
+            self._dict = Dictionary.from_files(
+                os.path.join(_DICT_DIR, "et_EE_scrabble_strict")
+            )
+            self.logger.info("Loaded strict Estonian dictionary (et_EE_scrabble_strict)")
+        except Exception as e:
+            self.logger.error(f"Failed to load strict dictionary: {e}")
+            self._dict = None
+
+    def is_valid_word(self, word: str) -> bool:
+        """Check a word against the strict (no-compound) dictionary."""
+        if self._dict is None:
+            return False
+        word = word.lower()
+        if word in self._blocked:
+            return False
         if not set(word) & _VOWELS:
             return False
         return self._dict.lookup(word)

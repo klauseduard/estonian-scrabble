@@ -2,7 +2,7 @@
 
 import random
 import string
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import WebSocket
 
@@ -25,13 +25,15 @@ class Room:
 
     def __init__(self, room_code: str):
         self.code: str = room_code
-        # Each entry: {"name": str, "ws": WebSocket | None}
+        # Each entry: {"name": str, "ws": WebSocket | None, "difficulty": str | None}
         self.players: List[Dict[str, Any]] = []
         self.game: Optional[GameState] = None
         self.started: bool = False
         self.last_move: Optional[Dict[str, Any]] = None
         self.move_history: List[Dict[str, Any]] = []
         self.public: bool = False  # visible in lobby for strangers to join
+        # AI player tracking — indices of players controlled by the AI engine
+        self.ai_players: Set[int] = set()
         # Challenge support: snapshot of game state before last commit
         self._pre_commit_snapshot: Optional[GameState] = None
         self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged
@@ -47,13 +49,23 @@ class Room:
 
     @property
     def connected_count(self) -> int:
-        """Number of players currently connected."""
-        return sum(1 for p in self.players if p["ws"] is not None)
+        """Number of human players currently connected (excludes AI)."""
+        return sum(
+            1 for i, p in enumerate(self.players)
+            if p["ws"] is not None and i not in self.ai_players
+        )
 
     def add_player(self, name: str, ws: WebSocket) -> int:
         """Add a player and return their index."""
         index = len(self.players)
         self.players.append({"name": name, "ws": ws})
+        return index
+
+    def add_ai_player(self, name: str, difficulty: str = "medium") -> int:
+        """Add an AI player (no WebSocket connection) and return their index."""
+        index = len(self.players)
+        self.players.append({"name": name, "ws": None, "difficulty": difficulty})
+        self.ai_players.add(index)
         return index
 
     def disconnect_player(self, ws: WebSocket) -> Optional[int]:
@@ -88,8 +100,11 @@ class Room:
         return None
 
     def has_disconnected_player(self, name: str) -> bool:
-        """Check if a player with this name is disconnected and can reconnect."""
-        return any(p["name"] == name and p["ws"] is None for p in self.players)
+        """Check if a human player with this name is disconnected and can reconnect."""
+        return any(
+            p["name"] == name and p["ws"] is None and i not in self.ai_players
+            for i, p in enumerate(self.players)
+        )
 
     def record_move(self, move: Dict[str, Any]):
         """Set the last move and append it to the game's move history."""
@@ -180,10 +195,11 @@ class Room:
         self._force_required_acks.clear()
 
     def set_force_ack_required(self, committer_name: str):
-        """Mark that all players except the committer must acknowledge a forced word."""
+        """Mark that all human players except the committer must acknowledge a forced word."""
         self._force_acks.clear()
         self._force_required_acks = {
-            p["name"] for p in self.players if p["name"] != committer_name
+            p["name"] for i, p in enumerate(self.players)
+            if p["name"] != committer_name and i not in self.ai_players
         }
 
     def add_force_ack(self, player_name: str) -> bool:

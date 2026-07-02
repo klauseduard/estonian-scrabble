@@ -34,6 +34,7 @@ EXTRA_WORDS_FILE = os.path.join(_REPO_ROOT, "data", "extra_words.txt")
 
 SOURCE_BASE = "et_EE"
 PATCHED_BASE = "et_EE_scrabble"
+STRICT_BASE = "et_EE_scrabble_strict"
 
 
 def _read_aff_directive(aff_path: str, directive: str, encoding: str) -> Optional[str]:
@@ -140,10 +141,26 @@ def patch_dictionary(
         f.write("\n".join(entries) + "\n")
     shutil.copyfile(src_aff, out_aff)
 
+    # Strict variant for AI move validation: same entries, compounding
+    # disabled. Hunspell compounding over-generates (any compound-flagged
+    # words may concatenate) — tolerable for human play backed by the
+    # challenge system, fatal for brute-force move generation (issue #33).
+    strict_dic = os.path.join(dict_dir, STRICT_BASE + ".dic")
+    strict_aff = os.path.join(dict_dir, STRICT_BASE + ".aff")
+    with open(src_aff, encoding=encoding) as f:
+        aff_lines = [
+            line for line in f.read().splitlines()
+            if not line.startswith("COMPOUND")
+        ]
+    with open(strict_aff, "w", encoding=encoding) as f:
+        f.write("\n".join(aff_lines) + "\n")
+    shutil.copyfile(out_dic, strict_dic)
+
     logger.info(
         "Patched dictionary written to %s (compound flag stripped from %d "
-        "vowelless entries, %d extra-word entries appended)",
-        out_dic, stripped, added,
+        "vowelless entries, %d extra-word entries appended); strict "
+        "no-compound variant written to %s",
+        out_dic, stripped, added, strict_dic,
     )
     return os.path.join(dict_dir, PATCHED_BASE)
 
@@ -152,11 +169,14 @@ def patched_dictionary_stale(
     dict_dir: str = DICT_DIR, extra_words_file: str = EXTRA_WORDS_FILE
 ) -> bool:
     """Whether the patched dictionary is missing or older than its inputs."""
-    out_dic = os.path.join(dict_dir, PATCHED_BASE + ".dic")
-    out_aff = os.path.join(dict_dir, PATCHED_BASE + ".aff")
-    if not (os.path.exists(out_dic) and os.path.exists(out_aff)):
+    outputs = [
+        os.path.join(dict_dir, base + ext)
+        for base in (PATCHED_BASE, STRICT_BASE)
+        for ext in (".dic", ".aff")
+    ]
+    if not all(os.path.exists(p) for p in outputs):
         return True
-    built = min(os.path.getmtime(out_dic), os.path.getmtime(out_aff))
+    built = min(os.path.getmtime(p) for p in outputs)
     sources = [
         os.path.join(dict_dir, SOURCE_BASE + ".dic"),
         os.path.join(dict_dir, SOURCE_BASE + ".aff"),
