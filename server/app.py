@@ -375,11 +375,15 @@ async def _execute_ai_turn(room: Room):
             await room.broadcast_game_state()
             await _maybe_run_ai_turn(room)
     else:
-        # Place tiles and commit
+        # Place tiles and commit (blank tiles carry their designated letter)
         room.clear_challenge()
         for row, col, letter in move.tiles:
-            tile_idx = game.current_player.rack.index(letter)
-            game.place_tile(row, col, tile_idx)
+            if (row, col) in move.blanks:
+                tile_idx = game.current_player.rack.index("_")
+                game.place_tile(row, col, tile_idx, designated_letter=letter)
+            else:
+                tile_idx = game.current_player.rack.index(letter)
+                game.place_tile(row, col, tile_idx)
         game.validate_current_placement()
 
         # Capture score info before commit
@@ -573,16 +577,21 @@ async def _handle_add_ai(ws: WebSocket, room: Room, data: Dict[str, Any]):
         await _send_error(ws, "Room is full")
         return
 
-    difficulty = data.get("difficulty", "medium")
-    if difficulty not in ("easy", "medium", "hard"):
-        difficulty = "medium"
+    difficulty = data.get("difficulty", "fast")
+    # Legacy names map onto the two modes (see game/ai_player.py)
+    difficulty = {"easy": "fast", "medium": "fast", "hard": "strong"}.get(
+        difficulty, difficulty
+    )
+    if difficulty not in ("fast", "strong"):
+        difficulty = "fast"
 
-    # Generate AI name
-    existing_ai_count = len(room.ai_players)
-    if existing_ai_count == 0:
-        ai_name = "Arvuti"
-    else:
-        ai_name = f"Arvuti {existing_ai_count + 1}"
+    # Generate AI name, mode visible to the players
+    base_name = "Arvuti (kiire)" if difficulty == "fast" else "Arvuti (tugev)"
+    existing = sum(
+        1 for i, p in enumerate(room.players)
+        if i in room.ai_players and p["name"].startswith(base_name)
+    )
+    ai_name = base_name if existing == 0 else f"{base_name} {existing + 1}"
 
     room.add_ai_player(ai_name, difficulty)
 

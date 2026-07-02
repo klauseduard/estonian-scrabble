@@ -616,6 +616,42 @@ class TestChessClock(unittest.TestCase):
         self.assertTrue(room.move_history[0]["timeout"])
 
 
+class TestAITurnExecution(unittest.TestCase):
+    """The AI turn handler places blank tiles with a designated letter."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def test_ai_plays_blank_tile_with_designation(self):
+        from server.app import _execute_ai_turn, _handle_create_room, room_manager
+
+        room_manager.rooms.clear()
+        ws = _make_ws()
+        room = self._run(_handle_create_room(ws, {"player_name": "Klaus"}))
+        room.add_ai_player("Arvuti (tugev)", "strong")
+        room.game = _create_game(2, valid_words=["kass"])
+        room.game.wordlist.strict = room.game.wordlist  # mock has no strict variant
+        room.game.players[0].name = "Klaus"
+        room.game.players[1].name = "Arvuti (tugev)"
+        room.game.players[1].rack = ["k", "a", "s", "_"]
+        room.game.current_player_idx = 1
+        room.game.first_move = True
+        room.started = True
+
+        self._run(_execute_ai_turn(room))
+
+        played = "".join(
+            room.game.board[7][c] or "" for c in range(4, 12)
+        )
+        self.assertIn("kass", played + "".join(
+            room.game.board[r][7] or "" for r in range(4, 12)
+        ))
+        self.assertEqual(len(room.game.blank_designations), 1)
+        move = room.move_history[-1]
+        self.assertEqual(move["action"], "word")
+        self.assertEqual(move["total_score"], 6)  # blank scores 0, center DW doubles
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 

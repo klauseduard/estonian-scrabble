@@ -131,7 +131,7 @@ class ScrabbleWebSocket {
    * Add an AI player to the room (host only).
    * @param {string} [difficulty="medium"]
    */
-  addAi(difficulty = "medium") {
+  addAi(difficulty = "fast") {
     this.send({ action: "add_ai", difficulty });
   }
 

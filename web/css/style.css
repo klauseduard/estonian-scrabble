@@ -366,7 +366,7 @@ body {
   display: block;
   width: 100%;
   padding: 8px 12px;
-  margin-bottom: 24px;
+  margin-bottom: 6px;
   background: none;
   border: 1px dashed var(--panel-border);
   border-radius: 6px;
@@ -380,6 +380,11 @@ body {
 .waiting__add-ai:hover {
   color: var(--text-light);
   border-color: #889;
+}
+
+/* Last AI slot separates the slot group from the start button */
+.waiting__add-ai + .waiting__add-ai {
+  margin-bottom: 24px;
 }
 
 .waiting__status {

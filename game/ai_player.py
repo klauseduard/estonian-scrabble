@@ -5,14 +5,20 @@ rack tile combinations, and scoring candidates.  The module is pure
 game-logic — no UI or server dependencies — so it works with both the
 Pygame desktop client and the FastAPI web server.
 
-Difficulty levels control move selection:
-  - easy:   random valid move
-  - medium: highest-scoring move (greedy)
-  - hard:   highest score + rack-balance and positional heuristics
+Two modes (issue #40 tracks a fundamentally better generator):
+  - fast:   bounded search, answers in ~a second; short words only,
+            no blank tiles. Optimizes response time.
+  - strong: spends a ~12 s time budget hunting longer words (up to
+            bingos) and playing blank tiles; selects with rack-balance
+            and positional heuristics. Optimizes playing strength.
+
+Legacy difficulty names map onto these: easy = fast with a random
+move, medium = fast, hard = strong.
 """
 
 import itertools
 import random
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -24,6 +30,14 @@ from .constants import (
     TRIPLE_WORD_SCORE,
 )
 
+# Wall-clock budgets per move (seconds)
+FAST_TIME_BUDGET = 1.5
+STRONG_TIME_BUDGET = 12.0
+
+# Blank substitutions are tried in this order (common letters first)
+# so the time budget is spent on the most promising designations.
+BLANK_LETTERS = "aeistulkomnrdgvhjpbõäöüfšzž"
+
 
 @dataclass
 class Move:
@@ -31,6 +45,7 @@ class Move:
 
     tiles: List[Tuple[int, int, str]]  # (row, col, letter) placements
     words_formed: List[str]
+    blanks: Set[Tuple[int, int]] = field(default_factory=set)  # blank-tile positions
     raw_score: int = 0
     heuristic_score: float = 0.0
 
@@ -120,10 +135,23 @@ def _generate_line_moves(
     wordlist,
     validation_cache: Dict[str, bool],
     first_move: bool,
+    lengths: range,
+    full_perm_max_length: int,
+    deadline: Optional[float] = None,
+    blank_indices: Optional[Set[int]] = None,
 ) -> List[Move]:
-    """Generate valid moves through *anchor* in direction (dr, dc)."""
+    """Generate valid moves through *anchor* in direction (dr, dc).
+
+    *lengths* selects how many rack tiles to try placing. Combinations up
+    to *full_perm_max_length* tiles get every permutation; longer ones
+    get a single permutation (full enumeration of 6!–7! orderings would
+    blow any budget). *deadline* (time.monotonic) aborts the search.
+    *blank_indices* marks rack positions that are really blank tiles
+    substituted with a letter — their placements score 0.
+    """
     size = len(board)
     moves: List[Move] = []
+    blank_indices = blank_indices or set()
 
     # Determine how far we can extend before and after the anchor
     # "Before" = opposite of (dr, dc)
@@ -141,16 +169,23 @@ def _generate_line_moves(
         start_r = anchor_row - before * dr
         start_c = anchor_col - before * dc
 
-        # Try placing 1..len(rack) tiles
         usable = list(range(len(rack)))
-        for length in range(1, len(rack) + 1):
-            if length > 7:
-                break
+        for length in lengths:
+            if length > len(rack) or length > 7:
+                continue
             for combo in itertools.combinations(usable, length):
-                for perm in itertools.permutations(combo):
+                if deadline is not None and time.monotonic() > deadline:
+                    return moves
+                if length > full_perm_max_length:
+                    perms = [combo]  # one ordering only for long placements
+                else:
+                    perms = itertools.permutations(combo)
+                for perm in perms:
+                    if deadline is not None and time.monotonic() > deadline:
+                        return moves
                     tiles_placed = []
+                    blank_positions: Set[Tuple[int, int]] = set()
                     temp_board = [row[:] for row in board]
-                    valid = True
                     pr, pc = start_r, start_c
                     tile_idx = 0
 
@@ -158,20 +193,19 @@ def _generate_line_moves(
                     tiles_used = 0
                     while tiles_used < len(perm) and 0 <= pr < size and 0 <= pc < size:
                         if temp_board[pr][pc] is None:
-                            letter = rack[perm[tile_idx]]
-                            if letter == "_":
-                                # Skip blanks for now (simplification)
-                                valid = False
-                                break
+                            rack_idx = perm[tile_idx]
+                            letter = rack[rack_idx]
                             temp_board[pr][pc] = letter
                             tiles_placed.append((pr, pc, letter))
+                            if rack_idx in blank_indices:
+                                blank_positions.add((pr, pc))
                             tile_idx += 1
                             tiles_used += 1
                         # else: existing tile, skip over it
                         pr += dr
                         pc += dc
 
-                    if not valid or not tiles_placed:
+                    if not tiles_placed:
                         continue
 
                     # Must include the anchor
@@ -229,17 +263,37 @@ def _generate_line_moves(
                     moves.append(Move(
                         tiles=tiles_placed,
                         words_formed=words_formed,
+                        blanks=blank_positions,
                     ))
 
-                    # Limit permutations per combination for performance
-                    if len(perm) > 4:
-                        break  # only try one permutation for long words
-
-            # Limit combinations for long words
-            if length > 4:
-                break
-
     return moves
+
+
+def _collect_moves(
+    board, rack, anchors, wordlist, validation_cache, first_move,
+    lengths, full_perm_max_length, deadline,
+    all_moves, seen_placements, blank_indices=None,
+):
+    """Run the line generator over all anchors, deduplicating placements."""
+    for anchor_r, anchor_c in anchors:
+        if deadline is not None and time.monotonic() > deadline:
+            return
+        for dr, dc in [(0, 1), (1, 0)]:  # horizontal, vertical
+            moves = _generate_line_moves(
+                board, rack, anchor_r, anchor_c, dr, dc,
+                wordlist, validation_cache, first_move,
+                lengths=lengths,
+                full_perm_max_length=full_perm_max_length,
+                deadline=deadline,
+                blank_indices=blank_indices,
+            )
+            for move in moves:
+                key = frozenset(
+                    (r, c, l, (r, c) in move.blanks) for r, c, l in move.tiles
+                )
+                if key not in seen_placements:
+                    seen_placements.add(key)
+                    all_moves.append(move)
 
 
 def find_all_moves(
@@ -247,8 +301,15 @@ def find_all_moves(
     rack: List[str],
     wordlist,
     first_move: bool = False,
+    mode: str = "fast",
 ) -> List[Move]:
-    """Find all valid moves for the given rack on the current board.
+    """Find valid moves for the given rack on the current board.
+
+    fast:   short placements (1–4 tiles, full permutations), blanks
+            unused, ~FAST_TIME_BUDGET wall clock.
+    strong: everything fast finds, then spends the rest of
+            STRONG_TIME_BUDGET on longer placements (5–7 tiles,
+            permutations capped) and blank-tile substitutions.
 
     This is the CPU-intensive function that should be run via
     ``asyncio.run_in_executor`` on the server.
@@ -258,17 +319,51 @@ def find_all_moves(
     all_moves: List[Move] = []
     seen_placements: Set[frozenset] = set()
 
-    for anchor_r, anchor_c in anchors:
-        for dr, dc in [(0, 1), (1, 0)]:  # horizontal, vertical
-            moves = _generate_line_moves(
-                board, rack, anchor_r, anchor_c, dr, dc,
-                wordlist, validation_cache, first_move,
+    budget = STRONG_TIME_BUDGET if mode == "strong" else FAST_TIME_BUDGET
+    deadline = time.monotonic() + budget
+
+    plain_rack = [t for t in rack if t != "_"]
+    blank_count = len(rack) - len(plain_rack)
+
+    # Pass 1 (both modes): short placements, full permutations, no blanks.
+    _collect_moves(
+        board, plain_rack, anchors, wordlist, validation_cache, first_move,
+        lengths=range(1, 5), full_perm_max_length=4, deadline=deadline,
+        all_moves=all_moves, seen_placements=seen_placements,
+    )
+
+    if mode != "strong":
+        return all_moves
+
+    # Pass 2: longer placements — bingo hunting. Longest first so the
+    # budget is spent on the highest-value words; full permutations,
+    # cut off by the deadline (issue #40 tracks the real fix).
+    _collect_moves(
+        board, plain_rack, anchors, wordlist, validation_cache, first_move,
+        lengths=range(7, 4, -1), full_perm_max_length=7, deadline=deadline,
+        all_moves=all_moves, seen_placements=seen_placements,
+    )
+
+    # Pass 3: blank substitutions, common letters first, until the budget
+    # runs out. Each variant rack replaces the blank(s) with a concrete
+    # letter; those placements are marked and score 0.
+    if blank_count > 0:
+        blank_letter_sets = (
+            [(a,) for a in BLANK_LETTERS]
+            if blank_count == 1
+            else [(a, b) for a in BLANK_LETTERS[:12] for b in BLANK_LETTERS[:12]]
+        )
+        for letters in blank_letter_sets:
+            if time.monotonic() > deadline:
+                break
+            variant = plain_rack + list(letters)
+            blank_indices = set(range(len(plain_rack), len(variant)))
+            _collect_moves(
+                board, variant, anchors, wordlist, validation_cache, first_move,
+                lengths=range(1, 6), full_perm_max_length=4, deadline=deadline,
+                all_moves=all_moves, seen_placements=seen_placements,
+                blank_indices=blank_indices,
             )
-            for move in moves:
-                key = frozenset((r, c, l) for r, c, l in move.tiles)
-                if key not in seen_placements:
-                    seen_placements.add(key)
-                    all_moves.append(move)
 
     return all_moves
 
@@ -290,52 +385,7 @@ def _calculate_move_score(
     for r, c, letter in move.tiles:
         temp_board[r][c] = letter
 
-    # Score each word formed
-    for r, c, _ in move.tiles:
-        # Check horizontal word
-        hw = _read_word(temp_board, r, c, 0, 1)
-        if hw:
-            word_str, positions = hw
-            word_score = 0
-            word_mult = 1
-            for letter, (wr, wc) in zip(word_str, positions):
-                base = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points", 0)
-                if (wr, wc) in placed_set:
-                    if (wr, wc) in TRIPLE_LETTER_SCORE:
-                        base *= 3
-                    elif (wr, wc) in DOUBLE_LETTER_SCORE:
-                        base *= 2
-                    if (wr, wc) in TRIPLE_WORD_SCORE:
-                        word_mult *= 3
-                    elif (wr, wc) in DOUBLE_WORD_SCORE:
-                        word_mult *= 2
-                word_score += base
-            total += word_score * word_mult
-
-        # Check vertical word
-        vw = _read_word(temp_board, r, c, 1, 0)
-        if vw:
-            word_str, positions = vw
-            word_score = 0
-            word_mult = 1
-            for letter, (wr, wc) in zip(word_str, positions):
-                base = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points", 0)
-                if (wr, wc) in placed_set:
-                    if (wr, wc) in TRIPLE_LETTER_SCORE:
-                        base *= 3
-                    elif (wr, wc) in DOUBLE_LETTER_SCORE:
-                        base *= 2
-                    if (wr, wc) in TRIPLE_WORD_SCORE:
-                        word_mult *= 3
-                    elif (wr, wc) in DOUBLE_WORD_SCORE:
-                        word_mult *= 2
-                word_score += base
-            total += word_score * word_mult
-
-    # Avoid double-counting: the scoring above counts each word once per
-    # placed tile that's part of it.  We need to deduplicate.
-    # Simpler: recalculate using unique words.
-    total = 0
+    # Score each unique word formed
     seen_words: Set[Tuple[Tuple[int, int], ...]] = set()
     for r, c, _ in move.tiles:
         for dr, dc in [(0, 1), (1, 0)]:
@@ -352,7 +402,10 @@ def _calculate_move_score(
             word_score = 0
             word_mult = 1
             for letter, (wr, wc) in zip(word_str, positions):
-                base = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points", 0)
+                if (wr, wc) in move.blanks:
+                    base = 0  # blank tiles always score 0
+                else:
+                    base = LETTER_DISTRIBUTION.get(letter.lower(), {}).get("points", 0)
                 if (wr, wc) in placed_set:
                     if (wr, wc) in TRIPLE_LETTER_SCORE:
                         base *= 3
@@ -440,13 +493,21 @@ def select_move(
     rack: List[str],
     wordlist,
     first_move: bool = False,
-    difficulty: str = "medium",
+    difficulty: str = "fast",
 ) -> Optional[Move]:
-    """Find and select a move based on difficulty level.
+    """Find and select a move for the given mode.
+
+    Modes: "fast" (bounded search, greedy pick) and "strong" (deep
+    search, heuristic pick). Legacy difficulty names are mapped:
+    easy = fast + random move, medium = fast, hard = strong.
 
     Returns None if no valid move exists (AI should pass or exchange).
     """
-    moves = find_all_moves(board, rack, wordlist, first_move)
+    mode = {"easy": "fast", "medium": "fast", "hard": "strong"}.get(difficulty, difficulty)
+    if mode not in ("fast", "strong"):
+        mode = "fast"
+
+    moves = find_all_moves(board, rack, wordlist, first_move, mode=mode)
 
     if not moves:
         return None
@@ -459,17 +520,17 @@ def select_move(
         # Random move from all valid moves
         return random.choice(moves)
 
-    if difficulty == "medium":
+    if mode == "fast":
         # Highest raw score
         return max(moves, key=lambda m: m.raw_score)
 
-    # Hard: raw score + heuristics
+    # Strong: raw score + heuristics
     for move in moves:
-        used_letters = [l for _, _, l in move.tiles]
         remaining = rack[:]
-        for l in used_letters:
-            if l in remaining:
-                remaining.remove(l)
+        for r, c, letter in move.tiles:
+            used = "_" if (r, c) in move.blanks else letter
+            if used in remaining:
+                remaining.remove(used)
         move.heuristic_score = (
             move.raw_score
             + _rack_balance_bonus(remaining)

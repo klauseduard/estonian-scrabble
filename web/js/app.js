@@ -71,6 +71,7 @@ const waitingRoomCode = document.getElementById("waiting-room-code");
 const waitingPlayerList = document.getElementById("waiting-player-list");
 const startGameBtn = document.getElementById("start-game-btn");
 const addAiBtn = document.getElementById("add-ai-btn");
+const addAiStrongBtn = document.getElementById("add-ai-strong-btn");
 const copyCodeBtn = document.getElementById("copy-code-btn");
 const waitingStatus = document.getElementById("waiting-status");
 
@@ -361,6 +362,7 @@ function _showWaitingRoom() {
   waitingRoomCode.textContent = roomCode;
   startGameBtn.classList.toggle("hidden", !isHost);
   addAiBtn.classList.toggle("hidden", !isHost);
+  addAiStrongBtn.classList.toggle("hidden", !isHost);
   _renderWaitingPlayers();
 }
 
@@ -395,8 +397,9 @@ function _renderWaitingPlayers() {
   /* Enable start if host and 2+ players */
   if (isHost) {
     startGameBtn.disabled = waitingPlayers.length < 2;
-    /* Hide add-ai button when room is full */
+    /* Hide add-ai buttons when room is full */
     addAiBtn.classList.toggle("hidden", waitingPlayers.length >= 4);
+    addAiStrongBtn.classList.toggle("hidden", waitingPlayers.length >= 4);
     /* Explain why the start button is disabled */
     waitingStatus.textContent =
       waitingPlayers.length < 2
@@ -1039,7 +1042,11 @@ startGameBtn.addEventListener("click", () => {
 });
 
 addAiBtn.addEventListener("click", () => {
-  ws.addAi("medium");
+  ws.addAi("fast");
+});
+
+addAiStrongBtn.addEventListener("click", () => {
+  ws.addAi("strong");
 });
 
 copyCodeBtn.addEventListener("click", () => {

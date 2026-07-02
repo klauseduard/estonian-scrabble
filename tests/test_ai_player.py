@@ -66,6 +66,46 @@ class TestMoveGeneration(unittest.TestCase):
                 self.assertTrue(wl.is_valid_word(word), f"AI generated unvalidated word {word!r}")
 
 
+class TestStrongMode(unittest.TestCase):
+    """Strong mode finds what fast mode structurally cannot (issue #40)."""
+
+    def test_strong_finds_bingo_fast_does_not(self):
+        """A 7-letter word from a scrambled rack: strong-only territory."""
+        wl = FixedWordList(["kalurid"])
+        rack = ["d", "i", "r", "u", "l", "a", "k"]  # scrambled
+
+        fast_moves = find_all_moves(_empty_board(), rack, wl, first_move=True, mode="fast")
+        fast_words = {w for m in fast_moves for w in m.words_formed}
+        self.assertNotIn("kalurid", fast_words)
+
+        strong_moves = find_all_moves(_empty_board(), rack, wl, first_move=True, mode="strong")
+        strong_words = {w for m in strong_moves for w in m.words_formed}
+        self.assertIn("kalurid", strong_words)
+
+    def test_strong_uses_blank_tiles_scored_zero(self):
+        wl = FixedWordList(["kass"])
+        rack = ["k", "a", "s", "_"]
+
+        fast_moves = find_all_moves(_empty_board(), rack, wl, first_move=True, mode="fast")
+        self.assertEqual(fast_moves, [])  # fast never touches blanks
+
+        move = select_move(_empty_board(), rack, wl, first_move=True, difficulty="strong")
+        self.assertIsNotNone(move)
+        self.assertIn("kass", move.words_formed)
+        self.assertEqual(len(move.blanks), 1)
+        # kass through the center DW: (k1 + a1 + s1 + blank 0) * 2
+        self.assertEqual(move.raw_score, 6)
+
+    def test_legacy_difficulty_names_still_work(self):
+        wl = FixedWordList(["maja"])
+        for legacy in ("easy", "medium", "hard"):
+            with self.subTest(difficulty=legacy):
+                move = select_move(
+                    _empty_board(), ["m", "a", "j", "a"], wl, first_move=True, difficulty=legacy
+                )
+                self.assertIsNotNone(move)
+
+
 @unittest.skipUnless(HAS_SPYLLS, "spylls not installed")
 class TestStrictDictionaryForAI(unittest.TestCase):
     """The strict/permissive asymmetry that makes the AI safe (issue #33)."""
