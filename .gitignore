@@ -38,8 +38,14 @@ env/
 Thumbs.db
 
 # Project specific
-estonian_words.txt  # Legacy word list
-dict/               # Downloaded Hunspell dictionary files
-crash-course/       # Python crash course HTML files
-.claude/            # Claude Code working files
-deploy/             # Deployment notes and credentials
+# (gitignore does not support inline comments — keep them on their own lines)
+# Legacy word list
+estonian_words.txt
+# Downloaded Hunspell dictionary files
+dict/
+# Python crash course HTML files
+crash-course/
+# Claude Code working files
+.claude/
+# Deployment notes and credentials
+deploy/
