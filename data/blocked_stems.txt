@@ -1,17 +1,14 @@
 # Dictionary ENTRIES (stems) to remove entirely when patching the
 # Scrabble dictionaries. Unlike blocked_words.txt (single surface
 # forms), removing a stem kills the whole inflection family the entry
-# generates — use for bogus paradigm anchors.
+# generates — use for genuinely bogus paradigm anchors.
 #
 # Lines starting with # are comments.
 #
-# "õuga" is an upstream error: the comitative of "õu" is "õuega"
-# (built on the genitive "õue"), and the correct forms all exist via
-# the "õue"/"õuega" entries. The bogus "õuga" anchor generated 106
-# garbage forms: õul, õule, õult, õus, õuke, õud, ...
-#
-# Careful before adding: some odd-looking anchors are real. "öiga"
-# generates the rare-but-genuine short plural forms of "öö"
-# (öid, öil, öist), so it stays.
-
-õuga
+# CAUTIONARY TALE before adding anything: "õuga" was removed here as a
+# "bogus comitative of õu" after ÕUL was reported as an illegal play.
+# EKI (EKSS/ÕS) then proved the opposite: õud (horror) declines
+# <22e: õu, õudu>, so õuga IS its correct comitative anchor and ÕUL its
+# real adessive. Similarly "öiga" generates the genuine short plural
+# forms of öö (öid, öil, öist). Check the word's EKI entry
+# (https://arhiiv.eki.ee/dict/qs/) before blocking a stem.

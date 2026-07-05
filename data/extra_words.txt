@@ -10,13 +10,3 @@
 # (maanteed, maanteega, maanteedest, maanteel, ...).
 
 maantee tee
-
-# "õud" (horror) is missing from the upstream dictionary — it only
-# validated by accident through the bogus "õuga" entry (now removed
-# via blocked_stems.txt). It inflects like "laud" (laud:laua:lauda).
-# Consonant-gradation words need a line per principal part, each
-# naming the model entry with the same shape:
-õud laud
-õua laua
-õuda lauda
-õudade laudade
