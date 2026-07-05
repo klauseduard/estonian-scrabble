@@ -2,7 +2,7 @@
  * Tile rack rendering, drag-and-drop, and tap-to-select interaction.
  */
 
-import { getLetterPoints } from "./constants.js";
+import { getLetterPoints } from "./constants.js?v=20260705";
 
 /** @type {HTMLElement|null} */
 let rackEl = null;

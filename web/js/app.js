@@ -3,8 +3,8 @@
  * Handles view routing (lobby <-> game) and orchestrates all modules.
  */
 
-import ScrabbleWebSocket from "./websocket.js";
-import { initBoard, updateBoard, showBlankPicker } from "./board.js";
+import ScrabbleWebSocket from "./websocket.js?v=20260705";
+import { initBoard, updateBoard, showBlankPicker } from "./board.js?v=20260705";
 import {
   initRack,
   updateRack,
@@ -15,7 +15,7 @@ import {
   isExchangeMode,
   resetRackOrder,
   localToServerIdx,
-} from "./rack.js";
+} from "./rack.js?v=20260705";
 
 /* ------------------------------------------------------------------ */
 /*  State                                                              */
@@ -1005,7 +1005,57 @@ function showError(message) {
 /* ------------------------------------------------------------------ */
 
 const publicToggle = document.getElementById("public-toggle");
-const turnTimerSelect = document.getElementById("turn-timer-select");
+
+/* --- Time control chips (mode row + value row) --- */
+
+const timerModeRow = document.getElementById("timer-mode-row");
+const timerValueRow = document.getElementById("timer-value-row");
+
+/** Per-turn vs chess-clock options: [seconds, label] */
+const TIMER_VALUES = {
+  turn: [[60, "1 min"], [120, "2 min"], [300, "5 min"]],
+  game: [[300, "5 min"], [900, "15 min"], [1500, "25 min"]],
+};
+
+let timerMode = "none";
+let timerSeconds = null;
+
+function _selectChip(row, chip) {
+  row.querySelectorAll(".chip").forEach((c) => c.classList.remove("chip--active"));
+  chip.classList.add("chip--active");
+}
+
+function _renderTimerValueRow() {
+  while (timerValueRow.firstChild) timerValueRow.removeChild(timerValueRow.firstChild);
+  if (timerMode === "none") {
+    timerValueRow.classList.add("hidden");
+    timerSeconds = null;
+    return;
+  }
+  timerValueRow.classList.remove("hidden");
+  for (const [seconds, label] of TIMER_VALUES[timerMode]) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = label;
+    if (seconds === timerSeconds) chip.classList.add("chip--active");
+    chip.addEventListener("click", () => {
+      timerSeconds = seconds;
+      _selectChip(timerValueRow, chip);
+    });
+    timerValueRow.appendChild(chip);
+  }
+}
+
+timerModeRow.querySelectorAll(".chip").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    timerMode = chip.dataset.mode;
+    /* Default to the first option of the newly chosen mode */
+    timerSeconds = timerMode === "none" ? null : TIMER_VALUES[timerMode][0][0];
+    _selectChip(timerModeRow, chip);
+    _renderTimerValueRow();
+  });
+});
 
 createBtn.addEventListener("click", async () => {
   const name = nameInput.value.trim();
@@ -1015,11 +1065,8 @@ createBtn.addEventListener("click", async () => {
   }
   lobbyError.textContent = "";
   if (!ws) await connectWebSocket();
-  /* Value is "t<seconds>" (per-turn), "g<seconds>" (chess clock), or "" */
-  const choice = turnTimerSelect.value;
-  const seconds = parseInt(choice.slice(1), 10);
-  const turnLimit = choice.startsWith("t") && !Number.isNaN(seconds) ? seconds : null;
-  const gameLimit = choice.startsWith("g") && !Number.isNaN(seconds) ? seconds : null;
+  const turnLimit = timerMode === "turn" ? timerSeconds : null;
+  const gameLimit = timerMode === "game" ? timerSeconds : null;
   ws.createRoom(name, publicToggle.checked, turnLimit, gameLimit);
 });
 

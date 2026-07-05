@@ -37,6 +37,19 @@ _GAME_TIME_LIMITS = frozenset({300, 900, 1500})
 _MAX_OVERTIME = 600
 
 
+@app.middleware("http")
+async def revalidate_static_assets(request, call_next):
+    """Make browsers revalidate JS/CSS/HTML on every load (ETag 304s).
+
+    Without this, players kept running stale cached clients after every
+    deploy until a manual hard refresh.
+    """
+    response = await call_next(request)
+    if request.url.path == "/" or request.url.path.endswith((".js", ".css", ".html")):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint for deployment platforms."""

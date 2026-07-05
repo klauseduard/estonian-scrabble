@@ -8,7 +8,7 @@ import {
   ESTONIAN_LETTERS,
   PREMIUM_LABELS,
   PREMIUM_DESCRIPTIONS,
-} from "./constants.js";
+} from "./constants.js?v=20260705";
 
 /**
  * @typedef {object} BoardState

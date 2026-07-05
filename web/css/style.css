@@ -806,18 +806,52 @@ body {
   50% { opacity: 0.5; }
 }
 
-.label--small {
+/* Time control chips — styled like small board tiles */
+.timer-control {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.timer-control__label {
   display: block;
   font-size: 12px;
   color: #AAB;
-  text-align: left;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
-.lobby__select {
-  width: 100%;
-  margin-bottom: 10px;
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-row + .chip-row {
+  margin-top: 6px;
+}
+
+.chip {
+  appearance: none;
+  padding: 5px 10px;
+  font-family: "Noto Sans", system-ui, sans-serif;
+  font-size: 13px;
+  color: #AAB;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
   cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.chip:hover {
+  color: var(--text-light);
+  border-color: #889;
+}
+
+.chip--active {
+  background: var(--tile-face);
+  border-color: var(--tile-border);
+  color: var(--text-dark);
+  font-weight: 600;
 }
 
 .turn-indicator--your-turn {
