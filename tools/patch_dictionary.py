@@ -31,6 +31,7 @@ _VOWELS = set("aeiouõäöüAEIOUÕÄÖÜ")
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DICT_DIR = os.path.join(_REPO_ROOT, "dict")
 EXTRA_WORDS_FILE = os.path.join(_REPO_ROOT, "data", "extra_words.txt")
+BLOCKED_STEMS_FILE = os.path.join(_REPO_ROOT, "data", "blocked_stems.txt")
 
 SOURCE_BASE = "et_EE"
 PATCHED_BASE = "et_EE_scrabble"
@@ -62,6 +63,19 @@ def _split_entry(line: str) -> tuple:
     body, tab, rest = line.partition("\t")
     root, slash, flags = body.partition("/")
     return root, flags if slash else None, (tab + rest) if tab else ""
+
+
+def _load_blocked_stems(path: str = BLOCKED_STEMS_FILE) -> set:
+    """Dictionary entries to drop entirely (bogus paradigm anchors)."""
+    stems = set()
+    if not os.path.exists(path):
+        return stems
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            stem = line.split("#", 1)[0].strip()
+            if stem:
+                stems.add(stem)
+    return stems
 
 
 def _load_extra_words(path: str) -> List[tuple]:
@@ -99,14 +113,20 @@ def patch_dictionary(
     with open(src_dic, encoding=encoding) as f:
         lines = f.read().splitlines()
 
+    blocked_stems = _load_blocked_stems()
+
     # First line is the entry count; patch the rest.
     entries: List[str] = []
     entry_by_root: Dict[str, tuple] = {}
     stripped = 0
+    removed = 0
     for line in lines[1:]:
         if not line:
             continue
         root, flags, rest = _split_entry(line)
+        if root in blocked_stems:
+            removed += 1
+            continue
         if flags and compound_flag in flags and not (set(root) & _VOWELS):
             flags = flags.replace(compound_flag, "")
             stripped += 1
@@ -158,9 +178,9 @@ def patch_dictionary(
 
     logger.info(
         "Patched dictionary written to %s (compound flag stripped from %d "
-        "vowelless entries, %d extra-word entries appended); strict "
-        "no-compound variant written to %s",
-        out_dic, stripped, added, strict_dic,
+        "vowelless entries, %d blocked stems removed, %d extra-word entries "
+        "appended); strict no-compound variant written to %s",
+        out_dic, stripped, removed, added, strict_dic,
     )
     return os.path.join(dict_dir, PATCHED_BASE)
 
@@ -181,6 +201,7 @@ def patched_dictionary_stale(
         os.path.join(dict_dir, SOURCE_BASE + ".dic"),
         os.path.join(dict_dir, SOURCE_BASE + ".aff"),
         extra_words_file,
+        BLOCKED_STEMS_FILE,
         os.path.abspath(__file__),
     ]
     return any(os.path.exists(s) and os.path.getmtime(s) > built for s in sources)
