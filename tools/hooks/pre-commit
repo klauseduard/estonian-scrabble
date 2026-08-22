@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Block commits that contain ruff violations.
+#
+# Versioned here rather than living only in .git/hooks (which git does not
+# track) so the hook survives a fresh clone. Install with:
+#
+#     tools/hooks/install.sh
+#
+# Checks working-tree contents of staged files. If you stage a hunk and then
+# keep editing, the hook sees the newer text — fine in practice, and it errs
+# toward catching more rather than less.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+if [ -x "$REPO_ROOT/.venv/bin/ruff" ]; then
+    RUFF="$REPO_ROOT/.venv/bin/ruff"
+elif command -v ruff >/dev/null 2>&1; then
+    RUFF="$(command -v ruff)"
+else
+    echo "pre-commit: ruff not found — skipping style check." >&2
+    echo "            install it with: pip install -r requirements-dev.txt" >&2
+    exit 0
+fi
+
+# Added, Copied, Modified, Renamed — never Deleted (the file is gone).
+mapfile -t STAGED < <(git diff --cached --name-only --diff-filter=ACMR -z \
+    | tr '\0' '\n' | grep -E '\.py$' || true)
+
+if [ ${#STAGED[@]} -eq 0 ]; then
+    exit 0
+fi
+
+if ! "$RUFF" check --force-exclude "${STAGED[@]}"; then
+    echo >&2
+    echo "pre-commit: ruff found violations in staged Python files." >&2
+    echo "            fix them with:  .venv/bin/ruff check --fix ." >&2
+    echo "            bypass once with: git commit --no-verify" >&2
+    exit 1
+fi

@@ -15,6 +15,12 @@ cd scrabble
 pip install -r requirements.txt
 ```
 
+   For development, install the linter too and enable the git hooks:
+```bash
+pip install -r requirements-dev.txt
+tools/hooks/install.sh
+```
+
 3. Run the game to verify setup:
 ```bash
 python main.py
@@ -140,10 +146,11 @@ Tests use Python's `unittest` framework with mock wordlists for isolated testing
 
 Follow these style guidelines:
 
-1. **PEP 8**
+1. **PEP 8** — enforced by ruff, configured in `pyproject.toml`
    - 4 spaces for indentation
    - Maximum line length of 100 characters
    - Use meaningful variable names
+   - Check with `ruff check .`; most issues fix themselves with `ruff check --fix .`
 
 2. **Documentation**
    - Docstrings for all public classes and functions

@@ -46,7 +46,13 @@ User Input → main.py (ScrabbleUI) → GameState (game/state.py)
 
 ## Code Style
 
-- PEP 8 with 100-char line length (Black formatter)
+Enforced by ruff — `pyproject.toml` is the source of truth, not this list.
+Run `.venv/bin/ruff check .` (or `--fix`) before committing; the pre-commit
+hook in `tools/hooks/` blocks commits that violate it.
+
+- PEP 8 with 100-char line length. Black is configured in `pyproject.toml` but
+  has never been run over the codebase — do not run it casually; it reformats
+  ~20 files. Formatting is hand-maintained to satisfy ruff.
 - Double quotes for strings
 - Type hints on function signatures
 - snake_case for functions/variables, PascalCase for classes, UPPER_CASE for constants
