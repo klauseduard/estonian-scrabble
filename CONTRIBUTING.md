@@ -153,24 +153,48 @@ Tests use Python's `unittest` framework with mock wordlists for isolated testing
 Follow these style guidelines:
 
 1. **PEP 8** — enforced by ruff and Black, configured in `pyproject.toml`
-   - 4 spaces for indentation
-   - Maximum line length of 100 characters
-   - Use meaningful variable names
    - Run `ruff check --fix .` then `black .` before committing; the pre-commit
      hook rejects anything that fails either
+   - Indentation, line length, quote style, naming and import order are all
+     handled by the tools. There is no separate list to memorise — if it passes
+     both commands, it matches the house style
    - Black will not split long string literals — if one pushes a line past 100,
      hoist it to a local rather than wrapping it (Black collapses implicit
      concatenation into the adjacent-string form)
+   - Use meaningful variable names; no tool can check this one
 
 2. **Documentation**
    - Docstrings for all public classes and functions
    - Inline comments for complex logic
-   - Type hints for all functions
+   - Type hints on function signatures. Coverage is incomplete (~146 gaps), so
+     this is not a gate — annotate new code rather than retrofitting old
 
 3. **Organization**
    - Keep files focused and single-purpose
    - Group related functionality
    - Use clear, descriptive names
+
+4. **Design rules no linter can check**
+
+   These are not general advice. Each one describes a mistake already present in
+   this codebase, named so it does not spread:
+
+   - **A failed dependency must not degrade into a plausible wrong answer.**
+     When `WordList` cannot load its dictionary it logs the error and continues
+     with `_dict = None`. From then on `is_valid_word` returns False for every
+     word, so a broken install looks exactly like a working game that rejects
+     your vocabulary. Prefer raising, or expose an availability flag the caller
+     checks once at startup.
+   - **Event and message handling dispatches to named handlers.** Compare
+     `_dispatch` in `server/app.py` — sixteen branches, each one line, calling a
+     named handler — with `run()` in `main.py`, where the pygame event loop has
+     grown to 152 lines and ten levels of indentation. Same codebase, same
+     problem, two very different outcomes. Copy the first one.
+   - **Catch the specific exception.** `except WebSocketDisconnect: pass` is
+     correct: a client disconnecting is ordinary control flow, the exception is
+     named explicitly, and cleanup happens in `finally`. `except OSError: pass`
+     in `tools/build_dawg.py` is not, because it cannot tell a file that is
+     absent from one it lacks permission to read, and treats both as empty.
 
 ## Submitting Changes
 

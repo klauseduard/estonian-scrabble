@@ -57,13 +57,35 @@ list. Before committing:
 The pre-commit hook in `tools/hooks/` blocks commits that fail either. Run
 ruff first and Black second — Black owns the final layout.
 
-- PEP 8 with 100-char line length, formatted by Black (pinned to 26.5.1 in
-  `requirements-dev.txt`; an unpinned Black formats differently across versions)
-- Double quotes for strings
-- Type hints on function signatures
-- snake_case for functions/variables, PascalCase for classes, UPPER_CASE for constants
-- Private members prefixed with underscore
-- Imports grouped: stdlib → third-party → local, alphabetically sorted within groups
+Line length, quote style, naming and import order are all enforced, so they are
+not restated here — `ruff check` and `black --check` are the authority. Black is
+pinned to 26.5.1 in `requirements-dev.txt`; an unpinned Black formats differently
+across versions.
+
+Not enforced, so worth stating:
+
+- Type hints on function signatures. `ruff --select ANN` reports 146 gaps today,
+  so this is not a gate — annotate new code, do not retrofit opportunistically.
+- Private members prefixed with underscore.
+
+### Design rules no linter can check
+
+Each of these was earned from a real defect in this repo. They are specific on
+purpose: a general appeal to the Zen of Python does not tell you what to do at
+the branch point.
+
+- **A failed dependency must not degrade into a plausible wrong answer.**
+  `WordList` logs a load failure and sets `_dict = None`, after which
+  `is_valid_word` returns False for every word — indistinguishable to the player
+  from "not a word". Raise, or expose availability that the caller checks. Do
+  not add more of this shape.
+- **Event and message handling dispatches to named handlers.** `server/app.py`
+  `_dispatch` is the pattern to copy (16 arms, 2 levels deep). `main.py` `run()`
+  is the one to stop growing: 152 lines, 10 levels of nesting below the `def`.
+- **Catch the specific exception.** `except WebSocketDisconnect: pass` is correct
+  — a disconnect is normal control flow, explicitly named, with cleanup in
+  `finally`. `except OSError: pass` in `tools/build_dawg.py` is not: it cannot
+  distinguish an absent file from an unreadable one.
 
 ## Git Conventions
 
