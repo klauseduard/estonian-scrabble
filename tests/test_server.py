@@ -749,6 +749,179 @@ class TestChallengeStateMachine(unittest.TestCase):
         self.assertFalse(room.started)
 
 
+class TestChallengeFlow(unittest.TestCase):
+    """The challenge state machine: challenge -> accept | refuse.
+
+    Issue #37 proposes extending challenges to AI moves. These pin the current
+    rules first — who may challenge, who may resolve, and what happens to the
+    snapshot in each outcome — so that change has something to push against.
+    """
+
+    def setUp(self):
+        from server.app import (
+            _handle_challenge,
+            _handle_challenge_accept,
+            _handle_challenge_refuse,
+            _handle_create_room,
+            _handle_join_room,
+            room_manager,
+        )
+
+        self.challenge = _handle_challenge
+        self.accept = _handle_challenge_accept
+        self.refuse = _handle_challenge_refuse
+        room_manager.rooms.clear()
+
+        self.ws_alice, self.ws_bob = _make_ws(), _make_ws()
+        self.room = self._run(_handle_create_room(self.ws_alice, {"player_name": "Alice"}))
+        self._run(
+            _handle_join_room(self.ws_bob, {"room_code": self.room.code, "player_name": "Bob"})
+        )
+        self.game = _create_game(2)
+        self.game.players[0].name = "Alice"
+        self.game.players[1].name = "Bob"
+        self.room.game = self.game
+        self.room.started = True
+
+        # Alice has just committed a move, so it is challengeable.
+        self.room.save_snapshot("Alice")
+        self.ws_alice.send_json.reset_mock()
+        self.ws_bob.send_json.reset_mock()
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _frames(self, ws, frame_type):
+        return [
+            call.args[0]
+            for call in ws.send_json.call_args_list
+            if call.args[0].get("type") == frame_type
+        ]
+
+    def _assert_error(self, ws):
+        self.assertTrue(self._frames(ws, "error"), "expected an error frame")
+
+    # -- raising a challenge ------------------------------------------------
+
+    def test_bob_can_challenge_alices_move(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.assertEqual(self.room._challenge_pending, {"challenger": "Bob", "challenged": "Alice"})
+        announced = self._frames(self.ws_alice, "challenge")
+        self.assertEqual(len(announced), 1)
+        self.assertEqual(announced[0]["challenger"], "Bob")
+
+    def test_alice_cannot_challenge_her_own_move(self):
+        self._run(self.challenge(self.ws_alice, self.room))
+        self._assert_error(self.ws_alice)
+        self.assertIsNone(self.room._challenge_pending)
+
+    def test_challenge_needs_something_to_challenge(self):
+        self.room._pre_commit_snapshot = None
+        self.room._challengeable_player = None
+        self._run(self.challenge(self.ws_bob, self.room))
+        self._assert_error(self.ws_bob)
+
+    def test_challenge_rejected_once_game_is_over(self):
+        self.game.game_over = True
+        self._run(self.challenge(self.ws_bob, self.room))
+        self._assert_error(self.ws_bob)
+        self.assertIsNone(self.room._challenge_pending)
+
+    def test_second_challenge_while_one_is_pending_is_rejected(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.ws_bob.send_json.reset_mock()
+        self._run(self.challenge(self.ws_bob, self.room))
+        self._assert_error(self.ws_bob)
+
+    # -- accepting ----------------------------------------------------------
+
+    def test_accepting_restores_the_snapshot_and_clears_the_challenge(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.ws_bob.send_json.reset_mock()
+
+        self._run(self.accept(self.ws_alice, self.room))
+
+        self.assertIsNone(self.room._challenge_pending)
+        self.assertIsNone(self.room._pre_commit_snapshot)
+        self.assertIsNone(self.room._challengeable_player)
+        resolved = self._frames(self.ws_bob, "challenge_resolved")
+        self.assertEqual(len(resolved), 1)
+        self.assertEqual(resolved[0]["result"], "accepted")
+
+    def test_only_the_challenged_player_may_accept(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.ws_bob.send_json.reset_mock()
+
+        # Bob raised the challenge; he cannot also accept it on Alice's behalf.
+        self._run(self.accept(self.ws_bob, self.room))
+
+        self._assert_error(self.ws_bob)
+        self.assertIsNotNone(self.room._challenge_pending)
+
+    def test_accepting_without_a_pending_challenge_is_rejected(self):
+        self._run(self.accept(self.ws_alice, self.room))
+        self._assert_error(self.ws_alice)
+
+    def test_accepting_with_the_snapshot_already_gone_errors_instead_of_crashing(self):
+        """The snapshot can vanish under a pending challenge — e.g. a force-ack
+        flow clearing it. Accepting must then fail cleanly, not raise."""
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.room._pre_commit_snapshot = None
+        self.ws_alice.send_json.reset_mock()
+
+        self._run(self.accept(self.ws_alice, self.room))
+
+        self._assert_error(self.ws_alice)
+
+    # -- refusing -----------------------------------------------------------
+
+    def test_refusing_clears_the_challenge_but_keeps_the_snapshot(self):
+        """Deliberate: a refusal leaves the move challengeable by someone else."""
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.ws_bob.send_json.reset_mock()
+
+        self._run(self.refuse(self.ws_alice, self.room))
+
+        self.assertIsNone(self.room._challenge_pending)
+        self.assertIsNotNone(self.room._pre_commit_snapshot)
+        self.assertEqual(self.room._challengeable_player, "Alice")
+        resolved = self._frames(self.ws_bob, "challenge_resolved")
+        self.assertEqual(resolved[0]["result"], "refused")
+
+    def test_only_the_challenged_player_may_refuse(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        self.ws_bob.send_json.reset_mock()
+        self._run(self.refuse(self.ws_bob, self.room))
+        self._assert_error(self.ws_bob)
+        self.assertIsNotNone(self.room._challenge_pending)
+
+    def test_refusing_without_a_pending_challenge_is_rejected(self):
+        self._run(self.refuse(self.ws_alice, self.room))
+        self._assert_error(self.ws_alice)
+
+    def test_a_refused_move_can_be_challenged_again(self):
+        """Follows from keeping the snapshot — pinned because #37 may change it."""
+        self._run(self.challenge(self.ws_bob, self.room))
+        self._run(self.refuse(self.ws_alice, self.room))
+        self.ws_bob.send_json.reset_mock()
+
+        self._run(self.challenge(self.ws_bob, self.room))
+
+        self.assertEqual(self.room._challenge_pending, {"challenger": "Bob", "challenged": "Alice"})
+        self.assertFalse(self._frames(self.ws_bob, "error"))
+
+    # -- unknown sockets ----------------------------------------------------
+
+    def test_stranger_cannot_accept_or_refuse(self):
+        self._run(self.challenge(self.ws_bob, self.room))
+        for handler in (self.accept, self.refuse):
+            with self.subTest(handler=handler.__name__):
+                stranger = _make_ws()
+                self._run(handler(stranger, self.room))
+                self._assert_error(stranger)
+                self.assertIsNotNone(self.room._challenge_pending)
+
+
 class TestInputValidation(unittest.TestCase):
     """Malformed WebSocket payloads must produce error frames, never exceptions.
 
