@@ -161,4 +161,9 @@ Coordinates between UI and game logic:
 1. Keep modules focused
 2. Use clear naming
 3. Document public interfaces
-4. Follow type hints 
+4. Follow type hints \n
+## Algorithms
+
+The dictionary pipeline (unmunching, DAWG construction) and the AI's move
+generation are documented separately, with diagrams and measured figures, in
+[algorithms.md](algorithms.md).
