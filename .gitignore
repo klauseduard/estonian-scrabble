@@ -53,3 +53,18 @@ crash-course/
 !.claude/settings.json
 # Deployment notes and credentials
 deploy/
+# Archive of the (already ignored) crash-course material
+crash-course.tar
+# Browser-automation artifacts from UI work
+test-results/
+.playwright-mcp/
+lobby-*.jpeg
+# Coverage data
+.coverage
+.coverage.*
+htmlcov/
+# Editor scratch
+*.swp
+*.swo
+# Local scratch file that has held a credential — keep it out of git
+hetx
