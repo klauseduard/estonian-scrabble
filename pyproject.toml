@@ -1,0 +1,30 @@
+# Style configuration for Estonian Scrabble.
+#
+# The conventions in CLAUDE.md ("PEP 8 with 100-char line length, Black
+# formatter") lived only as prose until 2026-08-22, and 20 of 25 source files
+# had drifted out of compliance. This file makes them machine-checkable.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# pycodestyle (PEP 8 proper), pyflakes, isort, pep8-naming — the rules
+# CLAUDE.md's "Code Style" section already describes.
+select = ["E", "W", "F", "I", "N"]
+
+[tool.ruff.lint.per-file-ignores]
+# Package __init__ files re-export names for the public API; the imports are
+# unused *within* the module by design.
+"__init__.py" = ["F401"]
+# Mock classes bound to locals keep PascalCase so they read as the class they
+# stand in for (MockWL, MockGS).
+"tests/*" = ["N806", "N803"]
+
+[tool.ruff.lint.isort]
+# stdlib → third-party → local, alphabetical within groups (CLAUDE.md).
+known-first-party = ["game", "server", "tools", "ui", "wordlist"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
