@@ -31,6 +31,7 @@ class Player:
         for tile in tiles:
             self.rack.remove(tile)
 
+
 class GameState:
     def __init__(self, board_size: int = 15, num_players: int = 2):
         if not 2 <= num_players <= 4:
@@ -59,7 +60,7 @@ class GameState:
         """Create and shuffle the initial tile bag."""
         tiles = []
         for letter, info in LETTER_DISTRIBUTION.items():
-            tiles.extend([letter] * info['count'])
+            tiles.extend([letter] * info["count"])
         random.shuffle(tiles)
         return tiles
 
@@ -92,7 +93,7 @@ class GameState:
         if pos in self.blank_designations:
             return 0
 
-        base_score = LETTER_DISTRIBUTION[letter.lower()]['points']
+        base_score = LETTER_DISTRIBUTION[letter.lower()]["points"]
 
         # Only apply letter premium squares for newly placed tiles
         if pos in self.current_turn_tiles:
@@ -362,10 +363,7 @@ class GameState:
         remaining_values: Dict[str, int] = {}
         total_remaining = 0
         for player in self.players:
-            value = sum(
-                LETTER_DISTRIBUTION[tile.lower()]["points"]
-                for tile in player.rack
-            )
+            value = sum(LETTER_DISTRIBUTION[tile.lower()]["points"] for tile in player.rack)
             remaining_values[player.name] = value
             total_remaining += value
 
@@ -434,5 +432,4 @@ class GameState:
 
     def is_game_over(self) -> bool:
         """Check if the game is over."""
-        return (len(self.tile_bag) == 0 and
-                any(len(player.rack) == 0 for player in self.players))
+        return len(self.tile_bag) == 0 and any(len(player.rack) == 0 for player in self.players)

@@ -61,6 +61,7 @@ class Move:
 # Board helpers
 # ---------------------------------------------------------------------------
 
+
 def _get_anchors(board: List[List[Optional[str]]], first_move: bool) -> Set[Tuple[int, int]]:
     """Return empty cells adjacent to existing tiles (or center on first move)."""
     size = len(board)
@@ -127,6 +128,7 @@ def _cross_word(board, row, col, direction):
 # ---------------------------------------------------------------------------
 # Move generation
 # ---------------------------------------------------------------------------
+
 
 def _generate_line_moves(
     board: List[List[Optional[str]]],
@@ -265,11 +267,13 @@ def _generate_line_moves(
                         continue
 
                     # Valid move found!
-                    moves.append(Move(
-                        tiles=tiles_placed,
-                        words_formed=words_formed,
-                        blanks=blank_positions,
-                    ))
+                    moves.append(
+                        Move(
+                            tiles=tiles_placed,
+                            words_formed=words_formed,
+                            blanks=blank_positions,
+                        )
+                    )
 
     return moves
 
@@ -277,6 +281,7 @@ def _generate_line_moves(
 # ---------------------------------------------------------------------------
 # DAWG-based move generation (Appel & Jacobson 1988) — issue #40
 # ---------------------------------------------------------------------------
+
 
 def _dawg_cross_context(board, r: int, c: int) -> Tuple[str, str]:
     """Contiguous letters above and below (r, c) in *board*'s columns."""
@@ -404,8 +409,9 @@ def _dawg_scan_rows(board, rack_counts, dawg, anchors, moves, transposed: bool):
 
         def left_part(word, node, limit, anchor_col):
             # Tiles of the left part occupy cols anchor_col-len(word)..anchor_col-1.
-            extend_right(word, node, anchor_col, anchor_col,
-                         _left_placed(word, anchor_col) if word else [])
+            extend_right(
+                word, node, anchor_col, anchor_col, _left_placed(word, anchor_col) if word else []
+            )
             if limit > 0:
                 for ch, child in edges[node].items():
                     n_real = rack_counts.get(ch, 0)
@@ -477,9 +483,18 @@ def _find_all_moves_dawg(
 
 
 def _collect_moves(
-    board, rack, anchors, wordlist, validation_cache, first_move,
-    lengths, full_perm_max_length, deadline,
-    all_moves, seen_placements, blank_indices=None,
+    board,
+    rack,
+    anchors,
+    wordlist,
+    validation_cache,
+    first_move,
+    lengths,
+    full_perm_max_length,
+    deadline,
+    all_moves,
+    seen_placements,
+    blank_indices=None,
 ):
     """Run the line generator over all anchors, deduplicating placements."""
     for anchor_r, anchor_c in anchors:
@@ -487,8 +502,15 @@ def _collect_moves(
             return
         for dr, dc in [(0, 1), (1, 0)]:  # horizontal, vertical
             moves = _generate_line_moves(
-                board, rack, anchor_r, anchor_c, dr, dc,
-                wordlist, validation_cache, first_move,
+                board,
+                rack,
+                anchor_r,
+                anchor_c,
+                dr,
+                dc,
+                wordlist,
+                validation_cache,
+                first_move,
                 lengths=lengths,
                 full_perm_max_length=full_perm_max_length,
                 deadline=deadline,
@@ -541,9 +563,17 @@ def find_all_moves(
 
     # Pass 1 (both modes): short placements, full permutations, no blanks.
     _collect_moves(
-        board, plain_rack, anchors, wordlist, validation_cache, first_move,
-        lengths=range(1, 5), full_perm_max_length=4, deadline=deadline,
-        all_moves=all_moves, seen_placements=seen_placements,
+        board,
+        plain_rack,
+        anchors,
+        wordlist,
+        validation_cache,
+        first_move,
+        lengths=range(1, 5),
+        full_perm_max_length=4,
+        deadline=deadline,
+        all_moves=all_moves,
+        seen_placements=seen_placements,
     )
 
     if mode != "strong":
@@ -553,9 +583,17 @@ def find_all_moves(
     # budget is spent on the highest-value words; full permutations,
     # cut off by the deadline (issue #40 tracks the real fix).
     _collect_moves(
-        board, plain_rack, anchors, wordlist, validation_cache, first_move,
-        lengths=range(7, 4, -1), full_perm_max_length=7, deadline=deadline,
-        all_moves=all_moves, seen_placements=seen_placements,
+        board,
+        plain_rack,
+        anchors,
+        wordlist,
+        validation_cache,
+        first_move,
+        lengths=range(7, 4, -1),
+        full_perm_max_length=7,
+        deadline=deadline,
+        all_moves=all_moves,
+        seen_placements=seen_placements,
     )
 
     # Pass 3: blank substitutions, common letters first, until the budget
@@ -573,9 +611,17 @@ def find_all_moves(
             variant = plain_rack + list(letters)
             blank_indices = set(range(len(plain_rack), len(variant)))
             _collect_moves(
-                board, variant, anchors, wordlist, validation_cache, first_move,
-                lengths=range(1, 6), full_perm_max_length=4, deadline=deadline,
-                all_moves=all_moves, seen_placements=seen_placements,
+                board,
+                variant,
+                anchors,
+                wordlist,
+                validation_cache,
+                first_move,
+                lengths=range(1, 6),
+                full_perm_max_length=4,
+                deadline=deadline,
+                all_moves=all_moves,
+                seen_placements=seen_placements,
                 blank_indices=blank_indices,
             )
 
@@ -585,6 +631,7 @@ def find_all_moves(
 # ---------------------------------------------------------------------------
 # Scoring with heuristics
 # ---------------------------------------------------------------------------
+
 
 def _calculate_move_score(
     board: List[List[Optional[str]]],
@@ -662,6 +709,7 @@ def _rack_balance_bonus(remaining_rack: List[str]) -> float:
 
     # Penalize duplicate letters
     from collections import Counter
+
     counts = Counter(t.lower() for t in remaining_rack)
     dupes = sum(c - 1 for c in counts.values() if c > 1)
     balance -= dupes * 2.0
@@ -706,6 +754,7 @@ def _positional_bonus(board: List[List[Optional[str]]], move: Move) -> float:
 # Move selection
 # ---------------------------------------------------------------------------
 
+
 def select_move(
     board: List[List[Optional[str]]],
     rack: List[str],
@@ -721,9 +770,7 @@ def select_move(
 
     Returns None if no valid move exists (AI should pass or exchange).
     """
-    mode = {"medium": "strong", "hard": "strong", "fast": "strong"}.get(
-        difficulty, difficulty
-    )
+    mode = {"medium": "strong", "hard": "strong", "fast": "strong"}.get(difficulty, difficulty)
     if mode not in ("easy", "strong"):
         mode = "strong"
 
@@ -754,9 +801,7 @@ def select_move(
             if used in remaining:
                 remaining.remove(used)
         move.heuristic_score = (
-            move.raw_score
-            + _rack_balance_bonus(remaining)
-            + _positional_bonus(board, move)
+            move.raw_score + _rack_balance_bonus(remaining) + _positional_bonus(board, move)
         )
 
     return max(moves, key=lambda m: m.heuristic_score)

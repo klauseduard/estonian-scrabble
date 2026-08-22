@@ -151,9 +151,7 @@ class StrictWordList:
         try:
             from spylls.hunspell import Dictionary
 
-            self._dict = Dictionary.from_files(
-                os.path.join(_DICT_DIR, "et_EE_scrabble_strict")
-            )
+            self._dict = Dictionary.from_files(os.path.join(_DICT_DIR, "et_EE_scrabble_strict"))
             self.logger.info("Loaded strict Estonian dictionary (et_EE_scrabble_strict)")
         except Exception as e:
             self.logger.error(f"Failed to load strict dictionary: {e}")

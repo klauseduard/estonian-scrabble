@@ -147,7 +147,6 @@ class TestScoring(unittest.TestCase):
         # total = 6
         self.assertEqual(game.players[0].score, 6)
 
-
     def test_bingo_bonus_for_seven_tiles(self):
         """Using all 7 tiles in one turn awards a 50-point bonus."""
         game = create_game_with_mock_wordlist(valid_words={"seitset"})
@@ -211,7 +210,7 @@ class TestEndGameAdjustment(unittest.TestCase):
         game.apply_end_game_adjustment()
 
         self.assertEqual(game.players[0].score, 27)  # 30 - 3
-        self.assertEqual(game.players[1].score, 12)   # 25 - 13
+        self.assertEqual(game.players[1].score, 12)  # 25 - 13
 
 
 class TestTileExchange(unittest.TestCase):

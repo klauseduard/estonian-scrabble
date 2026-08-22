@@ -93,9 +93,7 @@ def _load_extra_words(path: str) -> List[tuple]:
     return entries
 
 
-def patch_dictionary(
-    dict_dir: str = DICT_DIR, extra_words_file: str = EXTRA_WORDS_FILE
-) -> str:
+def patch_dictionary(dict_dir: str = DICT_DIR, extra_words_file: str = EXTRA_WORDS_FILE) -> str:
     """Build <dict_dir>/et_EE_scrabble.{dic,aff} from the upstream files.
 
     Returns the base path (without extension) of the patched dictionary.
@@ -168,10 +166,7 @@ def patch_dictionary(
     strict_dic = os.path.join(dict_dir, STRICT_BASE + ".dic")
     strict_aff = os.path.join(dict_dir, STRICT_BASE + ".aff")
     with open(src_aff, encoding=encoding) as f:
-        aff_lines = [
-            line for line in f.read().splitlines()
-            if not line.startswith("COMPOUND")
-        ]
+        aff_lines = [line for line in f.read().splitlines() if not line.startswith("COMPOUND")]
     with open(strict_aff, "w", encoding=encoding) as f:
         f.write("\n".join(aff_lines) + "\n")
     shutil.copyfile(out_dic, strict_dic)
@@ -180,7 +175,11 @@ def patch_dictionary(
         "Patched dictionary written to %s (compound flag stripped from %d "
         "vowelless entries, %d blocked stems removed, %d extra-word entries "
         "appended); strict no-compound variant written to %s",
-        out_dic, stripped, removed, added, strict_dic,
+        out_dic,
+        stripped,
+        removed,
+        added,
+        strict_dic,
     )
     return os.path.join(dict_dir, PATCHED_BASE)
 

@@ -37,6 +37,7 @@ BUTTON_TEXT_SIZE = 24  # Smaller text size for buttons
 LANG_BUTTON_SIZE = 30  # Smaller language button
 LANG_BUTTON_PADDING = 5  # Smaller padding for language button
 
+
 class ScrabbleUI:
     def __init__(self):
         self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
@@ -75,7 +76,7 @@ class ScrabbleUI:
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
             self.lang_manager.get_string("pass_turn"),
-            self.button_font
+            self.button_font,
         )
 
         # Position Exchange button in the middle
@@ -85,7 +86,7 @@ class ScrabbleUI:
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
             self.lang_manager.get_string("exchange"),
-            self.button_font
+            self.button_font,
         )
 
         # Position Submit button on the right
@@ -95,7 +96,7 @@ class ScrabbleUI:
             BUTTON_WIDTH,
             BUTTON_HEIGHT,
             self.lang_manager.get_string("submit_turn"),
-            self.button_font
+            self.button_font,
         )
 
         # Add language toggle button in bottom-right corner, above the buttons
@@ -105,7 +106,7 @@ class ScrabbleUI:
             LANG_BUTTON_SIZE,
             LANG_BUTTON_SIZE,
             self.lang_manager.get_string("lang_button"),
-            self.lang_button_font
+            self.lang_button_font,
         )
 
         # Initialize score displays arranged across the top
@@ -119,7 +120,10 @@ class ScrabbleUI:
         ready_x = (WINDOW_SIZE - ready_w) // 2
         ready_y = (WINDOW_SIZE + RACK_HEIGHT) // 2 + 20
         self.ready_button = Button(
-            ready_x, ready_y, ready_w, ready_h,
+            ready_x,
+            ready_y,
+            ready_w,
+            ready_h,
             self.lang_manager.get_string("ready"),
             self.button_font,
         )
@@ -136,9 +140,7 @@ class ScrabbleUI:
         self._update_exchange_button()
 
         # Letter choices for blank tile dialog (all real letters, no '_')
-        self._blank_letters = sorted(
-            [k for k in LETTER_DISTRIBUTION.keys() if k != "_"]
-        )
+        self._blank_letters = sorted([k for k in LETTER_DISTRIBUTION.keys() if k != "_"])
         # Pending blank placement (row, col, tile_idx) while dialog is open
         self._pending_blank: tuple = None
 
@@ -177,9 +179,7 @@ class ScrabbleUI:
             # Draw title
             title_text = self.lang_manager.get_string("select_players")
             title_surface = self.title_font.render(title_text, True, BLACK)
-            title_rect = title_surface.get_rect(
-                center=(WINDOW_SIZE // 2, btn_y - 60)
-            )
+            title_rect = title_surface.get_rect(center=(WINDOW_SIZE // 2, btn_y - 60))
             self.screen.blit(title_surface, title_rect)
 
             for btn, _ in selection_buttons:
@@ -208,8 +208,12 @@ class ScrabbleUI:
 
         start_label = self.lang_manager.get_string("start_game")
         start_btn = Button(
-            (WINDOW_SIZE - 200) // 2, btn_y,
-            200, 50, start_label, self.button_font,
+            (WINDOW_SIZE - 200) // 2,
+            btn_y,
+            200,
+            50,
+            start_label,
+            self.button_font,
         )
 
         while True:
@@ -243,9 +247,9 @@ class ScrabbleUI:
             # Title
             title = self.lang_manager.get_string("enter_names")
             title_surface = self.title_font.render(title, True, BLACK)
-            self.screen.blit(title_surface, title_surface.get_rect(
-                center=(WINDOW_SIZE // 2, title_y + 20)
-            ))
+            self.screen.blit(
+                title_surface, title_surface.get_rect(center=(WINDOW_SIZE // 2, title_y + 20))
+            )
 
             # Name fields
             for i in range(num_players):
@@ -273,8 +277,7 @@ class ScrabbleUI:
         score_y = 8
         spacing = WINDOW_SIZE // num
         self.score_displays = [
-            ScoreDisplay(spacing * i + PADDING, score_y, self.score_font)
-            for i in range(num)
+            ScoreDisplay(spacing * i + PADDING, score_y, self.score_font) for i in range(num)
         ]
 
     def _update_submit_button(self):
@@ -289,8 +292,7 @@ class ScrabbleUI:
     def _update_exchange_button(self):
         """Update exchange button enabled state based on game conditions."""
         self.exchange_button.enabled = (
-            len(self.game.tile_bag) >= 7
-            and len(self.game.current_turn_tiles) == 0
+            len(self.game.tile_bag) >= 7 and len(self.game.current_turn_tiles) == 0
         )
 
     def _exit_exchange_mode(self):
@@ -315,9 +317,7 @@ class ScrabbleUI:
 
     def _draw_transition(self):
         """Draw an opaque overlay with 'Pass to: Player' text and a Ready button."""
-        overlay = pygame.Surface(
-            (WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT)
-        )
+        overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
         overlay.fill((30, 30, 30))
         self.screen.blit(overlay, (0, 0))
 
@@ -529,10 +529,7 @@ class ScrabbleUI:
         # Draw player scores
         for i, player in enumerate(self.game.players):
             self.score_displays[i].draw(
-                self.screen,
-                player.name,
-                player.score,
-                i == self.game.current_player_idx
+                self.screen, player.name, player.score, i == self.game.current_player_idx
             )
 
         # Draw turn indicator below the score row
@@ -544,8 +541,7 @@ class ScrabbleUI:
         # Draw remaining tile count near the rack
         bag_count = len(self.game.tile_bag)
         bag_text = self.lang_button_font.render(
-            f"{self.lang_manager.get_string('tiles_left')}: {bag_count}",
-            True, SCORE_COLOR
+            f"{self.lang_manager.get_string('tiles_left')}: {bag_count}", True, SCORE_COLOR
         )
         self.screen.blit(bag_text, (PADDING, self.rack.y + TILE_SIZE + 5))
 
@@ -560,9 +556,7 @@ class ScrabbleUI:
                 else:
                     preview = " + ".join(parts) + f" = {total}"
                 preview_surface = self.button_font.render(preview, True, TURN_INDICATOR_COLOR)
-                preview_rect = preview_surface.get_rect(
-                    center=(WINDOW_SIZE // 2, self.rack.y - 12)
-                )
+                preview_rect = preview_surface.get_rect(center=(WINDOW_SIZE // 2, self.rack.y - 12))
                 self.screen.blit(preview_surface, preview_rect)
 
     def run(self):
@@ -717,6 +711,7 @@ class ScrabbleUI:
             if self.show_game_over:
                 self._draw_game_over()
             pygame.display.flip()
+
 
 if __name__ == "__main__":
     game = ScrabbleUI()

@@ -7,35 +7,23 @@ from game.state import GameState
 
 def serialize_board(game: GameState) -> List[List[Optional[str]]]:
     """Return the full 15x15 board as a 2D list of letters (None for empty)."""
-    return [
-        [cell for cell in row]
-        for row in game.board
-    ]
+    return [[cell for cell in row] for row in game.board]
 
 
 def serialize_current_turn_tiles(game: GameState) -> List[Dict[str, int]]:
     """Return the positions of tiles placed during the current turn."""
-    return [
-        {"row": row, "col": col}
-        for row, col in game.current_turn_tiles
-    ]
+    return [{"row": row, "col": col} for row, col in game.current_turn_tiles]
 
 
 def serialize_score_preview(game: GameState) -> List[Dict[str, Any]]:
     """Return the score breakdown for the current placement."""
     breakdown = game.calculate_turn_score()
-    return [
-        {"word": word, "score": score}
-        for word, score in breakdown
-    ]
+    return [{"word": word, "score": score} for word, score in breakdown]
 
 
 def serialize_players(game: GameState) -> List[Dict[str, Any]]:
     """Return public player info (name, score) for all players."""
-    return [
-        {"name": player.name, "score": player.score}
-        for player in game.players
-    ]
+    return [{"name": player.name, "score": player.score} for player in game.players]
 
 
 def serialize_game_state(

@@ -116,8 +116,11 @@ def build_dawg(dict_dir: str = DICT_DIR) -> str:
     dawg.save(out)
     logger.info(
         "DAWG built: %d words -> %d nodes, %.1f MB, unmunch %.0fs + build %.0fs",
-        len(words), len(dawg), os.path.getsize(out) / 1e6,
-        t1 - t0, time.monotonic() - t1,
+        len(words),
+        len(dawg),
+        os.path.getsize(out) / 1e6,
+        t1 - t0,
+        time.monotonic() - t1,
     )
     return out
 

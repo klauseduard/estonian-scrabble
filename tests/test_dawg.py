@@ -89,8 +89,9 @@ class TestDawgMoveGeneration(unittest.TestCase):
         moves = find_all_moves(_empty_board(), ["k", "a", "s", "_"], wl, first_move=True)
         blank_moves = [m for m in moves if m.blanks]
         self.assertTrue(blank_moves)
-        move = select_move(_empty_board(), ["k", "a", "s", "_"], wl, first_move=True,
-                           difficulty="strong")
+        move = select_move(
+            _empty_board(), ["k", "a", "s", "_"], wl, first_move=True, difficulty="strong"
+        )
         self.assertIn("kass", move.words_formed)
         self.assertEqual(len(move.blanks), 1)
         # (k1 + a1 + s1 + blank 0) * 2 for the center DW

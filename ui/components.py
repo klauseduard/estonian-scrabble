@@ -15,21 +15,22 @@ from .language import LanguageManager
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 BOARD_COLOR = (240, 230, 220)
-PREMIUM_TRIPLE_WORD = (255, 102, 102)    # Red for triple word
-PREMIUM_DOUBLE_WORD = (255, 182, 193)    # Pink for double word
-PREMIUM_TRIPLE_LETTER = (0, 153, 204)    # Blue for triple letter
+PREMIUM_TRIPLE_WORD = (255, 102, 102)  # Red for triple word
+PREMIUM_DOUBLE_WORD = (255, 182, 193)  # Pink for double word
+PREMIUM_TRIPLE_LETTER = (0, 153, 204)  # Blue for triple letter
 PREMIUM_DOUBLE_LETTER = (173, 216, 230)  # Light blue for double letter
-SELECTED_COLOR = (255, 255, 0, 128)      # Semi-transparent yellow
-CURRENT_TURN_COLOR = (200, 255, 200)     # Light green for current turn tiles
-VALID_WORD_COLOR = (144, 238, 144)       # Light green for valid words
-INVALID_WORD_COLOR = (255, 182, 193)     # Light red for invalid words
-TILE_COLOR = (255, 235, 205)             # Beige for tiles
-BLANK_TILE_COLOR = (220, 220, 200)       # Slightly grey for blank tiles
-BUTTON_COLOR = (70, 130, 180)            # Steel blue for buttons
-BUTTON_HOVER_COLOR = (100, 149, 237)     # Cornflower blue for button hover
+SELECTED_COLOR = (255, 255, 0, 128)  # Semi-transparent yellow
+CURRENT_TURN_COLOR = (200, 255, 200)  # Light green for current turn tiles
+VALID_WORD_COLOR = (144, 238, 144)  # Light green for valid words
+INVALID_WORD_COLOR = (255, 182, 193)  # Light red for invalid words
+TILE_COLOR = (255, 235, 205)  # Beige for tiles
+BLANK_TILE_COLOR = (220, 220, 200)  # Slightly grey for blank tiles
+BUTTON_COLOR = (70, 130, 180)  # Steel blue for buttons
+BUTTON_HOVER_COLOR = (100, 149, 237)  # Cornflower blue for button hover
 BUTTON_DISABLED_COLOR = (169, 169, 169)  # Dark gray for disabled buttons
-SCORE_COLOR = (47, 79, 79)               # Dark slate gray for score display
-TURN_INDICATOR_COLOR = (34, 139, 34)    # Forest green for turn indicator
+SCORE_COLOR = (47, 79, 79)  # Dark slate gray for score display
+TURN_INDICATOR_COLOR = (34, 139, 34)  # Forest green for turn indicator
+
 
 class Button:
     def __init__(self, x: int, y: int, width: int, height: int, text: str, font: pygame.font.Font):
@@ -62,10 +63,7 @@ class Button:
 
         # Draw shadow
         shadow_rect = pygame.Rect(
-            self.rect.x,
-            self.rect.y + self.shadow_height,
-            self.rect.width,
-            self.rect.height
+            self.rect.x, self.rect.y + self.shadow_height, self.rect.width, self.rect.height
         )
         pygame.draw.rect(screen, shadow_color, shadow_rect, border_radius=self.border_radius)
 
@@ -74,7 +72,7 @@ class Button:
             self.rect.x,
             self.rect.y if self.pressed else self.rect.y - self.shadow_height,
             self.rect.width,
-            self.rect.height
+            self.rect.height,
         )
         pygame.draw.rect(screen, main_color, button_rect, border_radius=self.border_radius)
 
@@ -110,6 +108,7 @@ class Button:
 
         return False
 
+
 class ScoreDisplay:
     def __init__(self, x: int, y: int, font: pygame.font.Font):
         self.x = x
@@ -122,6 +121,7 @@ class ScoreDisplay:
         color = SCORE_COLOR if not is_current else BUTTON_COLOR
         text_surface = self.font.render(text, True, color)
         screen.blit(text_surface, (self.x, self.y))
+
 
 class TurnIndicator:
     def __init__(self, x: int, y: int, font: pygame.font.Font):
@@ -148,23 +148,30 @@ class TurnIndicator:
         if is_player_one:
             # Arrow pointing left (from Player 1 to their score)
             return [
-                (self.x + self.arrow_size, self.y - self.arrow_size//2),
+                (self.x + self.arrow_size, self.y - self.arrow_size // 2),
                 (self.x - self.arrow_size, self.y),
-                (self.x + self.arrow_size, self.y + self.arrow_size//2)
+                (self.x + self.arrow_size, self.y + self.arrow_size // 2),
             ]
         else:
             # Arrow pointing right (from Player 2 to their score)
             return [
-                (self.x - self.arrow_size, self.y - self.arrow_size//2),
+                (self.x - self.arrow_size, self.y - self.arrow_size // 2),
                 (self.x + self.arrow_size, self.y),
-                (self.x - self.arrow_size, self.y + self.arrow_size//2)
+                (self.x - self.arrow_size, self.y + self.arrow_size // 2),
             ]
+
 
 class Tile:
     _points_font: pygame.font.Font = None
 
-    def __init__(self, letter: str, size: int, font: pygame.font.Font,
-                 is_blank: bool = False, points: int = None):
+    def __init__(
+        self,
+        letter: str,
+        size: int,
+        font: pygame.font.Font,
+        is_blank: bool = False,
+        points: int = None,
+    ):
         self.letter = letter
         self.size = size
         self.font = font
@@ -179,8 +186,7 @@ class Tile:
         bg_color = BLANK_TILE_COLOR if self.is_blank else TILE_COLOR
 
         # Draw tile background
-        pygame.draw.rect(screen, bg_color,
-                        (x + 2, y + 2, self.size - 4, self.size - 4))
+        pygame.draw.rect(screen, bg_color, (x + 2, y + 2, self.size - 4, self.size - 4))
 
         # Blank tiles on the rack show no letter
         if self.is_blank and self.letter == "_":
@@ -195,6 +201,7 @@ class Tile:
         if self.points is not None and not self.is_blank:
             pts_text = Tile._points_font.render(str(self.points), True, BLACK)
             screen.blit(pts_text, (x + self.size - 14, y + self.size - 16))
+
 
 class Board:
     def __init__(self, size: int, tile_size: int, board_start: int, font: pygame.font.Font):
@@ -259,6 +266,7 @@ class Board:
             text = self.small_font.render(premium_text, True, BLACK)
             text_rect = text.get_rect(center=(x + self.tile_size // 2, y + self.tile_size // 2))
             screen.blit(text, text_rect)
+
 
 class Rack:
     def __init__(self, window_size: int, tile_size: int, font: pygame.font.Font):

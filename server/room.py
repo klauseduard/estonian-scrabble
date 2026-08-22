@@ -64,7 +64,8 @@ class Room:
     def connected_count(self) -> int:
         """Number of human players currently connected (excludes AI)."""
         return sum(
-            1 for i, p in enumerate(self.players)
+            1
+            for i, p in enumerate(self.players)
             if p["ws"] is not None and i not in self.ai_players
         )
 
@@ -202,8 +203,7 @@ class Room:
         self._pre_commit_snapshot = {
             "board": [row[:] for row in game.board],
             "players": [
-                {"name": p.name, "score": p.score, "rack": p.rack[:]}
-                for p in game.players
+                {"name": p.name, "score": p.score, "rack": p.rack[:]} for p in game.players
             ],
             "tile_bag": game.tile_bag[:],
             "current_player_idx": game.current_player_idx,
@@ -213,9 +213,7 @@ class Room:
             "game_over": game.game_over,
             "first_move": game.first_move,
             "end_game_applied": getattr(game, "_end_game_applied", False),
-            "end_game_details": [
-                dict(d) for d in getattr(game, "end_game_details", [])
-            ],
+            "end_game_details": [dict(d) for d in getattr(game, "end_game_details", [])],
         }
         self._challengeable_player = player_name
         self._challenge_pending = None
@@ -283,7 +281,8 @@ class Room:
         """
         self._force_acks.clear()
         self._force_required_acks = {
-            i for i, p in enumerate(self.players)
+            i
+            for i, p in enumerate(self.players)
             if p["name"] != committer_name and i not in self.ai_players
         }
 

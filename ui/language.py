@@ -5,6 +5,7 @@ class Language:
     ESTONIAN = "et"
     ENGLISH = "en"
 
+
 # UI strings for both languages
 STRINGS: Dict[str, Dict[str, str]] = {
     "et": {
@@ -66,8 +67,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "score_tiles": "Tiles",
         "score_final": "Total",
         "exchange": "Exchange",
-    }
+    },
 }
+
 
 class LanguageManager:
     _instance = None
@@ -93,8 +95,7 @@ class LanguageManager:
     @classmethod
     def toggle_language(cls):
         cls._current_language = (
-            Language.ENGLISH if cls._current_language == Language.ESTONIAN
-            else Language.ESTONIAN
+            Language.ENGLISH if cls._current_language == Language.ESTONIAN else Language.ESTONIAN
         )
 
     @classmethod

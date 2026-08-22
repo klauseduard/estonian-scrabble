@@ -6,11 +6,13 @@ from game.word_validator import WordValidator
 
 class MockWordList:
     """A simple mock wordlist for testing."""
+
     def __init__(self, words):
         self.words = set(words)
 
     def is_valid_word(self, word: str) -> bool:
         return word.lower() in self.words
+
 
 class TestWordValidator(unittest.TestCase):
     def setUp(self):
@@ -61,7 +63,7 @@ class TestWordValidator(unittest.TestCase):
         """Test that placement through existing tiles is valid."""
         board = [[None] * 15 for _ in range(15)]
         # Place an existing tile
-        board[8][7] = 'U'
+        board[8][7] = "U"
 
         # Test vertical placement through existing tile
         tiles = {(7, 7), (9, 7)}  # K and S around existing U
@@ -69,9 +71,10 @@ class TestWordValidator(unittest.TestCase):
 
         # Test horizontal placement through existing tile
         board = [[None] * 15 for _ in range(15)]
-        board[7][8] = 'U'
+        board[7][8] = "U"
         tiles = {(7, 7), (7, 9)}  # K and S around existing U
         self.assertTrue(self.validator._are_turn_tiles_connected(board, tiles))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

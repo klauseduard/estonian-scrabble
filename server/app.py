@@ -60,6 +60,7 @@ async def health_check():
     """Health check endpoint for deployment platforms."""
     return {"status": "ok"}
 
+
 _WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
@@ -69,11 +70,13 @@ async def public_lobby():
     rooms = []
     for room in room_manager.rooms.values():
         if room.public and not room.started and room.player_count < 4:
-            rooms.append({
-                "code": room.code,
-                "host": room.players[0]["name"] if room.players else "?",
-                "players": room.player_count,
-            })
+            rooms.append(
+                {
+                    "code": room.code,
+                    "host": room.players[0]["name"] if room.players else "?",
+                    "players": room.player_count,
+                }
+            )
     return {"rooms": rooms}
 
 
@@ -92,10 +95,12 @@ async def server_stats():
         else:
             rooms_waiting += 1
         players_total += room.player_count
-        rooms_list.append({
-            "players": room.player_count,
-            "status": status,
-        })
+        rooms_list.append(
+            {
+                "players": room.player_count,
+                "status": status,
+            }
+        )
 
     return {
         "rooms_total": len(rooms_list),
@@ -272,9 +277,7 @@ def _arm_turn_timer(room: Room):
         player_idx = game.current_player_idx
         room.start_clock(player_idx)
         backstop = max(0.0, room.clock_remaining[player_idx] + _MAX_OVERTIME)
-        room._turn_timer_task = asyncio.ensure_future(
-            _turn_timeout(room, player_idx, backstop)
-        )
+        room._turn_timer_task = asyncio.ensure_future(_turn_timeout(room, player_idx, backstop))
     elif room.turn_time_limit:
         loop = asyncio.get_event_loop()
         room._turn_deadline = loop.time() + room.turn_time_limit
@@ -299,16 +302,20 @@ async def _turn_timeout(room: Room, player_idx: int, limit: float):
     player_name = game.players[player_idx].name
     room.clear_challenge()
     game.next_player()
-    room.record_move({
-        "action": "pass",
-        "player_name": player_name,
-        "timeout": True,
-    })
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"Aeg sai otsa — {player_name} jättis käigu vahele.",
-    })
+    room.record_move(
+        {
+            "action": "pass",
+            "player_name": player_name,
+            "timeout": True,
+        }
+    )
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"Aeg sai otsa — {player_name} jättis käigu vahele.",
+        }
+    )
     if game.game_over:
         await room.broadcast_game_over()
     else:
@@ -379,15 +386,19 @@ async def _execute_ai_turn(room: Room):
         # No valid move — pass
         room.clear_challenge()
         game.next_player()
-        room.record_move({
-            "action": "pass",
-            "player_name": player_name,
-        })
-        await room.broadcast({
-            "type": "chat",
-            "player_name": "Süsteem",
-            "text": f"{player_name} jättis käigu vahele.",
-        })
+        room.record_move(
+            {
+                "action": "pass",
+                "player_name": player_name,
+            }
+        )
+        await room.broadcast(
+            {
+                "type": "chat",
+                "player_name": "Süsteem",
+                "text": f"{player_name} jättis käigu vahele.",
+            }
+        )
         if game.game_over:
             await room.broadcast_game_over()
         else:
@@ -424,24 +435,28 @@ async def _execute_ai_turn(room: Room):
             await _maybe_run_ai_turn(room)
             return
 
-        room.record_move({
-            "action": "word",
-            "player_name": player_name,
-            "words": words,
-            "total_score": total_score,
-            "tiles": placed_positions,
-            "challengeable": False,
-            "forced": False,
-        })
+        room.record_move(
+            {
+                "action": "word",
+                "player_name": player_name,
+                "words": words,
+                "total_score": total_score,
+                "tiles": placed_positions,
+                "challengeable": False,
+                "forced": False,
+            }
+        )
 
         # Post move to chat
         word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
         chat_text = " + ".join(word_parts) + f" = {total_score} p."
-        await room.broadcast({
-            "type": "chat",
-            "player_name": "Süsteem",
-            "text": f"{player_name}: {chat_text}",
-        })
+        await room.broadcast(
+            {
+                "type": "chat",
+                "player_name": "Süsteem",
+                "text": f"{player_name}: {chat_text}",
+            }
+        )
 
         if game.game_over:
             await room.broadcast_game_over()
@@ -474,12 +489,14 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[R
     ):
         room.turn_time_limit = turn_limit
     player_index = room.add_player(player_name, ws)
-    await ws.send_json({
-        "type": "room_created",
-        "room_code": room.code,
-        "player_index": player_index,
-        "players": [p["name"] for p in room.players],
-    })
+    await ws.send_json(
+        {
+            "type": "room_created",
+            "room_code": room.code,
+            "player_index": player_index,
+            "players": [p["name"] for p in room.players],
+        }
+    )
     return room
 
 
@@ -503,12 +520,14 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
     # Reconnection: game in progress, player with same name is disconnected
     if room.started and room.has_disconnected_player(player_name):
         player_index = room.reconnect_player(player_name, ws)
-        await ws.send_json({
-            "type": "reconnected",
-            "room_code": room.code,
-            "player_index": player_index,
-            "players": [p["name"] for p in room.players],
-        })
+        await ws.send_json(
+            {
+                "type": "reconnected",
+                "room_code": room.code,
+                "player_index": player_index,
+                "players": [p["name"] for p in room.players],
+            }
+        )
         await room.broadcast(
             {
                 "type": "player_reconnected",
@@ -543,12 +562,14 @@ async def _handle_join_room(ws: WebSocket, data: Dict[str, Any]) -> Room | None:
         return None
 
     player_index = room.add_player(player_name, ws)
-    await ws.send_json({
-        "type": "room_joined",
-        "room_code": room.code,
-        "player_index": player_index,
-        "players": [p["name"] for p in room.players],
-    })
+    await ws.send_json(
+        {
+            "type": "room_joined",
+            "room_code": room.code,
+            "player_index": player_index,
+            "players": [p["name"] for p in room.players],
+        }
+    )
     await room.broadcast(
         {
             "type": "player_joined",
@@ -580,9 +601,7 @@ async def _handle_start_game(ws: WebSocket, room: Room):
     random.shuffle(room.players)
 
     # Rebuild AI player index set after shuffle
-    room.ai_players = {
-        i for i, p in enumerate(room.players) if p.get("difficulty") is not None
-    }
+    room.ai_players = {i for i, p in enumerate(room.players) if p.get("difficulty") is not None}
 
     room.game = GameState(num_players=room.player_count)
     # Overwrite default player names with the ones chosen in the lobby
@@ -592,10 +611,12 @@ async def _handle_start_game(ws: WebSocket, room: Room):
     room.init_game_clock(room.player_count)
     room.started = True
     first_player_name = room.game.players[0].name
-    await room.broadcast({
-        "type": "game_started",
-        "first_player": first_player_name,
-    })
+    await room.broadcast(
+        {
+            "type": "game_started",
+            "first_player": first_player_name,
+        }
+    )
     _arm_turn_timer(room)
     await room.broadcast_game_state()
     await _maybe_run_ai_turn(room)
@@ -628,19 +649,22 @@ async def _handle_add_ai(ws: WebSocket, room: Room, data: Dict[str, Any]):
     # Generate AI name, mode visible to the players
     base_name = "Arvuti (lihtne)" if difficulty == "easy" else "Arvuti (tugev)"
     existing = sum(
-        1 for i, p in enumerate(room.players)
+        1
+        for i, p in enumerate(room.players)
         if i in room.ai_players and p["name"].startswith(base_name)
     )
     ai_name = base_name if existing == 0 else f"{base_name} {existing + 1}"
 
     room.add_ai_player(ai_name, difficulty)
 
-    await room.broadcast({
-        "type": "player_joined",
-        "player_name": ai_name,
-        "player_count": room.player_count,
-        "is_ai": True,
-    })
+    await room.broadcast(
+        {
+            "type": "player_joined",
+            "player_name": ai_name,
+            "player_count": room.player_count,
+            "is_ai": True,
+        }
+    )
 
 
 async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
@@ -749,31 +773,38 @@ async def _do_commit(ws: WebSocket, room: Room, force: bool = False):
         await _send_error(ws, "Invalid placement — cannot commit")
         return
 
-    room.record_move({
-        "action": "word",
-        "player_name": player_name,
-        "words": words,
-        "total_score": total_score,
-        "tiles": placed_positions,
-        "challengeable": True,
-        "forced": force,
-    })
+    room.record_move(
+        {
+            "action": "word",
+            "player_name": player_name,
+            "words": words,
+            "total_score": total_score,
+            "tiles": placed_positions,
+            "challengeable": True,
+            "forced": force,
+        }
+    )
 
     # Post move to chat with score breakdown
     word_parts = [f"{w['word'].upper()}: {w['score']}" for w in words]
     chat_text = " + ".join(word_parts) + f" = {total_score} p."
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{player_name}: {chat_text}",
-    })
-    if force:
-        forced_words = ", ".join(w["word"].upper() for w in words)
-        await room.broadcast({
+    await room.broadcast(
+        {
             "type": "chat",
             "player_name": "Süsteem",
-            "text": f"Sõna {forced_words} ei ole sõnastikus — vajab teiste mängijate heakskiitu.",
-        })
+            "text": f"{player_name}: {chat_text}",
+        }
+    )
+    if force:
+        forced_words = ", ".join(w["word"].upper() for w in words)
+        notice = f"Sõna {forced_words} ei ole sõnastikus — vajab teiste mängijate heakskiitu."
+        await room.broadcast(
+            {
+                "type": "chat",
+                "player_name": "Süsteem",
+                "text": notice,
+            }
+        )
         room.set_force_ack_required(player_name)
 
     if game.game_over:
@@ -791,10 +822,7 @@ async def _handle_commit_turn(ws: WebSocket, room: Room):
 
 def _has_human_opponent(room: Room, player_index: Optional[int]) -> bool:
     """Whether any player other than *player_index* is human."""
-    return any(
-        i != player_index and i not in room.ai_players
-        for i in range(len(room.players))
-    )
+    return any(i != player_index and i not in room.ai_players for i in range(len(room.players)))
 
 
 async def _handle_force_commit(ws: WebSocket, room: Room):
@@ -830,16 +858,20 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
     room.clear_challenge()
     game.next_player()
 
-    room.record_move({
-        "action": "pass",
-        "player_name": player_name,
-    })
+    room.record_move(
+        {
+            "action": "pass",
+            "player_name": player_name,
+        }
+    )
 
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{player_name} jättis käigu vahele.",
-    })
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{player_name} jättis käigu vahele.",
+        }
+    )
 
     if game.game_over:
         await room.broadcast_game_over()
@@ -883,17 +915,21 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         await _send_error(ws, "Cannot exchange tiles")
         return
 
-    room.record_move({
-        "action": "exchange",
-        "player_name": player_name,
-        "tile_count": count,
-    })
+    room.record_move(
+        {
+            "action": "exchange",
+            "player_name": player_name,
+            "tile_count": count,
+        }
+    )
 
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{player_name} vahetas {count} tähe{'d' if count != 1 else 't'}.",
-    })
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{player_name} vahetas {count} tähe{'d' if count != 1 else 't'}.",
+        }
+    )
 
     _arm_turn_timer(room)
     await room.broadcast_game_state()
@@ -952,11 +988,13 @@ async def _handle_chat(ws: WebSocket, room: Room, data: Dict[str, Any]):
     if not text.strip():
         return
 
-    await room.broadcast({
-        "type": "chat",
-        "player_name": player_name,
-        "text": text,
-    })
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": player_name,
+            "text": text,
+        }
+    )
 
 
 async def _handle_force_ack(ws: WebSocket, room: Room):
@@ -971,11 +1009,13 @@ async def _handle_force_ack(ws: WebSocket, room: Room):
 
     all_acked = room.add_force_ack(player_index)
 
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{player_name} kiitis sõna heaks.",
-    })
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{player_name} kiitis sõna heaks.",
+        }
+    )
 
     # While a challenge against this word is pending, keep the snapshot —
     # clearing it here would make a later challenge-accept silently fail
@@ -1022,16 +1062,20 @@ async def _handle_challenge(ws: WebSocket, room: Room):
         "challenged": room._challengeable_player,
     }
 
-    await room.broadcast({
-        "type": "challenge",
-        "challenger": challenger_name,
-        "challenged": room._challengeable_player,
-    })
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{challenger_name} vaidlustab mängija {room._challengeable_player} käigu.",
-    })
+    await room.broadcast(
+        {
+            "type": "challenge",
+            "challenger": challenger_name,
+            "challenged": room._challengeable_player,
+        }
+    )
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{challenger_name} vaidlustab mängija {room._challengeable_player} käigu.",
+        }
+    )
 
 
 async def _handle_challenge_accept(ws: WebSocket, room: Room):
@@ -1057,23 +1101,29 @@ async def _handle_challenge_accept(ws: WebSocket, room: Room):
         await _send_error(ws, "Cannot undo — no snapshot available")
         return
 
-    room.record_move({
-        "action": "challenge_accepted",
-        "challenger": challenger,
-        "challenged": challenged,
-    })
+    room.record_move(
+        {
+            "action": "challenge_accepted",
+            "challenger": challenger,
+            "challenged": challenged,
+        }
+    )
 
-    await room.broadcast({
-        "type": "challenge_resolved",
-        "result": "accepted",
-        "challenger": challenger,
-        "challenged": challenged,
-    })
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{challenged} võttis käigu tagasi.",
-    })
+    await room.broadcast(
+        {
+            "type": "challenge_resolved",
+            "result": "accepted",
+            "challenger": challenger,
+            "challenged": challenged,
+        }
+    )
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{challenged} võttis käigu tagasi.",
+        }
+    )
     _arm_turn_timer(room)
     await room.broadcast_game_state()
     await _maybe_run_ai_turn(room)
@@ -1101,20 +1151,25 @@ async def _handle_challenge_refuse(ws: WebSocket, room: Room):
     # Clear the pending challenge but keep the snapshot — others can still challenge
     room._challenge_pending = None
 
-    await room.broadcast({
-        "type": "challenge_resolved",
-        "result": "refused",
-        "challenger": challenger,
-        "challenged": challenged,
-    })
-    await room.broadcast({
-        "type": "chat",
-        "player_name": "Süsteem",
-        "text": f"{challenged} keeldus käiku tagasi võtmast.",
-    })
+    await room.broadcast(
+        {
+            "type": "challenge_resolved",
+            "result": "refused",
+            "challenger": challenger,
+            "challenged": challenged,
+        }
+    )
+    await room.broadcast(
+        {
+            "type": "chat",
+            "player_name": "Süsteem",
+            "text": f"{challenged} keeldus käiku tagasi võtmast.",
+        }
+    )
 
 
 # ---- WebSocket endpoint ----
+
 
 async def _dispatch(ws: WebSocket, room: Room | None, data: Dict[str, Any]) -> Room | None:
     """Dispatch one client message to its handler. Returns the (possibly new) room."""
@@ -1186,29 +1241,35 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
         idx = room.disconnect_player(ws)
         if idx is not None:
             player_name = room.players[idx]["name"]
-            await room.broadcast({
-                "type": "player_disconnected",
-                "player_name": player_name,
-            })
+            await room.broadcast(
+                {
+                    "type": "player_disconnected",
+                    "player_name": player_name,
+                }
+            )
             # A pending challenge against this player would wedge — only
             # they can accept/refuse (issue #36). Drop it; the word stands.
             pending = room._challenge_pending
             if pending and pending.get("challenged") == player_name:
                 room._challenge_pending = None
-                await room.broadcast({
-                    "type": "challenge_resolved",
-                    "result": "dropped",
-                    "challenger": pending.get("challenger"),
-                    "challenged": player_name,
-                })
-                await room.broadcast({
-                    "type": "chat",
-                    "player_name": "Süsteem",
-                    "text": (
-                        f"{player_name} katkestas ühenduse — "
-                        "vaidlustus tühistati, sõna jäi lauale."
-                    ),
-                })
+                await room.broadcast(
+                    {
+                        "type": "challenge_resolved",
+                        "result": "dropped",
+                        "challenger": pending.get("challenger"),
+                        "challenged": player_name,
+                    }
+                )
+                await room.broadcast(
+                    {
+                        "type": "chat",
+                        "player_name": "Süsteem",
+                        "text": (
+                            f"{player_name} katkestas ühenduse — "
+                            "vaidlustus tühistati, sõna jäi lauale."
+                        ),
+                    }
+                )
         # Clean up room only if ALL players disconnected
         if room.connected_count == 0:
             room.cancel_turn_timer()
@@ -1221,10 +1282,12 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
             room.cancel_turn_timer()
             room_manager.remove_room(room.code)
         else:
-            await room.broadcast({
-                "type": "player_left",
-                "player_count": room.player_count,
-            })
+            await room.broadcast(
+                {
+                    "type": "player_left",
+                    "player_count": room.player_count,
+                }
+            )
 
 
 @app.websocket("/ws")

@@ -12,6 +12,7 @@ from server.serialization import serialize_game_over, serialize_game_state
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 class MockWordList:
     """A mock wordlist that treats configured words as valid."""
 
@@ -46,6 +47,7 @@ def _make_ws() -> AsyncMock:
 # ---------------------------------------------------------------------------
 # Room / RoomManager tests
 # ---------------------------------------------------------------------------
+
 
 class TestRoomCode(unittest.TestCase):
     """Room code generation."""
@@ -118,6 +120,7 @@ class TestRoom(unittest.TestCase):
 # Serialization tests
 # ---------------------------------------------------------------------------
 
+
 class TestSerialization(unittest.TestCase):
     """GameState serialization with hidden-information enforcement."""
 
@@ -175,6 +178,7 @@ class TestSerialization(unittest.TestCase):
 # WebSocket integration tests (async)
 # ---------------------------------------------------------------------------
 
+
 class TestWebSocketFlow(unittest.TestCase):
     """End-to-end game flow via the WebSocket handler functions."""
 
@@ -190,6 +194,7 @@ class TestWebSocketFlow(unittest.TestCase):
             _handle_start_game,
             room_manager,
         )
+
         self.create_room = _handle_create_room
         self.join_room = _handle_join_room
         self.start_game = _handle_start_game
@@ -217,17 +222,13 @@ class TestWebSocketFlow(unittest.TestCase):
         self.assertEqual(msg["type"], "room_created")
         self.assertEqual(msg["player_index"], 0)
 
-        room2 = self._run(
-            self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"})
-        )
+        room2 = self._run(self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
         self.assertIs(room2, room)
         self.assertEqual(room.player_count, 2)
 
     def test_join_nonexistent_room_returns_error(self):
         ws = _make_ws()
-        result = self._run(
-            self.join_room(ws, {"room_code": "ZZZZ", "player_name": "Bob"})
-        )
+        result = self._run(self.join_room(ws, {"room_code": "ZZZZ", "player_name": "Bob"}))
         self.assertIsNone(result)
         msg = ws.send_json.call_args[0][0]
         self.assertEqual(msg["type"], "error")
@@ -273,8 +274,7 @@ class TestWebSocketFlow(unittest.TestCase):
         room = self._run(self.create_room(ws1, {"player_name": "Alice"}))
         self._run(self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
 
-        with patch("server.app.GameState") as MockGS, \
-             patch("server.app.random.shuffle"):
+        with patch("server.app.GameState") as MockGS, patch("server.app.random.shuffle"):
             mock_game = MagicMock()
             mock_game.game_over = False
             mock_game.current_player_idx = 0
@@ -299,8 +299,7 @@ class TestWebSocketFlow(unittest.TestCase):
         room = self._run(self.create_room(ws1, {"player_name": "Alice"}))
         self._run(self.join_room(ws2, {"room_code": room.code, "player_name": "Bob"}))
 
-        with patch("server.app.GameState") as MockGS, \
-             patch("server.app.random.shuffle"):
+        with patch("server.app.GameState") as MockGS, patch("server.app.random.shuffle"):
             mock_game = MagicMock()
             mock_game.game_over = False
             mock_game.current_player_idx = 0
@@ -638,12 +637,8 @@ class TestAITurnExecution(unittest.TestCase):
 
         self._run(_execute_ai_turn(room))
 
-        played = "".join(
-            room.game.board[7][c] or "" for c in range(4, 12)
-        )
-        self.assertIn("kass", played + "".join(
-            room.game.board[r][7] or "" for r in range(4, 12)
-        ))
+        played = "".join(room.game.board[7][c] or "" for c in range(4, 12))
+        self.assertIn("kass", played + "".join(room.game.board[r][7] or "" for r in range(4, 12)))
         self.assertEqual(len(room.game.blank_designations), 1)
         move = room.move_history[-1]
         self.assertEqual(move["action"], "word")
@@ -736,9 +731,7 @@ class TestChallengeStateMachine(unittest.TestCase):
         room, _ = self._make_room()
         room.started = False  # joining is a pre-game action
         ws = _make_ws()
-        result = self._run(
-            _handle_join_room(ws, {"room_code": room.code, "player_name": "Alice"})
-        )
+        result = self._run(_handle_join_room(ws, {"room_code": room.code, "player_name": "Alice"}))
         self.assertIsNone(result)
         msg = ws.send_json.call_args[0][0]
         self.assertEqual(msg["type"], "error")
@@ -789,9 +782,7 @@ class TestInputValidation(unittest.TestCase):
         # A started 2-player room with a real (mock-wordlist) game
         self.ws1, self.ws2 = _make_ws(), _make_ws()
         self.room = self._run(_handle_create_room(self.ws1, {"player_name": "Alice"}))
-        self._run(
-            _handle_join_room(self.ws2, {"room_code": self.room.code, "player_name": "Bob"})
-        )
+        self._run(_handle_join_room(self.ws2, {"room_code": self.room.code, "player_name": "Bob"}))
         self.game = _create_game(2)
         self.game.players[0].name = "Alice"
         self.game.players[1].name = "Bob"

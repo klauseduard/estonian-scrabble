@@ -20,8 +20,11 @@ class WordValidator:
         for dy, dx in directions:
             # Find word start
             start_row, start_col = row, col
-            while (start_row - dy >= 0 and start_col - dx >= 0 and
-                   board[start_row - dy][start_col - dx] is not None):
+            while (
+                start_row - dy >= 0
+                and start_col - dx >= 0
+                and board[start_row - dy][start_col - dx] is not None
+            ):
                 start_row -= dy
                 start_col -= dx
 
@@ -29,8 +32,11 @@ class WordValidator:
             word = ""
             positions = []
             curr_row, curr_col = start_row, start_col
-            while (curr_row < len(board) and curr_col < len(board[0]) and
-                   board[curr_row][curr_col] is not None):
+            while (
+                curr_row < len(board)
+                and curr_col < len(board[0])
+                and board[curr_row][curr_col] is not None
+            ):
                 word += board[curr_row][curr_col]
                 positions.append((curr_row, curr_col))
                 curr_row += dy
@@ -60,10 +66,12 @@ class WordValidator:
             # Check all adjacent positions
             for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 new_row, new_col = row + dr, col + dc
-                if (0 <= new_row < len(board) and
-                    0 <= new_col < len(board[0]) and
-                    board[new_row][new_col] is not None and
-                    (new_row, new_col) not in current_turn_tiles):
+                if (
+                    0 <= new_row < len(board)
+                    and 0 <= new_col < len(board[0])
+                    and board[new_row][new_col] is not None
+                    and (new_row, new_col) not in current_turn_tiles
+                ):
                     return True
         return False
 
@@ -86,18 +94,22 @@ class WordValidator:
             # All tiles in same row - check if continuous
             cols = sorted(cols)
             # Each position between min and max col needs a current-turn or existing tile
-            return all((rows[0], col) in current_turn_tiles or
-                      (board[rows[0]][col] is not None and (rows[0], col) not in current_turn_tiles)
-                      for col in range(cols[0], cols[-1] + 1))
+            return all(
+                (rows[0], col) in current_turn_tiles
+                or (board[rows[0]][col] is not None and (rows[0], col) not in current_turn_tiles)
+                for col in range(cols[0], cols[-1] + 1)
+            )
 
         # Check if tiles are in same column
         if len(set(cols)) == 1:
             # All tiles in same column - check if continuous
             rows = sorted(rows)
             # Each position between min and max row needs a current-turn or existing tile
-            return all((row, cols[0]) in current_turn_tiles or
-                      (board[row][cols[0]] is not None and (row, cols[0]) not in current_turn_tiles)
-                      for row in range(rows[0], rows[-1] + 1))
+            return all(
+                (row, cols[0]) in current_turn_tiles
+                or (board[row][cols[0]] is not None and (row, cols[0]) not in current_turn_tiles)
+                for row in range(rows[0], rows[-1] + 1)
+            )
 
         # Tiles neither in same row nor column
         return False
