@@ -189,11 +189,13 @@ Follow these style guidelines:
      Fallbacks that still give correct results — a missing DAWG dropping to
      brute-force move generation, a missing patched dictionary dropping to the
      upstream one — are fine and should stay quiet.
-   - **Event and message handling dispatches to named handlers.** Compare
-     `_dispatch` in `server/app.py` — sixteen branches, each one line, calling a
-     named handler — with `run()` in `main.py`, where the pygame event loop has
-     grown to 152 lines and ten levels of indentation. Same codebase, same
-     problem, two very different outcomes. Copy the first one.
+   - **Event and message handling dispatches to named handlers.** `_dispatch` in
+     `server/app.py` is sixteen branches, each one line, each calling a named
+     handler. `main.py` now matches: `run()` is six lines, `_handle_event` is a
+     precedence ladder (quit, then each modal overlay, then buttons, then the
+     board), and every case is its own method. It was a single 152-line function
+     nested ten deep until 2026-08-22. Add new cases as new handlers, not as new
+     branches inside an existing one.
    - **Catch the specific exception, and check what it actually means.**
      `except WebSocketDisconnect: pass` in `server/app.py` is correct: a client
      disconnecting is ordinary control flow, the exception is named explicitly,

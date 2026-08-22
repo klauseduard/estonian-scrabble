@@ -617,158 +617,196 @@ class ScrabbleUI:
                 preview_rect = preview_surface.get_rect(center=(WINDOW_SIZE // 2, self.rack.y - 12))
                 self.screen.blit(preview_surface, preview_rect)
 
+    # ---- Event loop ----------------------------------------------------
+
     def run(self):
+        """Main loop: drain the event queue, then draw one frame."""
         while True:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                self._handle_event(event)
+            self._draw_frame()
 
-                # --- Game over screen is modal (only quit exits) ---
-                if self.show_game_over:
-                    continue
+    def _handle_event(self, event: pygame.event.Event) -> None:
+        """Route one event to whatever owns it right now.
 
-                # --- Turn transition overlay is modal ---
-                if self.show_transition:
-                    if self.ready_button.handle_event(event):
-                        self.show_transition = False
-                    continue
+        The order here is precedence, and it is the whole point of this
+        method: quitting always wins, then each modal overlay swallows
+        everything beneath it, and only when none is up does the event reach
+        the control buttons and then the board.
+        """
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if self.show_game_over:
+            return
+        if self.show_transition:
+            if self.ready_button.handle_event(event):
+                self.show_transition = False
+            return
+        if self._pending_blank is not None:
+            self._handle_blank_dialog_event(event)
+            return
+        if self._handle_control_buttons(event):
+            return
+        self._handle_pointer_event(event)
 
-                # --- Blank tile dialog is modal ---
-                if self._pending_blank is not None:
-                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        chosen = self._handle_blank_dialog_click(event.pos)
-                        if chosen is not None:
-                            row, col, tile_idx = self._pending_blank
-                            self._pending_blank = None
-                            if self.game.place_tile(row, col, tile_idx, designated_letter=chosen):
-                                self.game.validate_current_placement()
-                                self._update_submit_button()
-                    elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                        self._pending_blank = None
-                    continue
+    def _handle_blank_dialog_event(self, event: pygame.event.Event) -> None:
+        """Choose a letter for a blank tile, or escape out of the dialog."""
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            chosen = self._handle_blank_dialog_click(event.pos)
+            if chosen is None:
+                return
+            row, col, tile_idx = self._pending_blank
+            self._pending_blank = None
+            if self.game.place_tile(row, col, tile_idx, designated_letter=chosen):
+                self.game.validate_current_placement()
+                self._update_submit_button()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self._pending_blank = None
 
-                # Handle language toggle button
-                if self.lang_button.handle_event(event):
-                    self.lang_manager.toggle_language()
-                    self._update_ui_text()
+    def _handle_control_buttons(self, event: pygame.event.Event) -> bool:
+        """Offer the event to the control buttons; True if one consumed it.
 
-                # Handle submit button
-                elif self.submit_button.handle_event(event):
-                    if self.game.commit_turn():
-                        self._exit_exchange_mode()
-                        self._update_submit_button()
-                        self._update_exchange_button()
-                        if self.game.game_over:
-                            self.show_game_over = True
-                        else:
-                            self._start_transition()
+        Deliberately still one if/elif chain. Button.handle_event has side
+        effects — it tracks press and hover state — and the original loop
+        relied on short-circuiting to stop at the first button that fired.
+        """
+        if self.lang_button.handle_event(event):
+            self.lang_manager.toggle_language()
+            self._update_ui_text()
+        elif self.submit_button.handle_event(event):
+            if self.game.commit_turn():
+                self._finish_turn()
+        elif self.exchange_button.handle_event(event):
+            self._press_exchange_button()
+        elif self.pass_button.handle_event(event):
+            self.game.next_player()
+            self._finish_turn()
+        else:
+            return False
+        return True
 
-                # Handle exchange button
-                elif self.exchange_button.handle_event(event):
-                    if self.exchange_mode and self.exchange_selected:
-                        # Perform the exchange
-                        indices = sorted(self.exchange_selected)
-                        if self.game.exchange_tiles(indices):
-                            self._exit_exchange_mode()
-                            self._update_submit_button()
-                            self._update_exchange_button()
-                            if self.game.game_over:
-                                self.show_game_over = True
-                            else:
-                                self._start_transition()
-                    else:
-                        # Toggle exchange mode
-                        self.exchange_mode = not self.exchange_mode
-                        self.exchange_selected.clear()
+    def _press_exchange_button(self) -> None:
+        """First press arms exchange mode; the next one performs the swap."""
+        if self.exchange_mode and self.exchange_selected:
+            if self.game.exchange_tiles(sorted(self.exchange_selected)):
+                self._finish_turn()
+        else:
+            self.exchange_mode = not self.exchange_mode
+            self.exchange_selected.clear()
 
-                # Handle pass button
-                elif self.pass_button.handle_event(event):
-                    self._exit_exchange_mode()
-                    self.game.next_player()
-                    self._update_submit_button()
-                    self._update_exchange_button()
-                    if self.game.game_over:
-                        self.show_game_over = True
-                    else:
-                        self._start_transition()
+    def _finish_turn(self) -> None:
+        """The shared tail of every action that ends a turn.
 
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # Left click
-                        rack_idx = self.rack.get_tile_index(
-                            event.pos, len(self.game.current_player.rack)
-                        )
-                        if rack_idx is not None:
-                            if self.exchange_mode:
-                                # Toggle tile selection for exchange
-                                if rack_idx in self.exchange_selected:
-                                    self.exchange_selected.discard(rack_idx)
-                                else:
-                                    self.exchange_selected.add(rack_idx)
-                            else:
-                                self.selected_tile = rack_idx
-                                self.dragging = True
-                                self.drag_pos = event.pos
+        Submitting a word, exchanging tiles and passing all did these five
+        steps inline, three copies of the same thing.
+        """
+        self._exit_exchange_mode()
+        self._update_submit_button()
+        self._update_exchange_button()
+        if self.game.game_over:
+            self.show_game_over = True
+        else:
+            self._start_transition()
 
-                    elif event.button == 3:  # Right click
-                        board_pos = self.board.get_board_position(event.pos)
-                        if board_pos:
-                            row, col = board_pos
-                            if self.game.remove_tile(row, col):
-                                self.game.validate_current_placement()
-                                self._update_submit_button()
-                                self._update_exchange_button()
+    def _handle_pointer_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self._handle_mouse_down(event)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self._handle_mouse_up(event)
+        elif event.type == pygame.MOUSEMOTION:
+            self._handle_mouse_motion(event)
 
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1 and self.dragging:
-                        dropped = False
-                        if self.selected_tile is not None:
-                            # Check if dropped on the rack — reorder tiles
-                            rack = self.game.current_player.rack
-                            drop_idx = self.rack.get_tile_index(event.pos, len(rack))
-                            if drop_idx is not None and drop_idx != self.selected_tile:
-                                tile = rack.pop(self.selected_tile)
-                                rack.insert(drop_idx, tile)
-                                dropped = True
+    def _handle_mouse_down(self, event: pygame.event.Event) -> None:
+        if event.button == 1:
+            self._select_rack_tile(event)
+        elif event.button == 3:
+            self._take_back_board_tile(event.pos)
 
-                            # Check if dropped on the board — place tile
-                            if not dropped:
-                                board_pos = self.board.get_board_position(event.pos)
-                                if board_pos:
-                                    row, col = board_pos
-                                    letter = rack[self.selected_tile]
-                                    if letter == "_":
-                                        if self.game.board[row][col] is None:
-                                            self._pending_blank = (row, col, self.selected_tile)
-                                    else:
-                                        if self.game.place_tile(row, col, self.selected_tile):
-                                            self.game.validate_current_placement()
-                                            self._update_submit_button()
-                                            self._update_exchange_button()
-                        self.dragging = False
-                        self.selected_tile = None
+    def _select_rack_tile(self, event: pygame.event.Event) -> None:
+        """Left click on the rack: toggle for exchange, or start dragging."""
+        rack_idx = self.rack.get_tile_index(event.pos, len(self.game.current_player.rack))
+        if rack_idx is None:
+            return
+        if self.exchange_mode:
+            if rack_idx in self.exchange_selected:
+                self.exchange_selected.discard(rack_idx)
+            else:
+                self.exchange_selected.add(rack_idx)
+        else:
+            self.selected_tile = rack_idx
+            self.dragging = True
+            self.drag_pos = event.pos
 
-                elif event.type == pygame.MOUSEMOTION:
-                    if self.dragging:
-                        self.drag_pos = event.pos
-                    # Update button hover states
-                    self.submit_button.handle_event(event)
-                    self.pass_button.handle_event(event)
-                    self.exchange_button.handle_event(event)
-                    self.lang_button.handle_event(event)
+    def _take_back_board_tile(self, pos) -> None:
+        """Right click on a tile placed this turn: return it to the rack."""
+        board_pos = self.board.get_board_position(pos)
+        if board_pos is None:
+            return
+        row, col = board_pos
+        if self.game.remove_tile(row, col):
+            self.game.validate_current_placement()
+            self._update_submit_button()
+            self._update_exchange_button()
 
-            self.draw_board()
-            self.draw_rack()
-            self.draw_ui()
-            if self.dragging:
-                self.draw_dragged_tile()
-            if self._pending_blank is not None:
-                self._draw_blank_dialog()
-            if self.show_transition:
-                self._draw_transition()
-            if self.show_game_over:
-                self._draw_game_over()
-            pygame.display.flip()
+    def _handle_mouse_up(self, event: pygame.event.Event) -> None:
+        """End of a drag: drop on the rack to reorder, or on the board to play."""
+        if event.button != 1 or not self.dragging:
+            return
+        if self.selected_tile is not None and not self._try_reorder_rack(event.pos):
+            self._try_place_on_board(event.pos)
+        self.dragging = False
+        self.selected_tile = None
+
+    def _try_reorder_rack(self, pos) -> bool:
+        """Move the dragged tile within the rack. True if it landed there."""
+        rack = self.game.current_player.rack
+        drop_idx = self.rack.get_tile_index(pos, len(rack))
+        if drop_idx is None or drop_idx == self.selected_tile:
+            return False
+        rack.insert(drop_idx, rack.pop(self.selected_tile))
+        return True
+
+    def _try_place_on_board(self, pos) -> None:
+        """Play the dragged tile onto a square, asking for a letter if blank."""
+        board_pos = self.board.get_board_position(pos)
+        if board_pos is None:
+            return
+        row, col = board_pos
+        letter = self.game.current_player.rack[self.selected_tile]
+        if letter == "_":
+            if self.game.board[row][col] is None:
+                self._pending_blank = (row, col, self.selected_tile)
+        elif self.game.place_tile(row, col, self.selected_tile):
+            self.game.validate_current_placement()
+            self._update_submit_button()
+            self._update_exchange_button()
+
+    def _handle_mouse_motion(self, event: pygame.event.Event) -> None:
+        if self.dragging:
+            self.drag_pos = event.pos
+        for button in (
+            self.submit_button,
+            self.pass_button,
+            self.exchange_button,
+            self.lang_button,
+        ):
+            button.handle_event(event)
+
+    def _draw_frame(self) -> None:
+        """One frame, back to front."""
+        self.draw_board()
+        self.draw_rack()
+        self.draw_ui()
+        if self.dragging:
+            self.draw_dragged_tile()
+        if self._pending_blank is not None:
+            self._draw_blank_dialog()
+        if self.show_transition:
+            self._draw_transition()
+        if self.show_game_over:
+            self._draw_game_over()
+        pygame.display.flip()
 
 
 if __name__ == "__main__":

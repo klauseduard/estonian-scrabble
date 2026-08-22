@@ -260,5 +260,96 @@ class TestModalPrecedence(ScrabbleUITestCase):
         self.assertIsNotNone(ui._pending_blank, "blank dialog must not see the key")
 
 
+class TestHandlersDirectly(ScrabbleUITestCase):
+    """The payoff of splitting run() up.
+
+    These paths — drag to place, right click to take back, rack reorder — were
+    the deepest part of the old loop and the least covered, because reaching
+    them meant driving the whole while/for/if stack. Now each handler can be
+    called on its own.
+    """
+
+    def _ui_with_rack(self, letters="majakts"):
+        ui = self._make_ui()
+        ui.game.players[0].rack = list(letters)
+        return ui
+
+    def _rack_pos(self, ui, index=0):
+        return (ui.rack.get_rack_position(len(ui.game.current_player.rack)), ui.rack.y + 5)
+
+    def _square_pos(self, ui, row=7, col=7):
+        x, y = ui.board.get_square_position(row, col)
+        return (x + 5, y + 5)
+
+    def test_dragging_a_tile_onto_the_board_plays_it(self):
+        ui = self._ui_with_rack()
+        target = self._square_pos(ui)
+
+        ui._handle_event(self.click(self._rack_pos(ui)))
+        ui._handle_event(self.release(target))
+
+        self.assertEqual(ui.game.board[7][7], "m")
+        self.assertNotIn("m", ui.game.players[0].rack[:1])
+        self.assertFalse(ui.dragging)
+        self.assertIsNone(ui.selected_tile)
+
+    def test_right_click_takes_a_placed_tile_back(self):
+        ui = self._ui_with_rack()
+        target = self._square_pos(ui)
+        ui._handle_event(self.click(self._rack_pos(ui)))
+        ui._handle_event(self.release(target))
+
+        ui._handle_event(self.click(target, button=3))
+
+        self.assertIsNone(ui.game.board[7][7])
+        self.assertIn("m", ui.game.players[0].rack)
+
+    def test_dropping_back_on_the_rack_reorders_instead_of_placing(self):
+        ui = self._ui_with_rack("majakts")
+        before = list(ui.game.players[0].rack)
+        rack = ui.rack
+
+        ui.selected_tile = 0
+        ui.dragging = True
+        # Aim at the last rack slot.
+        last_x = rack.get_rack_position(len(before)) + (len(before) - 1) * 40
+        ui._handle_event(self.release((last_x + 5, rack.y + 5)))
+
+        self.assertEqual(sorted(ui.game.players[0].rack), sorted(before))
+        self.assertIsNone(ui.game.board[7][7], "must not have touched the board")
+
+    def test_exchange_button_arms_mode_then_rack_clicks_toggle_selection(self):
+        ui = self._ui_with_rack()
+
+        ui._press_exchange_button()
+        self.assertTrue(ui.exchange_mode)
+
+        ui._handle_event(self.click(self._rack_pos(ui)))
+        self.assertEqual(ui.exchange_selected, {0}, "click selects for exchange, not drag")
+        self.assertFalse(ui.dragging)
+
+        ui._handle_event(self.click(self._rack_pos(ui)))
+        self.assertEqual(ui.exchange_selected, set(), "clicking again deselects")
+
+    def test_finishing_a_turn_starts_a_transition(self):
+        ui = self._ui_with_rack()
+        ui.exchange_mode = True
+
+        ui._finish_turn()
+
+        self.assertFalse(ui.exchange_mode, "exchange mode is always cleared")
+        self.assertTrue(ui.show_transition)
+        self.assertFalse(ui.show_game_over)
+
+    def test_finishing_a_turn_shows_game_over_when_the_game_ended(self):
+        ui = self._ui_with_rack()
+        ui.game.game_over = True
+
+        ui._finish_turn()
+
+        self.assertTrue(ui.show_game_over)
+        self.assertFalse(ui.show_transition, "no transition once the game is over")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -84,8 +84,11 @@ the branch point.
   brute force, a missing patched dictionary dropping to upstream) stay silent
   because they still produce correct results.
 - **Event and message handling dispatches to named handlers.** `server/app.py`
-  `_dispatch` is the pattern to copy (16 arms, 2 levels deep). `main.py` `run()`
-  is the one to stop growing: 152 lines, 10 levels of nesting below the `def`.
+  `_dispatch` (16 arms, 2 levels) and `main.py` `_handle_event` are both the
+  pattern: a short precedence ladder that routes to one named method per case.
+  `run()` used to be the counter-example at 152 lines and 10 levels; it is now
+  6 lines over 14 handlers, none deeper than 3. Keep new cases as new handlers
+  rather than new branches inside an existing one.
 - **Catch the specific exception, and check what it actually means.**
   `except WebSocketDisconnect: pass` in `server/app.py` is correct — a
   disconnect is normal control flow, explicitly named, with cleanup in
