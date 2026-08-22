@@ -38,15 +38,23 @@ _WORD_RE = re.compile(f"[{PLAYABLE}]{{2,15}}$")
 
 
 def _load_blocked() -> Set[str]:
-    blocked = set()
+    """Load the blocklist, distinguishing "absent" from "present but unreadable".
+
+    An absent blocklist is a valid configuration — the DAWG is simply
+    unfiltered. A blocklist that exists and still cannot be read is a real
+    problem (permissions, a bad path), and used to look identical.
+    """
+    blocked: Set[str] = set()
+    if not os.path.exists(BLOCKED_FILE):
+        return blocked
     try:
         with open(BLOCKED_FILE, encoding="utf-8") as f:
             for line in f:
                 word = line.split("#", 1)[0].strip()
                 if word:
                     blocked.add(word.lower())
-    except OSError:
-        pass
+    except OSError as e:
+        logger.warning(f"Could not read blocklist {BLOCKED_FILE}: {e}")
     return blocked
 
 

@@ -6,6 +6,7 @@ test_ai_player.py when the built artifact is available.
 """
 
 import unittest
+from unittest import mock
 
 from game.ai_player import find_all_moves, select_move
 from game.dawg import Dawg
@@ -131,6 +132,34 @@ class TestDawgMoveGeneration(unittest.TestCase):
             }
 
         self.assertEqual(keys(dawg_moves), keys(brute_moves))
+
+
+class TestBlocklistLoading(unittest.TestCase):
+    """A blocklist that exists but cannot be read is a problem worth reporting.
+
+    An absent one is not: building an unfiltered DAWG is a valid configuration.
+    Swallowing both alike hid the difference.
+    """
+
+    def test_unreadable_blocklist_warns(self):
+        from tools.build_dawg import _load_blocked
+
+        with (
+            mock.patch("os.path.exists", return_value=True),
+            mock.patch("builtins.open", side_effect=OSError("permission denied")),
+        ):
+            with self.assertLogs("tools.build_dawg", level="WARNING") as captured:
+                result = _load_blocked()
+
+        self.assertEqual(result, set())
+        self.assertIn("permission denied", "\n".join(captured.output))
+
+    def test_absent_blocklist_is_silent(self):
+        from tools.build_dawg import _load_blocked
+
+        with mock.patch("os.path.exists", return_value=False):
+            with self.assertNoLogs("tools.build_dawg", level="WARNING"):
+                self.assertEqual(_load_blocked(), set())
 
 
 if __name__ == "__main__":

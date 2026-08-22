@@ -24,6 +24,21 @@ _BLOCKED_FILE = os.path.join(
 _VOWELS = set("aeiouõäöü")
 
 
+def _is_valid(dictionary, blocked: Set[str], word: str) -> bool:
+    """The shared validation rule: blocklist, vowelless guard, Hunspell lookup.
+
+    Both word lists apply exactly this. Stated once so the two cannot drift.
+    """
+    word = word.lower()
+    if word in blocked:
+        return False
+    # No real Estonian word is vowelless; Hunspell would accept
+    # abbreviations like 'tk' or 'lk' here.
+    if not set(word) & _VOWELS:
+        return False
+    return dictionary.lookup(word)
+
+
 class DictionaryUnavailableError(RuntimeError):
     """Raised when a word list cannot load the dictionary it validates against.
 
@@ -126,14 +141,7 @@ class WordList:
 
     def is_valid_word(self, word: str) -> bool:
         """Check if a word is valid Estonian using Hunspell morphological rules."""
-        word = word.lower()
-        if word in self._blocked:
-            return False
-        # No real Estonian word is vowelless; Hunspell would accept
-        # abbreviations like 'tk' or 'lk' here.
-        if not set(word) & _VOWELS:
-            return False
-        return self._dict.lookup(word)
+        return _is_valid(self._dict, self._blocked, word)
 
     @property
     def strict(self) -> "StrictWordList":
@@ -196,9 +204,4 @@ class StrictWordList:
 
     def is_valid_word(self, word: str) -> bool:
         """Check a word against the strict (no-compound) dictionary."""
-        word = word.lower()
-        if word in self._blocked:
-            return False
-        if not set(word) & _VOWELS:
-            return False
-        return self._dict.lookup(word)
+        return _is_valid(self._dict, self._blocked, word)

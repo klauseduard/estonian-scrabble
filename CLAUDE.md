@@ -86,10 +86,12 @@ the branch point.
 - **Event and message handling dispatches to named handlers.** `server/app.py`
   `_dispatch` is the pattern to copy (16 arms, 2 levels deep). `main.py` `run()`
   is the one to stop growing: 152 lines, 10 levels of nesting below the `def`.
-- **Catch the specific exception.** `except WebSocketDisconnect: pass` is correct
-  — a disconnect is normal control flow, explicitly named, with cleanup in
-  `finally`. `except OSError: pass` in `tools/build_dawg.py` is not: it cannot
-  distinguish an absent file from an unreadable one.
+- **Catch the specific exception, and check what it actually means.**
+  `except WebSocketDisconnect: pass` in `server/app.py` is correct — a
+  disconnect is normal control flow, explicitly named, with cleanup in
+  `finally`. `tools/build_dawg.py` used `except OSError: pass`, which could not
+  distinguish an absent blocklist (fine) from an unreadable one (a real
+  problem); it now tests for absence first and warns on the rest.
 
 ## Git Conventions
 

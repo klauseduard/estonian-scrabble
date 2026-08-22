@@ -194,11 +194,14 @@ Follow these style guidelines:
      named handler — with `run()` in `main.py`, where the pygame event loop has
      grown to 152 lines and ten levels of indentation. Same codebase, same
      problem, two very different outcomes. Copy the first one.
-   - **Catch the specific exception.** `except WebSocketDisconnect: pass` is
-     correct: a client disconnecting is ordinary control flow, the exception is
-     named explicitly, and cleanup happens in `finally`. `except OSError: pass`
-     in `tools/build_dawg.py` is not, because it cannot tell a file that is
-     absent from one it lacks permission to read, and treats both as empty.
+   - **Catch the specific exception, and check what it actually means.**
+     `except WebSocketDisconnect: pass` in `server/app.py` is correct: a client
+     disconnecting is ordinary control flow, the exception is named explicitly,
+     and cleanup happens in `finally`. `tools/build_dawg.py` used to say
+     `except OSError: pass` when reading the blocklist, which could not tell a
+     file that is absent (fine — the DAWG is just unfiltered) from one it lacks
+     permission to read (a real problem). It now checks for absence first and
+     warns on anything else.
 
 ## Submitting Changes
 
