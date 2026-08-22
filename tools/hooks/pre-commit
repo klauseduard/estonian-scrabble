@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Block commits that contain ruff violations.
+# Block commits whose staged Python files fail ruff or are not black-formatted.
 #
 # Versioned here rather than living only in .git/hooks (which git does not
 # track) so the hook survives a fresh clone. Install with:
@@ -13,13 +13,20 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-if [ -x "$REPO_ROOT/.venv/bin/ruff" ]; then
-    RUFF="$REPO_ROOT/.venv/bin/ruff"
-elif command -v ruff >/dev/null 2>&1; then
-    RUFF="$(command -v ruff)"
-else
-    echo "pre-commit: ruff not found — skipping style check." >&2
-    echo "            install it with: pip install -r requirements-dev.txt" >&2
+find_tool() {
+    if [ -x "$REPO_ROOT/.venv/bin/$1" ]; then
+        printf '%s\n' "$REPO_ROOT/.venv/bin/$1"
+    elif command -v "$1" >/dev/null 2>&1; then
+        command -v "$1"
+    fi
+}
+
+RUFF=$(find_tool ruff) || true
+BLACK=$(find_tool black) || true
+
+if [ -z "$RUFF" ] && [ -z "$BLACK" ]; then
+    echo "pre-commit: neither ruff nor black found — skipping style check." >&2
+    echo "            install them with: pip install -r requirements-dev.txt" >&2
     exit 0
 fi
 
@@ -31,10 +38,27 @@ if [ ${#STAGED[@]} -eq 0 ]; then
     exit 0
 fi
 
-if ! "$RUFF" check --force-exclude "${STAGED[@]}"; then
+failed=0
+
+# ruff --force-exclude is a boolean flag: honour excludes on explicit paths.
+if [ -n "$RUFF" ] && ! "$RUFF" check --force-exclude "${STAGED[@]}"; then
     echo >&2
     echo "pre-commit: ruff found violations in staged Python files." >&2
     echo "            fix them with:  .venv/bin/ruff check --fix ." >&2
+    failed=1
+fi
+
+# NOTE: black's --force-exclude takes a regex ARGUMENT, unlike ruff's boolean
+# flag. Passing it here would swallow the first filename and leave black with
+# no SRC, which it reports as an error — i.e. every commit would be blocked.
+if [ -n "$BLACK" ] && ! "$BLACK" --check --quiet "${STAGED[@]}"; then
+    echo >&2
+    echo "pre-commit: staged Python files are not black-formatted." >&2
+    echo "            fix them with:  .venv/bin/black ." >&2
+    failed=1
+fi
+
+if [ "$failed" -ne 0 ]; then
     echo "            bypass once with: git commit --no-verify" >&2
     exit 1
 fi

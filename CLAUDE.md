@@ -46,13 +46,19 @@ User Input → main.py (ScrabbleUI) → GameState (game/state.py)
 
 ## Code Style
 
-Enforced by ruff — `pyproject.toml` is the source of truth, not this list.
-Run `.venv/bin/ruff check .` (or `--fix`) before committing; the pre-commit
-hook in `tools/hooks/` blocks commits that violate it.
+Enforced by ruff and Black — `pyproject.toml` is the source of truth, not this
+list. Before committing:
 
-- PEP 8 with 100-char line length. Black is configured in `pyproject.toml` but
-  has never been run over the codebase — do not run it casually; it reformats
-  ~20 files. Formatting is hand-maintained to satisfy ruff.
+```bash
+.venv/bin/ruff check --fix .
+.venv/bin/black .
+```
+
+The pre-commit hook in `tools/hooks/` blocks commits that fail either. Run
+ruff first and Black second — Black owns the final layout.
+
+- PEP 8 with 100-char line length, formatted by Black (pinned to 26.5.1 in
+  `requirements-dev.txt`; an unpinned Black formats differently across versions)
 - Double quotes for strings
 - Type hints on function signatures
 - snake_case for functions/variables, PascalCase for classes, UPPER_CASE for constants

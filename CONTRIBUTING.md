@@ -146,11 +146,15 @@ Tests use Python's `unittest` framework with mock wordlists for isolated testing
 
 Follow these style guidelines:
 
-1. **PEP 8** — enforced by ruff, configured in `pyproject.toml`
+1. **PEP 8** — enforced by ruff and Black, configured in `pyproject.toml`
    - 4 spaces for indentation
    - Maximum line length of 100 characters
    - Use meaningful variable names
-   - Check with `ruff check .`; most issues fix themselves with `ruff check --fix .`
+   - Run `ruff check --fix .` then `black .` before committing; the pre-commit
+     hook rejects anything that fails either
+   - Black will not split long string literals — if one pushes a line past 100,
+     hoist it to a local rather than wrapping it (Black collapses implicit
+     concatenation into the adjacent-string form)
 
 2. **Documentation**
    - Docstrings for all public classes and functions
