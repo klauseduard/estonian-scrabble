@@ -1,5 +1,5 @@
 import sys
-from typing import Optional
+from typing import List, NamedTuple, Optional, Sequence
 
 import pygame
 
@@ -38,27 +38,193 @@ LANG_BUTTON_SIZE = 30  # Smaller language button
 LANG_BUTTON_PADDING = 5  # Smaller padding for language button
 
 
-class ScrabbleUI:
-    def __init__(self):
-        self.screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
-        self.lang_manager = LanguageManager()
-        pygame.display.set_caption(self.lang_manager.get_string("window_title"))
-        _font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-        _bold_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        self.font = pygame.font.Font(_font_path, 22)
-        self.score_font = pygame.font.Font(_bold_path, 20)
-        self.button_font = pygame.font.Font(_font_path, 16)
-        self.lang_button_font = pygame.font.Font(_font_path, 13)
-        self.title_font = pygame.font.Font(_bold_path, 30)
-        self.turn_font = pygame.font.Font(_font_path, 18)
+class Presentation(NamedTuple):
+    """The display surface, language manager and fonts.
 
-        # Show player selection and name entry screens
-        num_players = self._show_player_selection()
-        player_names = self._get_player_names(num_players)
+    Bundled into one value so the setup screens can take a single argument
+    instead of five, and so ScrabbleUI can be handed a ready-made one rather
+    than always building its own.
+    """
+
+    screen: pygame.Surface
+    lang_manager: LanguageManager
+    font: pygame.font.Font
+    score_font: pygame.font.Font
+    button_font: pygame.font.Font
+    lang_button_font: pygame.font.Font
+    title_font: pygame.font.Font
+    turn_font: pygame.font.Font
+
+
+def _make_presentation() -> Presentation:
+    """Open the window and load the fonts."""
+    screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE + RACK_HEIGHT))
+    lang_manager = LanguageManager()
+    pygame.display.set_caption(lang_manager.get_string("window_title"))
+    regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    return Presentation(
+        screen=screen,
+        lang_manager=lang_manager,
+        font=pygame.font.Font(regular, 22),
+        score_font=pygame.font.Font(bold, 20),
+        button_font=pygame.font.Font(regular, 16),
+        lang_button_font=pygame.font.Font(regular, 13),
+        title_font=pygame.font.Font(bold, 30),
+        turn_font=pygame.font.Font(regular, 18),
+    )
+
+
+def ask_player_count(pres: Presentation) -> int:
+    """Show a simple player count selection screen. Returns chosen count."""
+    selection_buttons = []
+    btn_width = 180
+    btn_height = 50
+    total_width = btn_width * 3 + PADDING * 2
+    start_x = (WINDOW_SIZE - total_width) // 2
+    btn_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
+
+    for i, count in enumerate((2, 3, 4)):
+        noun = "Players" if pres.lang_manager.get_current_language() == "en" else "Mängijat"
+        label = f"{count} {noun}"
+        btn = Button(
+            start_x + i * (btn_width + PADDING),
+            btn_y,
+            btn_width,
+            btn_height,
+            label,
+            pres.button_font,
+        )
+        selection_buttons.append((btn, count))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            for btn, count in selection_buttons:
+                if btn.handle_event(event):
+                    return count
+
+        pres.screen.fill(WHITE)
+        # Draw title
+        title_text = pres.lang_manager.get_string("select_players")
+        title_surface = pres.title_font.render(title_text, True, BLACK)
+        title_rect = title_surface.get_rect(center=(WINDOW_SIZE // 2, btn_y - 60))
+        pres.screen.blit(title_surface, title_rect)
+
+        for btn, _ in selection_buttons:
+            btn.draw(pres.screen)
+
+        pygame.display.flip()
+
+
+def ask_player_names(pres: Presentation, num_players: int) -> List[str]:
+    """Show a name entry screen. Returns list of player names."""
+    name_keys = ["player_1", "player_2", "player_3", "player_4"]
+    defaults = [pres.lang_manager.get_string(name_keys[i]) for i in range(num_players)]
+    names = [""] * num_players
+    active_idx = 0
+
+    # Layout: center the whole block (title + fields + button) vertically
+    field_h = 40
+    field_gap = 50
+    total_h = WINDOW_SIZE + RACK_HEIGHT
+    block_h = 50 + num_players * field_gap + 70  # title + fields + gap + button
+    block_top = (total_h - block_h) // 2
+    title_y = block_top
+    first_field_y = block_top + 60
+    btn_y = first_field_y + num_players * field_gap + 20
+    field_x = WINDOW_SIZE // 2 - 120
+    field_w = 240
+
+    start_label = pres.lang_manager.get_string("start_game")
+    start_btn = Button(
+        (WINDOW_SIZE - 200) // 2,
+        btn_y,
+        200,
+        50,
+        start_label,
+        pres.button_font,
+    )
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if start_btn.handle_event(event):
+                return [n if n else defaults[i] for i, n in enumerate(names)]
+
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                for i in range(num_players):
+                    fy = first_field_y + i * field_gap
+                    if (
+                        field_x <= event.pos[0] <= field_x + field_w
+                        and fy <= event.pos[1] <= fy + field_h
+                    ):
+                        active_idx = i
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_TAB or event.key == pygame.K_RETURN:
+                    active_idx = (active_idx + 1) % num_players
+                elif event.key == pygame.K_BACKSPACE:
+                    names[active_idx] = names[active_idx][:-1]
+                elif event.unicode and len(names[active_idx]) < 15:
+                    names[active_idx] += event.unicode
+
+        pres.screen.fill(WHITE)
+
+        # Title
+        title = pres.lang_manager.get_string("enter_names")
+        title_surface = pres.title_font.render(title, True, BLACK)
+        pres.screen.blit(
+            title_surface, title_surface.get_rect(center=(WINDOW_SIZE // 2, title_y + 20))
+        )
+
+        # Name fields
+        for i in range(num_players):
+            fy = first_field_y + i * field_gap
+            border_color = TURN_INDICATOR_COLOR if i == active_idx else (180, 180, 180)
+            pygame.draw.rect(pres.screen, border_color, (field_x, fy, field_w, field_h), 2)
+
+            display_text = names[i] if names[i] else defaults[i]
+            text_color = BLACK if names[i] else (180, 180, 180)
+            text_surface = pres.font.render(display_text, True, text_color)
+            pres.screen.blit(text_surface, (field_x + 8, fy + 8))
+
+        start_btn.draw(pres.screen)
+        pygame.display.flip()
+
+
+class ScrabbleUI:
+    def __init__(
+        self,
+        num_players: int = 2,
+        player_names: Optional[Sequence[str]] = None,
+        presentation: Optional[Presentation] = None,
+    ):
+        """Build the UI for a game of `num_players`.
+
+        Takes its setup data rather than asking for it. Gathering it needs a
+        running event loop, and a constructor that blocks on user input cannot
+        be built in a test, reused, or driven from anywhere but the interactive
+        entry point. See :meth:`from_setup_screens` for that path.
+        """
+        pres = presentation if presentation is not None else _make_presentation()
+        self.screen = pres.screen
+        self.lang_manager = pres.lang_manager
+        self.font = pres.font
+        self.score_font = pres.score_font
+        self.button_font = pres.button_font
+        self.lang_button_font = pres.lang_button_font
+        self.title_font = pres.title_font
+        self.turn_font = pres.turn_font
 
         # Initialize game components
         self.game = GameState(BOARD_SIZE, num_players=num_players)
-        for i, name in enumerate(player_names):
+        for i, name in enumerate(player_names or ()):
             self.game.players[i].name = name
         board_start = (WINDOW_SIZE - (BOARD_SIZE * TILE_SIZE)) // 2
         self.board = Board(BOARD_SIZE, TILE_SIZE, board_start, self.font)
@@ -144,126 +310,18 @@ class ScrabbleUI:
         # Pending blank placement (row, col, tile_idx) while dialog is open
         self._pending_blank: tuple = None
 
-    def _show_player_selection(self) -> int:
-        """Show a simple player count selection screen. Returns chosen count."""
-        selection_buttons = []
-        btn_width = 180
-        btn_height = 50
-        total_width = btn_width * 3 + PADDING * 2
-        start_x = (WINDOW_SIZE - total_width) // 2
-        btn_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
+    @classmethod
+    def from_setup_screens(cls) -> "ScrabbleUI":
+        """Ask for the player count and names on screen, then build the UI.
 
-        for i, count in enumerate((2, 3, 4)):
-            noun = "Players" if self.lang_manager.get_current_language() == "en" else "Mängijat"
-            label = f"{count} {noun}"
-            btn = Button(
-                start_x + i * (btn_width + PADDING),
-                btn_y,
-                btn_width,
-                btn_height,
-                label,
-                self.button_font,
-            )
-            selection_buttons.append((btn, count))
-
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                for btn, count in selection_buttons:
-                    if btn.handle_event(event):
-                        return count
-
-            self.screen.fill(WHITE)
-            # Draw title
-            title_text = self.lang_manager.get_string("select_players")
-            title_surface = self.title_font.render(title_text, True, BLACK)
-            title_rect = title_surface.get_rect(center=(WINDOW_SIZE // 2, btn_y - 60))
-            self.screen.blit(title_surface, title_rect)
-
-            for btn, _ in selection_buttons:
-                btn.draw(self.screen)
-
-            pygame.display.flip()
-
-    def _get_player_names(self, num_players: int) -> list:
-        """Show a name entry screen. Returns list of player names."""
-        name_keys = ["player_1", "player_2", "player_3", "player_4"]
-        defaults = [self.lang_manager.get_string(name_keys[i]) for i in range(num_players)]
-        names = [""] * num_players
-        active_idx = 0
-
-        # Layout: center the whole block (title + fields + button) vertically
-        field_h = 40
-        field_gap = 50
-        total_h = WINDOW_SIZE + RACK_HEIGHT
-        block_h = 50 + num_players * field_gap + 70  # title + fields + gap + button
-        block_top = (total_h - block_h) // 2
-        title_y = block_top
-        first_field_y = block_top + 60
-        btn_y = first_field_y + num_players * field_gap + 20
-        field_x = WINDOW_SIZE // 2 - 120
-        field_w = 240
-
-        start_label = self.lang_manager.get_string("start_game")
-        start_btn = Button(
-            (WINDOW_SIZE - 200) // 2,
-            btn_y,
-            200,
-            50,
-            start_label,
-            self.button_font,
-        )
-
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-
-                if start_btn.handle_event(event):
-                    return [n if n else defaults[i] for i, n in enumerate(names)]
-
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    for i in range(num_players):
-                        fy = first_field_y + i * field_gap
-                        if (
-                            field_x <= event.pos[0] <= field_x + field_w
-                            and fy <= event.pos[1] <= fy + field_h
-                        ):
-                            active_idx = i
-
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_TAB or event.key == pygame.K_RETURN:
-                        active_idx = (active_idx + 1) % num_players
-                    elif event.key == pygame.K_BACKSPACE:
-                        names[active_idx] = names[active_idx][:-1]
-                    elif event.unicode and len(names[active_idx]) < 15:
-                        names[active_idx] += event.unicode
-
-            self.screen.fill(WHITE)
-
-            # Title
-            title = self.lang_manager.get_string("enter_names")
-            title_surface = self.title_font.render(title, True, BLACK)
-            self.screen.blit(
-                title_surface, title_surface.get_rect(center=(WINDOW_SIZE // 2, title_y + 20))
-            )
-
-            # Name fields
-            for i in range(num_players):
-                fy = first_field_y + i * field_gap
-                border_color = TURN_INDICATOR_COLOR if i == active_idx else (180, 180, 180)
-                pygame.draw.rect(self.screen, border_color, (field_x, fy, field_w, field_h), 2)
-
-                display_text = names[i] if names[i] else defaults[i]
-                text_color = BLACK if names[i] else (180, 180, 180)
-                text_surface = self.font.render(display_text, True, text_color)
-                self.screen.blit(text_surface, (field_x + 8, fy + 8))
-
-            start_btn.draw(self.screen)
-            pygame.display.flip()
+        The interactive counterpart to ``__init__``. Python has no constructor
+        overloading, so an alternative way of building an object is spelled as
+        a classmethod returning ``cls(...)`` rather than a second ``__init__``.
+        """
+        pres = _make_presentation()
+        num_players = ask_player_count(pres)
+        player_names = ask_player_names(pres, num_players)
+        return cls(num_players, player_names, presentation=pres)
 
     def _set_player_names(self):
         """Set player names based on the current language."""
@@ -714,5 +772,4 @@ class ScrabbleUI:
 
 
 if __name__ == "__main__":
-    game = ScrabbleUI()
-    game.run()
+    ScrabbleUI.from_setup_screens().run()

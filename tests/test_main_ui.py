@@ -12,10 +12,10 @@ The loop is driven by scripting ``pygame.event.get`` frame by frame. One call
 per ``while True`` iteration, so one list per frame, terminated by QUIT — which
 the loop turns into ``sys.exit()``.
 
-Note the mock in ``_make_ui``: ScrabbleUI.__init__ calls two blocking modal
-loops (_show_player_selection, _get_player_names), so the object cannot be
-built without driving a UI. That mock is load-bearing here and is the next
-thing worth fixing.
+``_make_ui`` now only fakes the word list. ScrabbleUI.__init__ used to run two
+blocking modal loops (player count, then names), so the object could not be
+built without driving a UI; those moved to module-level functions behind
+``ScrabbleUI.from_setup_screens()``.
 """
 
 import os
@@ -61,15 +61,11 @@ class ScrabbleUITestCase(unittest.TestCase):
     def _make_ui(self, names=("Alice", "Bob"), valid_words=()):
         import main
 
-        with (
-            mock.patch("game.state.WordList") as mock_wordlist_cls,
-            mock.patch.object(main.ScrabbleUI, "_show_player_selection", return_value=len(names)),
-            mock.patch.object(main.ScrabbleUI, "_get_player_names", return_value=list(names)),
-        ):
+        with mock.patch("game.state.WordList") as mock_wordlist_cls:
             wordlist = MockWordList()
             wordlist.words = {w.lower() for w in valid_words}
             mock_wordlist_cls.return_value = wordlist
-            ui = main.ScrabbleUI()
+            ui = main.ScrabbleUI(num_players=len(names), player_names=list(names))
         return ui
 
     def drive(self, ui, *events):
@@ -87,6 +83,71 @@ class ScrabbleUITestCase(unittest.TestCase):
         ):
             with self.assertRaises(SystemExit):
                 ui.run()
+
+
+class TestConstruction(unittest.TestCase):
+    """ScrabbleUI must be constructible from plain data.
+
+    It used to gather the player count and names itself, by running two
+    blocking modal loops from inside __init__ — so you could not build the
+    object without driving a UI, and every test had to mock past them.
+    """
+
+    def test_constructs_from_plain_data_without_driving_any_ui(self):
+        import main
+
+        with mock.patch("game.state.WordList") as mock_wordlist_cls:
+            mock_wordlist_cls.return_value = MockWordList()
+            ui = main.ScrabbleUI(num_players=2, player_names=["Alice", "Bob"])
+
+        self.assertEqual([p.name for p in ui.game.players], ["Alice", "Bob"])
+
+    def test_player_names_are_optional(self):
+        import main
+
+        with mock.patch("game.state.WordList") as mock_wordlist_cls:
+            mock_wordlist_cls.return_value = MockWordList()
+            ui = main.ScrabbleUI(num_players=3)
+
+        self.assertEqual(len(ui.game.players), 3)
+
+
+class TestSetupScreenWiring(unittest.TestCase):
+    """from_setup_screens() is the interactive entry point __main__ uses.
+
+    Patchable at all only because the two screens are now module-level
+    functions; as methods on a half-built object they were unreachable.
+    """
+
+    def test_answers_from_the_screens_reach_the_game(self):
+        import main
+
+        with (
+            mock.patch("main.ask_player_count", return_value=3) as ask_count,
+            mock.patch("main.ask_player_names", return_value=["X", "Y", "Z"]) as ask_names,
+            mock.patch("game.state.WordList") as mock_wordlist_cls,
+        ):
+            mock_wordlist_cls.return_value = MockWordList()
+            ui = main.ScrabbleUI.from_setup_screens()
+
+        ask_count.assert_called_once()
+        self.assertEqual(ask_names.call_args[0][1], 3, "name screen gets the chosen count")
+        self.assertEqual([p.name for p in ui.game.players], ["X", "Y", "Z"])
+
+    def test_the_window_is_opened_once_not_twice(self):
+        """The presentation is built once and passed in, not rebuilt by __init__."""
+        import main
+
+        with (
+            mock.patch("main.ask_player_count", return_value=2),
+            mock.patch("main.ask_player_names", return_value=["A", "B"]),
+            mock.patch("game.state.WordList") as mock_wordlist_cls,
+            mock.patch("main._make_presentation", wraps=main._make_presentation) as make_pres,
+        ):
+            mock_wordlist_cls.return_value = MockWordList()
+            main.ScrabbleUI.from_setup_screens()
+
+        make_pres.assert_called_once()
 
 
 class TestLoopExit(ScrabbleUITestCase):
