@@ -75,10 +75,14 @@ purpose: a general appeal to the Zen of Python does not tell you what to do at
 the branch point.
 
 - **A failed dependency must not degrade into a plausible wrong answer.**
-  `WordList` logs a load failure and sets `_dict = None`, after which
-  `is_valid_word` returns False for every word — indistinguishable to the player
-  from "not a word". Raise, or expose availability that the caller checks. Do
-  not add more of this shape.
+  `WordList` used to log a load failure and continue with `_dict = None`, after
+  which `is_valid_word` returned False for every word — indistinguishable to the
+  player from "not a word". It now raises `DictionaryUnavailableError`, so a
+  broken install fails at startup instead of playing badly. Do not reintroduce
+  this shape: a dependency that is required should raise, not return a default
+  that looks like a real answer. Genuine fallbacks (a missing DAWG dropping to
+  brute force, a missing patched dictionary dropping to upstream) stay silent
+  because they still produce correct results.
 - **Event and message handling dispatches to named handlers.** `server/app.py`
   `_dispatch` is the pattern to copy (16 arms, 2 levels deep). `main.py` `run()`
   is the one to stop growing: 152 lines, 10 levels of nesting below the `def`.

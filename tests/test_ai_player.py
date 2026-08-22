@@ -114,12 +114,13 @@ class TestStrictDictionaryForAI(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from wordlist import WordList
+        from wordlist import DictionaryUnavailableError, WordList
 
-        cls.wordlist = WordList()
-        if cls.wordlist._dict is None:
-            raise unittest.SkipTest("Hunspell dictionary not available")
-        cls.strict = cls.wordlist.strict
+        try:
+            cls.wordlist = WordList()
+            cls.strict = cls.wordlist.strict
+        except DictionaryUnavailableError as e:
+            raise unittest.SkipTest(f"Hunspell dictionary not available: {e}") from e
 
     def test_strict_rejects_compounds_permissive_accepts(self):
         """False negatives are fine for the AI; humans keep compounds."""

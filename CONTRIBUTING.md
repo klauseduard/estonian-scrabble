@@ -180,11 +180,15 @@ Follow these style guidelines:
    this codebase, named so it does not spread:
 
    - **A failed dependency must not degrade into a plausible wrong answer.**
-     When `WordList` cannot load its dictionary it logs the error and continues
-     with `_dict = None`. From then on `is_valid_word` returns False for every
-     word, so a broken install looks exactly like a working game that rejects
-     your vocabulary. Prefer raising, or expose an availability flag the caller
-     checks once at startup.
+     `WordList` used to log a dictionary load failure and continue with
+     `_dict = None`. From then on `is_valid_word` returned False for every word,
+     so a broken install looked exactly like a working game that rejected your
+     vocabulary. It now raises `DictionaryUnavailableError` at construction.
+     Apply the same rule to new code: if a dependency is required, raise when it
+     is missing rather than returning a default that reads as a real answer.
+     Fallbacks that still give correct results — a missing DAWG dropping to
+     brute-force move generation, a missing patched dictionary dropping to the
+     upstream one — are fine and should stay quiet.
    - **Event and message handling dispatches to named handlers.** Compare
      `_dispatch` in `server/app.py` — sixteen branches, each one line, calling a
      named handler — with `run()` in `main.py`, where the pygame event loop has

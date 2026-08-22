@@ -15,16 +15,17 @@ try:
 except ImportError:
     HAS_SPYLLS = False
 
-from wordlist import WordList
+from wordlist import DictionaryUnavailableError, WordList
 
 
 @unittest.skipUnless(HAS_SPYLLS, "spylls not installed")
 class TestWordValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.wordlist = WordList()
-        if cls.wordlist._dict is None:
-            raise unittest.SkipTest("Hunspell dictionary not available")
+        try:
+            cls.wordlist = WordList()
+        except DictionaryUnavailableError as e:
+            raise unittest.SkipTest(f"Hunspell dictionary not available: {e}") from e
 
     def assert_valid(self, words):
         for word in words:

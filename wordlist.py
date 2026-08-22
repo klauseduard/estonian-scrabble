@@ -24,6 +24,15 @@ _BLOCKED_FILE = os.path.join(
 _VOWELS = set("aeiouõäöü")
 
 
+class DictionaryUnavailableError(RuntimeError):
+    """Raised when a word list cannot load the dictionary it validates against.
+
+    Deliberately fatal. The alternative — carrying on with no dictionary — makes
+    every word invalid, which a player cannot tell apart from a correctly
+    rejected word.
+    """
+
+
 class WordList:
     """Estonian word validator using Hunspell dictionary with full morphological support.
 
@@ -79,20 +88,28 @@ class WordList:
             self.logger.error(f"Failed to build DAWG: {e}")
 
     def _load_dictionary(self):
-        """Load the patched Hunspell dictionary via spylls."""
+        """Load the patched Hunspell dictionary via spylls.
+
+        Raises DictionaryUnavailableError if it cannot be loaded: a validator
+        with no dictionary would call every word invalid, which is worse than
+        not starting at all.
+        """
+        dict_base = os.path.join(_DICT_DIR, "et_EE_scrabble")
+        if not os.path.exists(dict_base + ".dic"):
+            # Patching failed — fall back to the unpatched dictionary. This one
+            # is a real fallback: upstream still validates Estonian correctly,
+            # it is just more permissive about compounds.
+            dict_base = os.path.join(_DICT_DIR, "et_EE")
+            self.logger.warning("Patched dictionary missing, using upstream et_EE")
         try:
             from spylls.hunspell import Dictionary
 
-            dict_base = os.path.join(_DICT_DIR, "et_EE_scrabble")
-            if not os.path.exists(dict_base + ".dic"):
-                # Patching failed — fall back to the unpatched dictionary
-                dict_base = os.path.join(_DICT_DIR, "et_EE")
-                self.logger.warning("Patched dictionary missing, using upstream et_EE")
             self._dict = Dictionary.from_files(dict_base)
-            self.logger.info(f"Loaded Estonian Hunspell dictionary ({os.path.basename(dict_base)})")
         except Exception as e:
-            self.logger.error(f"Failed to load Hunspell dictionary: {e}")
-            self._dict = None
+            raise DictionaryUnavailableError(
+                f"Could not load the Estonian dictionary from {dict_base!r}: {e}"
+            ) from e
+        self.logger.info(f"Loaded Estonian Hunspell dictionary ({os.path.basename(dict_base)})")
 
     def _load_blocked_words(self) -> Set[str]:
         """Load the Scrabble blocklist (words Hunspell wrongly accepts)."""
@@ -109,8 +126,6 @@ class WordList:
 
     def is_valid_word(self, word: str) -> bool:
         """Check if a word is valid Estonian using Hunspell morphological rules."""
-        if self._dict is None:
-            return False
         word = word.lower()
         if word in self._blocked:
             return False
@@ -148,14 +163,16 @@ class StrictWordList:
         self.logger = logger
         self._dawg = None
         self._dawg_loaded = False
+        strict_base = os.path.join(_DICT_DIR, "et_EE_scrabble_strict")
         try:
             from spylls.hunspell import Dictionary
 
-            self._dict = Dictionary.from_files(os.path.join(_DICT_DIR, "et_EE_scrabble_strict"))
-            self.logger.info("Loaded strict Estonian dictionary (et_EE_scrabble_strict)")
+            self._dict = Dictionary.from_files(strict_base)
         except Exception as e:
-            self.logger.error(f"Failed to load strict dictionary: {e}")
-            self._dict = None
+            raise DictionaryUnavailableError(
+                f"Could not load the strict Estonian dictionary from {strict_base!r}: {e}"
+            ) from e
+        self.logger.info("Loaded strict Estonian dictionary (et_EE_scrabble_strict)")
 
     @property
     def dawg(self):
@@ -179,8 +196,6 @@ class StrictWordList:
 
     def is_valid_word(self, word: str) -> bool:
         """Check a word against the strict (no-compound) dictionary."""
-        if self._dict is None:
-            return False
         word = word.lower()
         if word in self._blocked:
             return False
