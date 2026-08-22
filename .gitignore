@@ -45,7 +45,11 @@ estonian_words.txt
 dict/
 # Python crash course HTML files
 crash-course/
-# Claude Code working files
-.claude/
+# Claude Code working files. settings.json is shared project config (hook
+# wiring, portable via $CLAUDE_PROJECT_DIR); everything else here is local
+# machine state — settings.local.json holds absolute paths and personal
+# permission grants, worktrees/ is scratch checkouts.
+.claude/*
+!.claude/settings.json
 # Deployment notes and credentials
 deploy/

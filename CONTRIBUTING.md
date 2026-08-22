@@ -15,11 +15,17 @@ cd scrabble
 pip install -r requirements.txt
 ```
 
-   For development, install the linter too and enable the git hooks:
+   For development, install the linter and formatter too, and enable the git
+   hooks:
 ```bash
 pip install -r requirements-dev.txt
 tools/hooks/install.sh
 ```
+
+   Claude Code users additionally get `tools/hooks/ruff-fix-hook.sh` wired up
+   automatically via `.claude/settings.json`, which formats Python files as
+   they are written. Personal overrides belong in `.claude/settings.local.json`,
+   which stays out of the repo.
 
 3. Run the game to verify setup:
 ```bash
