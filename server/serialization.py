@@ -1,6 +1,6 @@
 """Serialize GameState to JSON-safe dictionaries for WebSocket transport."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from game.state import GameState
 

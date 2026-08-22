@@ -33,6 +33,11 @@ _TURN_TIME_LIMITS = frozenset({60, 120, 300})
 # Allowed chess-clock budgets in seconds per player (issue #39)
 _GAME_TIME_LIMITS = frozenset({300, 900, 1500})
 
+# Sent when an action is blocked pending every player's force-play acknowledgement
+_ERR_AWAITING_FORCE_ACKS = (
+    "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud"
+)
+
 # A player more than 10 minutes into chess-clock overtime gets auto-passed
 _MAX_OVERTIME = 600
 
@@ -237,7 +242,9 @@ def _clean_player_name(data: Dict[str, Any], default: str) -> Optional[str]:
 
 def _is_force_pending(room: Room) -> bool:
     """Check if a forced word is waiting for all players to acknowledge."""
-    return bool(room._force_required_acks and not room._force_required_acks.issubset(room._force_acks))
+    return bool(
+        room._force_required_acks and not room._force_required_acks.issubset(room._force_acks)
+    )
 
 
 def _arm_turn_timer(room: Room):
@@ -454,9 +461,17 @@ async def _handle_create_room(ws: WebSocket, data: Dict[str, Any]) -> Optional[R
     room.public = bool(data.get("public", False))
     game_limit = data.get("game_time_limit")
     turn_limit = data.get("turn_time_limit")
-    if isinstance(game_limit, int) and not isinstance(game_limit, bool) and game_limit in _GAME_TIME_LIMITS:
+    if (
+        isinstance(game_limit, int)
+        and not isinstance(game_limit, bool)
+        and game_limit in _GAME_TIME_LIMITS
+    ):
         room.game_time_limit = game_limit  # chess clock wins if both are sent
-    elif isinstance(turn_limit, int) and not isinstance(turn_limit, bool) and turn_limit in _TURN_TIME_LIMITS:
+    elif (
+        isinstance(turn_limit, int)
+        and not isinstance(turn_limit, bool)
+        and turn_limit in _TURN_TIME_LIMITS
+    ):
         room.turn_time_limit = turn_limit
     player_index = room.add_player(player_name, ws)
     await ws.send_json({
@@ -654,12 +669,15 @@ async def _handle_place_tile(ws: WebSocket, room: Room, data: Dict[str, Any]):
 
     designated_letter = data.get("designated_letter")
     if designated_letter is not None:
-        if not isinstance(designated_letter, str) or designated_letter.lower() not in _VALID_LETTERS:
+        if (
+            not isinstance(designated_letter, str)
+            or designated_letter.lower() not in _VALID_LETTERS
+        ):
             await _send_error(ws, "Invalid designated_letter")
             return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
+        await _send_error(ws, _ERR_AWAITING_FORCE_ACKS)
         return
 
     room.clear_challenge()  # Next player is acting, challenge window closed
@@ -805,7 +823,7 @@ async def _handle_pass_turn(ws: WebSocket, room: Room):
         return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
+        await _send_error(ws, _ERR_AWAITING_FORCE_ACKS)
         return
 
     player_name = game.players[player_index].name
@@ -853,7 +871,7 @@ async def _handle_exchange_tiles(ws: WebSocket, room: Room, data: Dict[str, Any]
         return
 
     if _is_force_pending(room):
-        await _send_error(ws, "Oota, kuni kõik mängijad on programmi arvates lubamatu sõna heaks kiitnud")
+        await _send_error(ws, _ERR_AWAITING_FORCE_ACKS)
         return
 
     player_name = game.players[player_index].name
@@ -1186,7 +1204,10 @@ async def _cleanup_connection(room: Room | None, ws: WebSocket):
                 await room.broadcast({
                     "type": "chat",
                     "player_name": "Süsteem",
-                    "text": f"{player_name} katkestas ühenduse — vaidlustus tühistati, sõna jäi lauale.",
+                    "text": (
+                        f"{player_name} katkestas ühenduse — "
+                        "vaidlustus tühistati, sõna jäi lauale."
+                    ),
                 })
         # Clean up room only if ALL players disconnected
         if room.connected_count == 0:

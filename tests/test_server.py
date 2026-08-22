@@ -5,10 +5,8 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from game.state import GameState
-
 from server.room import Room, RoomManager, _generate_room_code
-from server.serialization import serialize_game_state, serialize_game_over
-
+from server.serialization import serialize_game_over, serialize_game_state
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -183,13 +181,13 @@ class TestWebSocketFlow(unittest.TestCase):
     def setUp(self):
         """Import handler functions and reset the global room manager."""
         from server.app import (
-            _handle_create_room,
-            _handle_join_room,
-            _handle_start_game,
-            _handle_place_tile,
             _handle_commit_turn,
-            _handle_pass_turn,
+            _handle_create_room,
             _handle_exchange_tiles,
+            _handle_join_room,
+            _handle_pass_turn,
+            _handle_place_tile,
+            _handle_start_game,
             room_manager,
         )
         self.create_room = _handle_create_room
@@ -768,8 +766,8 @@ class TestInputValidation(unittest.TestCase):
     def setUp(self):
         from server.app import (
             _dispatch,
-            _handle_chat,
             _handle_challenge,
+            _handle_chat,
             _handle_create_room,
             _handle_designate_blank,
             _handle_exchange_tiles,

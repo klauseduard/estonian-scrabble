@@ -1,14 +1,12 @@
 import unittest
-from unittest.mock import patch, MagicMock
-from typing import List, Optional
-from game.state import GameState, Player
+from unittest.mock import patch
+
 from game.constants import (
-    LETTER_DISTRIBUTION,
-    DOUBLE_LETTER_SCORE,
-    TRIPLE_LETTER_SCORE,
     DOUBLE_WORD_SCORE,
-    TRIPLE_WORD_SCORE,
+    LETTER_DISTRIBUTION,
+    TRIPLE_LETTER_SCORE,
 )
+from game.state import GameState
 
 
 class MockWordList:

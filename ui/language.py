@@ -1,4 +1,5 @@
-from typing import Dict, Any
+from typing import Dict
+
 
 class Language:
     ESTONIAN = "et"
@@ -92,10 +93,10 @@ class LanguageManager:
     @classmethod
     def toggle_language(cls):
         cls._current_language = (
-            Language.ENGLISH if cls._current_language == Language.ESTONIAN 
+            Language.ENGLISH if cls._current_language == Language.ESTONIAN
             else Language.ESTONIAN
         )
 
     @classmethod
     def get_current_language(cls) -> str:
-        return cls._current_language 
+        return cls._current_language

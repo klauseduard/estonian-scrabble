@@ -5,6 +5,8 @@ from typing import Set
 
 from tools.patch_dictionary import (
     DICT_DIR as _DICT_DIR,
+)
+from tools.patch_dictionary import (
     patch_dictionary,
     patched_dictionary_stale,
 )

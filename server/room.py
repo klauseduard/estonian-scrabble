@@ -48,7 +48,8 @@ class Room:
         self.ai_players: Set[int] = set()
         # Challenge support: snapshot of game state before last commit
         self._pre_commit_snapshot: Optional[GameState] = None
-        self._challengeable_player: Optional[str] = None  # name of player whose move can be challenged
+        # Name of the player whose move can be challenged
+        self._challengeable_player: Optional[str] = None
         self._challenge_pending: Optional[Dict[str, Any]] = None  # active challenge info
         # Track which players have acknowledged a forced word
         self._force_acks: set = set()  # player indices who clicked OK

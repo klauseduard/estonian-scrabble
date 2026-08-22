@@ -1,15 +1,24 @@
-import pygame
 import sys
 from typing import Optional
+
+import pygame
+
 from game import GameState
 from game.constants import LETTER_DISTRIBUTION
 from ui import (
-    Tile, Board, Rack, Button, ScoreDisplay,
-    WHITE, BLACK, BOARD_COLOR, BLANK_TILE_COLOR,
-    PREMIUM_TRIPLE_WORD, PREMIUM_DOUBLE_WORD,
-    PREMIUM_TRIPLE_LETTER, PREMIUM_DOUBLE_LETTER,
-    CURRENT_TURN_COLOR, VALID_WORD_COLOR, INVALID_WORD_COLOR,
-    TURN_INDICATOR_COLOR, SCORE_COLOR, SELECTED_COLOR,
+    BLACK,
+    CURRENT_TURN_COLOR,
+    INVALID_WORD_COLOR,
+    SCORE_COLOR,
+    SELECTED_COLOR,
+    TURN_INDICATOR_COLOR,
+    VALID_WORD_COLOR,
+    WHITE,
+    Board,
+    Button,
+    Rack,
+    ScoreDisplay,
+    Tile,
 )
 from ui.language import LanguageManager
 
@@ -54,11 +63,6 @@ class ScrabbleUI:
         self.board = Board(BOARD_SIZE, TILE_SIZE, board_start, self.font)
         self.rack = Rack(WINDOW_SIZE - PADDING, TILE_SIZE, self.font)
 
-        # Calculate rack width and position
-        max_rack_tiles = 7
-        rack_width = max_rack_tiles * TILE_SIZE
-        rack_x = (WINDOW_SIZE - rack_width) // 2
-
         # Initialize UI controls
         button_y = WINDOW_SIZE + RACK_HEIGHT - BUTTON_HEIGHT - PADDING
         total_width = (BUTTON_WIDTH * 3) + (PADDING * 2)
@@ -97,7 +101,7 @@ class ScrabbleUI:
         # Add language toggle button in bottom-right corner, above the buttons
         self.lang_button = Button(
             WINDOW_SIZE - LANG_BUTTON_SIZE - LANG_BUTTON_PADDING,
-            button_y + (BUTTON_HEIGHT - LANG_BUTTON_SIZE) // 2,  # Vertically center with other buttons
+            button_y + (BUTTON_HEIGHT - LANG_BUTTON_SIZE) // 2,  # Vertically center
             LANG_BUTTON_SIZE,
             LANG_BUTTON_SIZE,
             self.lang_manager.get_string("lang_button"),
@@ -148,7 +152,8 @@ class ScrabbleUI:
         btn_y = (WINDOW_SIZE + RACK_HEIGHT) // 2
 
         for i, count in enumerate((2, 3, 4)):
-            label = f"{count} {'Players' if self.lang_manager.get_current_language() == 'en' else 'Mängijat'}"
+            noun = "Players" if self.lang_manager.get_current_language() == "en" else "Mängijat"
+            label = f"{count} {noun}"
             btn = Button(
                 start_x + i * (btn_width + PADDING),
                 btn_y,
@@ -219,7 +224,10 @@ class ScrabbleUI:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     for i in range(num_players):
                         fy = first_field_y + i * field_gap
-                        if field_x <= event.pos[0] <= field_x + field_w and fy <= event.pos[1] <= fy + field_h:
+                        if (
+                            field_x <= event.pos[0] <= field_x + field_w
+                            and fy <= event.pos[1] <= fy + field_h
+                        ):
                             active_idx = i
 
                 if event.type == pygame.KEYDOWN:
@@ -456,18 +464,19 @@ class ScrabbleUI:
     def draw_board(self):
         # Fill background
         self.screen.fill(WHITE)
-        
+
         # Draw board squares
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
                 # Determine square color based on state
                 if (row, col) in self.game.word_validator.word_validity:
-                    color = VALID_WORD_COLOR if self.game.word_validator.word_validity[(row, col)] else INVALID_WORD_COLOR
+                    is_valid = self.game.word_validator.word_validity[(row, col)]
+                    color = VALID_WORD_COLOR if is_valid else INVALID_WORD_COLOR
                 elif (row, col) in self.game.current_turn_tiles:
                     color = CURRENT_TURN_COLOR
                 else:
                     color = None  # Let the board handle premium square colors
-                
+
                 # Draw square and tile
                 self.board.draw_square(self.screen, row, col, color)
                 tile = self.game.board[row][col]
@@ -711,4 +720,4 @@ class ScrabbleUI:
 
 if __name__ == "__main__":
     game = ScrabbleUI()
-    game.run() 
+    game.run()

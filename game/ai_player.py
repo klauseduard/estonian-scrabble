@@ -223,7 +223,9 @@ def _generate_line_moves(
                     # First move must cover center
                     if first_move:
                         center = size // 2
-                        main_word_info = _read_word(temp_board, tiles_placed[0][0], tiles_placed[0][1], dr, dc)
+                        main_word_info = _read_word(
+                            temp_board, tiles_placed[0][0], tiles_placed[0][1], dr, dc
+                        )
                         if main_word_info:
                             word_positions = main_word_info[1]
                             if (center, center) not in [(r, c) for r, c in word_positions]:
@@ -494,7 +496,7 @@ def _collect_moves(
             )
             for move in moves:
                 key = frozenset(
-                    (r, c, l, (r, c) in move.blanks) for r, c, l in move.tiles
+                    (r, c, letter, (r, c) in move.blanks) for r, c, letter in move.tiles
                 )
                 if key not in seen_placements:
                     seen_placements.add(key)
@@ -645,7 +647,6 @@ def _rack_balance_bonus(remaining_rack: List[str]) -> float:
 
     vowels = set("aeioõäöü")
     v_count = sum(1 for t in remaining_rack if t.lower() in vowels)
-    c_count = len(remaining_rack) - v_count
 
     # Ideal ratio ~40% vowels
     if len(remaining_rack) >= 2:
@@ -678,7 +679,12 @@ def _positional_bonus(board: List[List[Optional[str]]], move: Move) -> float:
     for r, c, _ in move.tiles:
         for dr, dc in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             nr, nc = r + dr, c + dc
-            if 0 <= nr < size and 0 <= nc < size and board[nr][nc] is None and (nr, nc) not in placed:
+            if (
+                0 <= nr < size
+                and 0 <= nc < size
+                and board[nr][nc] is None
+                and (nr, nc) not in placed
+            ):
                 if (nr, nc) in TRIPLE_WORD_SCORE:
                     bonus -= 8.0
                 elif (nr, nc) in DOUBLE_WORD_SCORE:

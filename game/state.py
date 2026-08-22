@@ -1,15 +1,18 @@
 import random
-from typing import List, Set, Tuple, Optional, Dict
 from dataclasses import dataclass
-from .word_validator import WordValidator
-from .constants import (
-    LETTER_DISTRIBUTION,
-    TRIPLE_WORD_SCORE,
-    DOUBLE_WORD_SCORE,
-    TRIPLE_LETTER_SCORE,
-    DOUBLE_LETTER_SCORE
-)
+from typing import Dict, List, Optional, Set, Tuple
+
 from wordlist import WordList
+
+from .constants import (
+    DOUBLE_LETTER_SCORE,
+    DOUBLE_WORD_SCORE,
+    LETTER_DISTRIBUTION,
+    TRIPLE_LETTER_SCORE,
+    TRIPLE_WORD_SCORE,
+)
+from .word_validator import WordValidator
+
 
 @dataclass
 class Player:
@@ -33,7 +36,9 @@ class GameState:
         if not 2 <= num_players <= 4:
             raise ValueError("num_players must be between 2 and 4")
         self.board_size = board_size
-        self.board: List[List[Optional[str]]] = [[None for _ in range(board_size)] for _ in range(board_size)]
+        self.board: List[List[Optional[str]]] = [
+            [None for _ in range(board_size)] for _ in range(board_size)
+        ]
         self.players = [Player(f"Player {i + 1}") for i in range(num_players)]
         self.current_player_idx = 0
         self.current_turn_tiles: Set[Tuple[int, int]] = set()
@@ -166,7 +171,9 @@ class GameState:
 
     def validate_current_placement(self) -> dict:
         """Validate the current turn's word placements."""
-        return self.word_validator.validate_placement(self.board, self.current_turn_tiles, self.first_move)
+        return self.word_validator.validate_placement(
+            self.board, self.current_turn_tiles, self.first_move
+        )
 
     def calculate_turn_score(self) -> List[Tuple[str, int]]:
         """Calculate score breakdown for current placement without committing.

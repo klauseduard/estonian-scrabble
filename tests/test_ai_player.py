@@ -16,7 +16,7 @@ try:
 except ImportError:
     HAS_SPYLLS = False
 
-from game.ai_player import Move, find_all_moves, select_move
+from game.ai_player import find_all_moves, select_move
 
 
 def _empty_board():
@@ -36,7 +36,9 @@ class FixedWordList:
 class TestMoveGeneration(unittest.TestCase):
     def test_first_move_finds_known_word_through_center(self):
         wl = FixedWordList(["maja"])
-        moves = find_all_moves(_empty_board(), ["m", "a", "j", "a", "k", "t", "s"], wl, first_move=True)
+        moves = find_all_moves(
+            _empty_board(), ["m", "a", "j", "a", "k", "t", "s"], wl, first_move=True
+        )
         self.assertTrue(moves)
         words = {w for m in moves for w in m.words_formed}
         self.assertIn("maja", words)

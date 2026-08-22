@@ -1,9 +1,14 @@
+from typing import Optional, Tuple
+
 import pygame
-from typing import Tuple, Optional
+
 from game.constants import (
-    TRIPLE_WORD_SCORE, DOUBLE_WORD_SCORE,
-    TRIPLE_LETTER_SCORE, DOUBLE_LETTER_SCORE
+    DOUBLE_LETTER_SCORE,
+    DOUBLE_WORD_SCORE,
+    TRIPLE_LETTER_SCORE,
+    TRIPLE_WORD_SCORE,
 )
+
 from .language import LanguageManager
 
 # Colors
@@ -76,11 +81,11 @@ class Button:
         # Draw text with shadow
         text_surface = self.font.render(self.text, True, WHITE)
         text_rect = text_surface.get_rect(center=button_rect.center)
-        
+
         if not self.enabled:
             # Draw disabled text slightly transparent
             text_surface.set_alpha(128)
-        
+
         screen.blit(text_surface, text_rect)
 
     def handle_event(self, event: pygame.event.Event) -> bool:
@@ -91,18 +96,18 @@ class Button:
         if event.type == pygame.MOUSEMOTION:
             self.hovered = self.rect.collidepoint(event.pos)
             return False
-        
+
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1 and self.rect.collidepoint(event.pos):
                 self.pressed = True
                 return False
-        
+
         elif event.type == pygame.MOUSEBUTTONUP:
             was_pressed = self.pressed
             self.pressed = False
             if event.button == 1 and self.rect.collidepoint(event.pos) and was_pressed:
                 return True
-        
+
         return False
 
 class ScoreDisplay:
@@ -132,12 +137,12 @@ class TurnIndicator:
         # Draw arrow
         points = self._get_arrow_points(is_player_one)
         pygame.draw.polygon(screen, TURN_INDICATOR_COLOR, points)
-        
+
         # Draw turn text
         text = self.font.render(self.lang_manager.get_string("turn"), True, TURN_INDICATOR_COLOR)
         text_rect = text.get_rect(center=(self.x, self.y + self.arrow_size + self.padding))
         screen.blit(text, text_rect)
-    
+
     def _get_arrow_points(self, is_player_one: bool) -> list:
         """Get the points for drawing the arrow polygon."""
         if is_player_one:
@@ -211,7 +216,7 @@ class Board:
         x, y = screen_pos
         col = (x - self.board_start) // self.tile_size
         row = (y - self.board_start) // self.tile_size
-        
+
         if 0 <= row < self.size and 0 <= col < self.size:
             return row, col
         return None
@@ -229,16 +234,22 @@ class Board:
             return self.lang_manager.get_string("dls"), PREMIUM_DOUBLE_LETTER
         return "", BOARD_COLOR
 
-    def draw_square(self, screen: pygame.Surface, row: int, col: int, override_color: Optional[Tuple[int, int, int]] = None):
+    def draw_square(
+        self,
+        screen: pygame.Surface,
+        row: int,
+        col: int,
+        override_color: Optional[Tuple[int, int, int]] = None,
+    ):
         """Draw a single board square with premium indicators."""
         x, y = self.get_square_position(row, col)
-        
+
         # Determine square color
         if override_color:
             color = override_color
         else:
             premium_text, color = self.get_premium_type(row, col)
-        
+
         # Draw square background
         pygame.draw.rect(screen, color, (x, y, self.tile_size, self.tile_size))
         pygame.draw.rect(screen, BLACK, (x, y, self.tile_size, self.tile_size), 1)
@@ -264,9 +275,9 @@ class Rack:
         """Get the index of a tile in the rack based on mouse position."""
         x, y = mouse_pos
         rack_x = self.get_rack_position(tiles_count)
-        
+
         if self.y <= y <= self.y + self.tile_size:
             idx = (x - rack_x) // self.tile_size
             if 0 <= idx < tiles_count:
                 return idx
-        return None 
+        return None

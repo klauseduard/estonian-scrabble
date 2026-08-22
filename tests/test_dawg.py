@@ -125,7 +125,7 @@ class TestDawgMoveGeneration(unittest.TestCase):
 
         def keys(moves):
             return {
-                frozenset((r, c, l, (r, c) in m.blanks) for r, c, l in m.tiles)
+                frozenset((r, c, letter, (r, c) in m.blanks) for r, c, letter in m.tiles)
                 for m in moves
             }
 
