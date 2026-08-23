@@ -105,8 +105,10 @@ commit messages and issue text. Code and code comments are not covered by it.
 Vale enforces the mechanical parts from `styles/Klaus/`, and the pre-commit hook
 runs it on staged Markdown. Banned phrases are errors and block the commit;
 sentence length and em dash counts are warnings, because they have legitimate
-exceptions. Wrap a deliberate violation in `<!-- vale off -->` and
-`<!-- vale on -->`.
+exceptions. Suppress one rule with `<!-- vale Klaus.Banned = NO -->` and restore
+it with `= YES`. To check every tracked file rather than the staged ones, run
+`vale $(git ls-files '*.md')`, since a bare `vale .` walks ignored directories.
+The setup is documented in `docs/STYLE.md`.
 
 Two rules that Vale cannot check and that matter most here. Write for a fluent
 non-native English speaker, which means avoiding phrasal verbs, idioms and long

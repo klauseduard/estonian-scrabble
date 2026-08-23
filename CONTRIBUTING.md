@@ -27,7 +27,7 @@ tools/hooks/install.sh
    on your `PATH`. The hook skips the prose check when Vale is absent, so this
    step is optional:
 ```bash
-curl -sfL https://github.com/errata-ai/vale/releases/latest/download/vale_3.18.0_Linux_64-bit.tar.gz \
+curl -sfL https://github.com/errata-ai/vale/releases/download/v3.18.0/vale_3.18.0_Linux_64-bit.tar.gz \
   | tar xz -C ~/.local/bin vale
 ```
 

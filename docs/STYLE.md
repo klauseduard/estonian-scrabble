@@ -3,10 +3,9 @@
 These rules govern prose in this repository: documentation, commit messages,
 issue text. They do not govern code or code comments.
 
-Vale enforces the mechanical parts. Run `vale docs/ *.md` before committing, or
-install the git hooks with `tools/hooks/install.sh` and it runs for you. The
-rules live in `styles/Klaus/`. Anything Vale cannot check is below, and the
-short version is in `CLAUDE.md`.
+Vale enforces the mechanical parts. Anything it cannot check is written below,
+and the short version is in `CLAUDE.md`. The last section explains how the
+linting works.
 
 ## Reader
 
@@ -161,8 +160,8 @@ or `invalidates` is information.
 
 Prefer a plain text figure in a fenced block when the thing being shown is
 spatial. A board row with column numbers, an anchor marker and two direction
-arrows is clearer as text art than as a flowchart, and it cannot render too
-wide as long as the lines stay under about 76 characters.
+arrows is clearer as text art than as a flowchart. Text art also cannot render
+too wide, as long as the lines stay under about 76 characters.
 
 ## Example
 
@@ -200,3 +199,86 @@ Good:
 > change across the eleven handlers in `api/`.
 
 <!-- vale on -->
+
+## How the linting works
+
+[Vale](https://vale.sh) is a prose linter. It is a single Go binary rather than
+a Python package, so it is not in `requirements-dev.txt`, and the install
+command is in `CONTRIBUTING.md`. It is optional: the pre-commit hook skips the
+prose check when Vale is absent.
+
+### Running it
+
+```bash
+vale $(git ls-files '*.md')
+```
+
+Use that rather than `vale .`. Vale has no concept of `.gitignore`, so a bare
+`vale .` walks into the virtualenv, `node_modules`, the deployment notes and
+the personal `crash-course` material, and reports on 60 files instead of 11.
+`.vale.ini` excludes those directories as a second line of defence, but listing
+tracked files is the reliable form.
+
+The pre-commit hook lints only the Markdown files in the commit. That is the
+right scope for a commit, and it means a file nobody has touched can carry an
+old violation indefinitely. Run the command above occasionally to catch those.
+
+### Configuration
+
+`.vale.ini` points `StylesPath` at `styles/`, sets `MinAlertLevel` to
+`warning`, and applies `BasedOnStyles = Klaus` to every `*.md` file. Sections
+such as `[deploy/**]` set `BasedOnStyles` to nothing, which turns checking off
+for that path.
+
+The rules are eight YAML files in `styles/Klaus/`. A new file there is picked
+up with no further configuration, because `BasedOnStyles = Klaus` selects the
+whole directory.
+
+| Rule | Catches | Level |
+|---|---|---|
+| `Banned.yml` | phrases from the never-use list | error |
+| `NotJustBut.yml` | the `not just X, but Y` construction | error |
+| `Idioms.yml` | idioms and sport or military metaphors | error |
+| `PhrasalVerbs.yml` | `look into`, `spin up`, and similar | warning |
+| `Intensifiers.yml` | `significantly`, `several`, `very` | warning |
+| `EmDash.yml` | more than one em dash in a paragraph | warning |
+| `SentenceLength.yml` | sentences past 30 words | warning |
+| `FalseFriends.yml` | `eventually`, `actual` | suggestion |
+
+Each rule uses one of three Vale extension points. `existence` flags a list of
+tokens. `substitution` flags a token and names the preferred word.
+`occurrence` counts matches inside a scope, which is how the em dash and
+sentence length rules work, since both are limits rather than bans.
+
+### Errors, warnings and suggestions
+
+An error blocks the commit. Errors are the unambiguous rules, where no
+legitimate use exists in our prose.
+
+A warning is printed and does not block. The length and em dash limits are
+heuristics with real exceptions, and a rule that blocks on a heuristic gets
+bypassed rather than obeyed.
+
+A suggestion is below `MinAlertLevel`, so it is not shown by default. Raise it
+by setting `MinAlertLevel = suggestion` in `.vale.ini`.
+
+### Suppressing a rule
+
+Turn everything off for a region, which is what the bad example above uses:
+
+```markdown
+<!-- vale off -->
+Text Vale should ignore entirely.
+<!-- vale on -->
+```
+
+Turn off one rule and leave the rest active:
+
+```markdown
+<!-- vale Klaus.Banned = NO -->
+Text where only the banned-phrase rule is suspended.
+<!-- vale Klaus.Banned = YES -->
+```
+
+Prefer the second form. Suppress a rule when the text is quoting something, or
+preserving someone's voice, and not to avoid rewriting a sentence.
