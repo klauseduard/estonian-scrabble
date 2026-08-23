@@ -59,12 +59,13 @@ Before you begin, ensure you have the following installed:
 
 4. **Install Dependencies**
    ```bash
-   pip install -r requirements.txt  # or pip3 install -r requirements.txt
+   uv sync
    ```
+   This creates `.venv` and installs everything from `uv.lock`.
 
 5. **Run the Game**
    ```bash
-   python main.py  # or python3 main.py
+   uv run python main.py
    ```
 
 ## Web Version
@@ -74,8 +75,8 @@ The game includes a web-based multiplayer mode using WebSockets.
 ### Run locally
 
 ```bash
-pip install -r requirements-server.txt
-uvicorn server.app:app
+uv sync --group server
+uv run uvicorn server.app:app
 ```
 
 Then open http://localhost:8000 in your browser.
@@ -167,7 +168,7 @@ Share the ngrok URL with friends to play remotely.
 ## Troubleshooting
 
 - **Web version**: Works in any modern browser. If WebSocket connection fails, check that your network doesn't block WebSocket traffic.
-- **Desktop version**: Requires Python 3.12 and Pygame. Run `pip install -r requirements.txt` to install dependencies.
+- **Desktop version**: Requires Python 3.12 and Pygame. Run `uv sync` to install dependencies.
 - **Estonian characters**: The web version handles all Estonian characters. For the desktop version, ensure your system supports UTF-8.
 
 ### Getting Help
@@ -206,7 +207,8 @@ Report bugs or suggest features: [GitHub Issues](https://github.com/klauseduard/
 ├── data/
 │   ├── extra_words.txt    # Words to accept beyond the dictionary
 │   └── blocked_words.txt  # Words to reject despite the dictionary
-├── requirements.txt       # Python dependencies
+├── pyproject.toml         # Dependencies, and ruff/black config
+├── uv.lock                # Pinned dependency versions
 └── README.md              # This file
 ```
 

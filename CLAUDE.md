@@ -9,11 +9,11 @@ Estonian Scrabble — a Python/Pygame implementation of Scrabble adapted for the
 ## Commands
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (creates .venv from uv.lock)
+uv sync
 
 # Run the game
-python main.py
+uv run python main.py
 
 # Run all tests
 python3 -m unittest discover tests
@@ -59,7 +59,7 @@ ruff first and Black second — Black owns the final layout.
 
 Line length, quote style, naming and import order are all enforced, so they are
 not restated here — `ruff check` and `black --check` are the authority. Black is
-pinned to 26.5.1 in `requirements-dev.txt`; an unpinned Black formats differently
+pinned to 26.5.1 in `pyproject.toml`; an unpinned Black formats differently
 across versions.
 
 Not enforced, so worth stating:

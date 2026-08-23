@@ -157,10 +157,14 @@ COMPOUNDFLAG Z
 COMPOUNDMIN 2
 ```
 
-`COMPOUNDMIN 2` allows a part as short as two letters. In `et_EE.dic`, 668
+`COMPOUNDMIN 2` allows a part as short as two letters. In `et_EE.dic`, 118
 vowelless entries carry that `Z` flag. They are the abbreviations and acronyms:
 `tk`, `lk`, `CD`, `DVD`. Put those two rules together and `tk` plus `öis`
 validates as `tköis`, which no player would defend.
+
+Count those entries with a decoder rather than a byte-level grep. The `.dic`
+file is ISO8859-15, so a UTF-8 pattern for `õäöü` matches nothing and reports
+words that do contain vowels as vowelless.
 
 A human never finds these seams. A program that permutes tiles finds little
 else. When the AI was first added, roughly two thirds of the moves that

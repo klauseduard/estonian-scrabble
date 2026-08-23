@@ -71,7 +71,7 @@ Mäng sisaldab veebipõhist mitmikmängu režiimi WebSocketite kaudu.
 ### Käivita lokaalselt
 
 ```bash
-pip install -r requirements-server.txt
+uv sync --group server
 uvicorn server.app:app
 ```
 
@@ -105,13 +105,14 @@ Ava http://localhost:8080 brauseris.
 ├── main.py                 # Pygame mängu käivitamine
 ├── wordlist.py             # Hunspelli sõnastiku integratsioon
 ├── Dockerfile              # Docker konteineriseerimiseks
-└── requirements.txt        # Pythoni sõltuvused
+├── pyproject.toml          # Sõltuvused ja ruff/black seaded
+└── uv.lock                 # Lukustatud sõltuvuste versioonid
 ```
 
 ## Veaotsing
 
 - **Veebiversioon**: Töötab igas kaasaegses brauseris. Kui WebSocket ühendus ebaõnnestub, kontrolli et sinu võrk ei blokeeri WebSocket liiklust.
-- **Töölauaversioon**: Vajab Python 3.12 ja Pygame. Käivita `pip install -r requirements.txt` sõltuvuste installimiseks.
+- **Töölauaversioon**: Vajab Python 3.12 ja Pygame. Käivita `uv sync` sõltuvuste installimiseks.
 
 ## Tulevased ideed
 

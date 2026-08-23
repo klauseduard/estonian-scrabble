@@ -12,14 +12,22 @@ cd scrabble
 
 2. Install dependencies:
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
-   For development, install the linter and formatter too, and enable the git
-   hooks:
+   That creates `.venv` and installs the exact versions in `uv.lock`, including
+   the linters. There is no separate development install step.
+
+   Enable the git hooks:
 ```bash
-pip install -r requirements-dev.txt
 tools/hooks/install.sh
+```
+
+   Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`. There
+   are no `requirements*.txt` files. If you need one for a tool that cannot read
+   a lock file, generate it rather than maintaining it by hand:
+```bash
+uv export --no-dev --group server --format requirements-txt > requirements.txt
 ```
 
    Prose in Markdown is linted by [Vale](https://vale.sh), which is a single Go

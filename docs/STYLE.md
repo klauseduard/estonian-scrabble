@@ -203,7 +203,7 @@ Good:
 ## How the linting works
 
 [Vale](https://vale.sh) is a prose linter. It is a single Go binary rather than
-a Python package, so it is not in `requirements-dev.txt`, and the install
+a Python package, so it is not in `pyproject.toml`, and the install
 command is in `CONTRIBUTING.md`. It is optional: the pre-commit hook skips the
 prose check when Vale is absent.
 

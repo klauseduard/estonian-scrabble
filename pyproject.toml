@@ -1,3 +1,38 @@
+[project]
+name = "estonian-scrabble"
+version = "2.0.0"
+description = "Scrabble for the Estonian language, with Hunspell-based word validation"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Shared by both front ends: the word list and the AI need spylls, nothing else.
+dependencies = [
+    "spylls==0.1.7",
+]
+
+# pygame is needed only by the desktop client. Keeping it out of the base set is
+# what lets the server image skip it; the Dockerfile used to claim it did that
+# while installing pygame anyway.
+[dependency-groups]
+desktop = [
+    "pygame==2.5.2",
+]
+server = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.27.0",
+]
+dev = [
+    "black==26.5.1",
+    "ruff==0.16.4",
+    { include-group = "desktop" },
+    { include-group = "server" },
+]
+
+# An application rather than a library: there is nothing here to build or
+# publish, so uv should install the dependencies and leave the tree alone.
+[tool.uv]
+package = false
+
 # Style configuration for Estonian Scrabble.
 #
 # The conventions in CLAUDE.md ("PEP 8 with 100-char line length, Black
