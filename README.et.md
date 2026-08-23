@@ -111,7 +111,7 @@ Ava http://localhost:8080 brauseris.
 ## Veaotsing
 
 - **Veebiversioon**: Töötab igas kaasaegses brauseris. Kui WebSocket ühendus ebaõnnestub, kontrolli et sinu võrk ei blokeeri WebSocket liiklust.
-- **Töölauaversioon**: Vajab Python 3.8+ ja Pygame. Käivita `pip install -r requirements.txt` sõltuvuste installimiseks.
+- **Töölauaversioon**: Vajab Python 3.12 ja Pygame. Käivita `pip install -r requirements.txt` sõltuvuste installimiseks.
 
 ## Tulevased ideed
 

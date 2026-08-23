@@ -1,7 +1,7 @@
 # Estonian Scrabble
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/)
 [![Estonian](https://img.shields.io/badge/language-Estonian-green.svg)](https://en.wikipedia.org/wiki/Estonian_language)
 
 > **Note**: This project was originally bootstrapped using AI-assisted programming (Cursor IDE + Claude) in 2025. The web multiplayer version was built with Claude Code in 2026.
@@ -18,7 +18,7 @@ A Scrabble board game for the Estonian language with web-based multiplayer. Play
 
 Before you begin, ensure you have the following installed:
 
-1. **Python 3.8 or higher**
+1. **Python 3.12**
    - Windows: Download and install from [python.org](https://www.python.org/downloads/)
    - Linux: Usually pre-installed, or install via package manager:
      ```bash
@@ -167,7 +167,7 @@ Share the ngrok URL with friends to play remotely.
 ## Troubleshooting
 
 - **Web version**: Works in any modern browser. If WebSocket connection fails, check that your network doesn't block WebSocket traffic.
-- **Desktop version**: Requires Python 3.8+ and Pygame. Run `pip install -r requirements.txt` to install dependencies.
+- **Desktop version**: Requires Python 3.12 and Pygame. Run `pip install -r requirements.txt` to install dependencies.
 - **Estonian characters**: The web version handles all Estonian characters. For the desktop version, ensure your system supports UTF-8.
 
 ### Getting Help

@@ -67,6 +67,7 @@ Not enforced, so worth stating:
 - Type hints on function signatures. `ruff --select ANN` reports 146 gaps today,
   so this is not a gate — annotate new code, do not retrofit opportunistically.
 - Private members prefixed with underscore.
+- Comments explain why, not what. The code already shows what it does.
 
 ### Design rules no linter can check
 
@@ -117,4 +118,5 @@ more time than plain sentences.
 
 - Conventional Commits: `<type>(<scope>): <description>` (feat, fix, docs, style, refactor, test, chore, perf)
 - Subject line ≤72 chars, imperative mood, no trailing period
+- Wrap the body at 72 characters, separated from the subject by a blank line
 - Branches: `feature/<name>`, `fix/<description>`, `release/v<version>`
