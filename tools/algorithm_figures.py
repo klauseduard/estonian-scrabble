@@ -41,6 +41,23 @@ def main() -> None:
     for i, (final, edge) in enumerate(zip(toy.finals, toy.edges)):
         print(f"    {i}  {'*' if final else ' '}  {dict(edge)}")
 
+    print("\n== Hunspell source dictionary ==")
+    from tools.patch_dictionary import DICT_DIR
+
+    dic = os.path.join(DICT_DIR, "et_EE.dic")
+    aff = os.path.join(DICT_DIR, "et_EE.aff")
+    if os.path.exists(dic) and os.path.exists(aff):
+        with open(dic, encoding="iso-8859-15") as handle:
+            stems = sum(1 for _ in handle) - 1  # first line is the entry count
+        with open(aff, encoding="iso-8859-15") as handle:
+            sfx = [line.split() for line in handle if line.startswith("SFX")]
+        groups = sum(1 for parts in sfx if len(parts) == 4)
+        print(f"  stem entries      {stems:,}")
+        print(f"  suffix groups     {groups}")
+        print(f"  suffix rules      {len(sfx) - groups:,}")
+    else:
+        print("  (dictionary not downloaded yet)")
+
     if "--full" in sys.argv:
         print("\n== unmunch (slow) ==")
         forms = unmunch_strict_dictionary()

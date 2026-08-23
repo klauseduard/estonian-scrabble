@@ -66,7 +66,8 @@ Reusable UI elements:
 
 ### 4. Word List (`wordlist.py`)
 Dictionary integration:
-- `WordList`: Uses the official LibreOffice Estonian Hunspell dictionary (et_EE) via the `spylls` library
+- `WordList`: Uses the official LibreOffice Estonian Hunspell dictionary (et_EE) via the `spylls` library.
+  [algorithms.md](algorithms.md#what-hunspell-is) explains the dictionary format and why it is expanded before use
 - Supports full morphological word validation including all inflected forms
 - Dictionary files are downloaded on first run
 

@@ -35,12 +35,56 @@ dictionary changes, run it and update the numbers here.
 
 ## 1. From a Hunspell dictionary to a word list
 
+### What Hunspell is
+
+**Hunspell** is the spell checker built into LibreOffice, Firefox and Thunderbird.
+Its dictionary format is the usual one for open-source spell checking.
+Estonian has an official dictionary in that format, maintained by the
+[Institute of the Estonian Language](https://www.eki.ee/) and shipped with
+LibreOffice. This project uses it rather than a word list of its own.
+
+Hunspell itself is a C++ library. This project reads the format with
+[spylls](https://spylls.readthedocs.io/), which reimplements Hunspell in pure
+Python. That avoids a native dependency, and it also makes the internals
+readable, which matters here because the pipeline needs to reach inside the
+format rather than only ask it questions.
+
+A Hunspell dictionary is two files. The `.dic` file lists word stems, one per
+line, each followed by the flags that stem carries. The `.aff` file says what
+those flags mean.
+
+Estonian consonant gradation and vowel alternation mean that one stem cannot
+generate every form, so the dictionary lists more than one stem per word. These
+are two of the entries for *maja*, meaning house:
+
+```
+maja/Z
+majaga/Zabcfhiky
+```
+
+The first is the nominative and carries only `Z`, the compound flag. The second
+is the comitative, *majaga*, meaning with a house, and it carries eight more
+flags. Those flags are where the inflected forms come from. Each names a group
+of suffix rules in the `.aff` file, and each rule has a condition, some letters
+to strip, and some letters to add:
+
+```
+flag b: when the stem ends in "aga", strip "ga", add "d"     -> majad
+flag f: when the stem ends in "aga", strip "ga", add "le"    -> majale
+flag h: when the stem ends in "aga" or "uga", strip "ga",
+        add "deta"                                           -> majadeta
+```
+
+So *majad* is never stored. It is produced on demand from the stem *majaga* by
+rule group `b`. The Estonian dictionary holds 282,173 stem entries, and its
+`.aff` file holds 26 rule groups, named `a` to `z`, containing 9,249 rules
+between them. Those cover millions of forms.
+
 ### The problem
 
-Estonian inflects heavily. The word *maja* (house) has dozens of forms:
-*majad*, *majale*, *majaga*, *majadeta*. A dictionary that listed every form
-separately would be enormous, so Hunspell does not do that. It stores
-**stems** plus **affix rules**, and it reconstructs a form when asked about it.
+Estonian inflects heavily, as the example above shows. Storing every form
+separately would be enormous, which is why Hunspell stores stems and rules
+instead and reconstructs a form when asked about it.
 
 That design is wrong for move generation. To search for moves we walk the board
 letter by letter, and at each letter we need one answer: can this prefix still

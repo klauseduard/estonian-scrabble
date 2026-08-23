@@ -234,7 +234,7 @@ The project follows a modular architecture with clear separation of concerns:
 
 ### Algorithms
 
-Three parts of the project are more than plumbing — expanding the Hunspell
+Three parts of the project are more than plumbing: expanding the Hunspell
 dictionary into 10.7 million surface forms, compressing those into a 1 MB DAWG,
 and generating every legal move with an Appel & Jacobson search.
 **[docs/algorithms.md](docs/algorithms.md)** explains all three with diagrams,
