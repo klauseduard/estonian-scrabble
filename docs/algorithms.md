@@ -80,6 +80,31 @@ rule group `b`. The Estonian dictionary holds 282,173 stem entries, and its
 `.aff` file holds 26 rule groups, named `a` to `z`, containing 9,249 rules
 between them. Those cover millions of forms.
 
+### What the flag letters mean
+
+The mechanism is part of Hunspell, and every dictionary in the format uses it.
+A stem carries flags, and the `.aff` file says what each flag does.
+
+The letters themselves are not. Each dictionary picks its own, and they mean
+nothing outside it. In `et_EE.aff`, flag `b` names the group that strips `ga`
+and adds `d`. In a German or Polish dictionary the same letter names whatever
+that author needed. There is no shared registry, and no meaning to look up.
+
+Their form is also a per-dictionary choice. A `FLAG` directive can make flags
+two characters, or numbers, or UTF-8 characters. Estonian declares no `FLAG`
+directive, so it takes the default of one character per flag, which is why
+these are single letters.
+
+A few directives do bind a letter to behaviour that Hunspell itself
+implements. `COMPOUNDFLAG Z` tells Hunspell that a stem carrying `Z` may be
+joined to another such stem. The directive name is fixed and the letter is
+not: the Estonian author chose `Z`, and `tools/patch_dictionary.py` reads the
+directive rather than assuming the letter.
+
+This project invents no flags. It removes `Z` from vowelless entries, and when
+`data/extra_words.txt` adds a missing word, the patch copies the flags of an
+existing model word that inflects the same way.
+
 ### The problem
 
 Estonian inflects heavily, as the example above shows. Storing every form
