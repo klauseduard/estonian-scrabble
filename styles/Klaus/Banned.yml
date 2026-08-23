@@ -1,0 +1,26 @@
+extends: existence
+message: "Remove '%s'. See docs/STYLE.md."
+level: error
+ignorecase: true
+tokens:
+  - "you're absolutely right"
+  - "great question"
+  - "excellent point"
+  - "it's worth noting that"
+  - "it is worth noting that"
+  - "it's important to understand that"
+  - "keep in mind that"
+  - "here's the thing"
+  - "the key insight is"
+  - "at its core"
+  - "fundamentally"
+  - "essentially"
+  - "robust"
+  - "seamless"
+  - "delve"
+  - "dive into"
+  - "unpack"
+  - "in summary"
+  - "to sum up"
+  - "genuinely"
+  - "honestly"

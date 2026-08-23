@@ -1,0 +1,16 @@
+extends: substitution
+message: "Prefer '%s' to the phrasal verb '%s' — it is transparent to a non-native reader."
+level: warning
+ignorecase: true
+swap:
+  look into: investigate
+  looked into: investigated
+  put off: postpone
+  put up with: tolerate
+  spin up: start
+  spun up: started
+  roll out: deploy
+  rolled out: deployed
+  figure out: determine
+  come up with: devise
+  set up: configure

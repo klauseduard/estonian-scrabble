@@ -1,0 +1,15 @@
+extends: existence
+message: "'%s' is an idiom. Say it directly."
+level: error
+ignorecase: true
+tokens:
+  - "ballpark"
+  - "home stretch"
+  - "move the goalposts"
+  - "table the discussion"
+  - "punt on"
+  - "boil the ocean"
+  - "low-hanging fruit"
+  - "moving parts"
+  - "out of the box"
+  - "the elephant in the room"

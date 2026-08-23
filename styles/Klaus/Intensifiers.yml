@@ -1,0 +1,10 @@
+extends: existence
+message: "'%s' is usually an empty intensifier. Delete it or give a number."
+level: warning
+ignorecase: true
+tokens:
+  - "significantly"
+  - "several"
+  - "a number of"
+  - "very"
+  - "quite"

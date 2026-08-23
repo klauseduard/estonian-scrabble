@@ -1,50 +1,63 @@
 # Algorithms
 
-Three pieces of this project are more than plumbing: turning a Hunspell
-dictionary into a flat word list, packing 10.7 million words into a megabyte,
-and finding every legal Scrabble move without ever guessing.
+Three parts of this project are more than plumbing. The first turns a Hunspell
+dictionary into a flat list of 10.7 million words. The second packs that list
+into a one-megabyte graph. The third uses that graph to find every legal
+Scrabble move in under 50 milliseconds.
 
-They form one pipeline. Each stage exists to make the next one possible.
+They form one pipeline, and each stage exists to make the next one possible.
+Read them in order.
 
 ```mermaid
 graph LR
     A["et_EE.dic + .aff<br/>LibreOffice Hunspell"] --> B["patch_dictionary.py<br/>strip compound flags"]
     B --> C["et_EE_scrabble_strict<br/>stems + suffix rules"]
     C --> D["unmunch<br/>stems x rules"]
-    D --> E["~10.7M<br/>surface forms"]
+    D --> E["10.7M<br/>surface forms"]
     E --> F["Dawg.build<br/>Daciuk et al. 2000"]
     F --> G["27,014 nodes<br/>1 MB on disk"]
     G --> H["move generation<br/>Appel-Jacobson search"]
 ```
 
-Every number in this document was measured on the real artifacts in `dict/`,
-not taken from a paper. Regenerate them all with:
+Every figure below was measured on the files in `dict/`. Regenerate them with:
 
 ```bash
-python -m tools.algorithm_figures        # DAWG stats and the toy example
-python -m tools.algorithm_figures --full # also re-runs the unmunch (~30 s)
+python -m tools.algorithm_figures
 ```
 
-If the dictionary changes, run that and update the figures here rather than
-trusting the prose.
+That command prints the DAWG statistics and the small example. Add `--full` to
+re-run the dictionary expansion as well, which takes about 30 seconds. If the
+dictionary changes, run it and update the numbers here.
 
 ---
 
 ## 1. From a Hunspell dictionary to a word list
 
-Estonian is heavily inflected. *Maja* (house) has dozens of forms — *majad*,
-*majale*, *majaga*, *majadeta* — and a dictionary that stored them all
-separately would be enormous. Hunspell therefore stores **stems** plus **affix
-rules**, and reconstructs forms on demand.
+### The problem
 
-That is exactly wrong for move generation. To search for moves we need to walk
-letter by letter and ask "can this prefix still become a word?" — a question
-Hunspell cannot answer, because it only validates whole words. So we *unmunch*:
-expand every stem by every rule it carries, producing the full surface set once,
-offline.
+Estonian inflects heavily. The word *maja* (house) has dozens of forms:
+*majad*, *majale*, *majaga*, *majadeta*. A dictionary that listed every form
+separately would be enormous, so Hunspell does not do that. It stores
+**stems** plus **affix rules**, and it reconstructs a form when asked about it.
 
-`tools/build_dawg.py::unmunch_strict_dictionary` does this. The core is a double
-loop — every stem, every flag on it — but with one optimisation worth noting:
+That design is wrong for move generation. To search for moves we walk the board
+letter by letter, and at each letter we need one answer: can this prefix still
+become a word? Hunspell cannot answer that question. It validates whole words
+only.
+
+So we expand the dictionary once, before the game runs. Take every stem, apply
+every rule that the stem carries, and write down all the results. The Hunspell
+community calls this *unmunching*.
+
+### The expansion
+
+`tools/build_dawg.py::unmunch_strict_dictionary` does the work. At its centre
+is a double loop over every stem and every flag on that stem.
+
+One detail is worth copying. A single flag can carry hundreds of subrules, and
+those subrules share a small number of conditions. Testing each subrule
+separately would test the same condition hundreds of times per stem, so the
+code groups the subrules by condition first:
 
 ```python
 # Group each flag's suffix rules by condition so each distinct
@@ -56,62 +69,73 @@ for flag, suffixes in d.aff.SFX.items():
         by_cond.setdefault(sfx.condition, []).append((sfx.strip, sfx.add))
 ```
 
-A flag may carry hundreds of subrules that share a handful of conditions. Testing
-the condition once per group instead of once per subrule is the difference
-between this step taking seconds and taking minutes.
+This is the difference between the step taking seconds and taking minutes.
 
-### Why there is a *strict* dictionary at all
+The result is 10,749,582 surface forms.
 
-Hunspell supports **compounding**: words flagged as compoundable may be glued
-together, and the result validates. Estonian genuinely compounds, so upstream
-uses this heavily.
+### Why a second, stricter dictionary exists
 
-For Scrabble it is a disaster. The upstream `et_EE.aff` declares:
+Hunspell can also glue words together. Any word carrying the compound flag may
+be joined to another such word, and the result validates. Estonian compounds
+freely, so the upstream dictionary uses this feature heavily.
+
+For Scrabble the feature is harmful. The upstream `et_EE.aff` declares:
 
 ```
 COMPOUNDFLAG Z
 COMPOUNDMIN 2
 ```
 
-and 668 vowelless entries in `et_EE.dic` carry that `Z` — every abbreviation and
-acronym in the file, from `tk` and `lk` to `CD` and `DVD`. Two-letter minimum
-plus compoundable abbreviations means `tk` + `öis` validates as `tköis`, which
-is not a word anyone would defend. A human never finds these seams. A
-permutation engine finds little else: when the AI was first added, roughly two
-thirds of the "valid" moves brute-force search produced were garbage of this
-shape ([issue #33](https://github.com/klauseduard/estonian-scrabble/issues/33)).
+`COMPOUNDMIN 2` allows a part as short as two letters. In `et_EE.dic`, 668
+vowelless entries carry that `Z` flag. They are the abbreviations and acronyms:
+`tk`, `lk`, `CD`, `DVD`. Put those two rules together and `tk` plus `öis`
+validates as `tköis`, which no player would defend.
 
-`tools/patch_dictionary.py` produces two variants:
+A human never finds these seams. A program that permutes tiles finds little
+else. When the AI was first added, roughly two thirds of the moves that
+brute-force search produced were garbage of this shape. See
+[issue #33](https://github.com/klauseduard/estonian-scrabble/issues/33).
+
+So `tools/patch_dictionary.py` writes two dictionaries instead of one:
 
 | Dictionary | Compounding | Used for |
 |---|---|---|
 | `et_EE_scrabble` | on, abbreviations de-flagged | validating human moves |
-| `et_EE_scrabble_strict` | off entirely | AI move generation, and the DAWG |
+| `et_EE_scrabble_strict` | removed entirely | AI moves, and the DAWG |
 
-The asymmetry is deliberate. For the AI, false negatives are harmless — it
-simply misses a move — while false positives are fatal, because it plays them.
-Humans get the permissive dictionary plus the challenge system as recourse.
+The asymmetry is deliberate. If the strict dictionary rejects a real word, the
+AI misses one move and nobody notices. If it accepts a fake word, the AI plays
+it. False negatives are cheap and false positives are not. Human players get
+the permissive dictionary, and the challenge system is their recourse.
 
-This is a data fix, not an algorithm, but it explains why the pipeline starts
-with a patch step. See [issue #32](https://github.com/klauseduard/estonian-scrabble/issues/32).
+This is a data fix rather than an algorithm, but it explains why the pipeline
+begins with a patch step. See
+[issue #32](https://github.com/klauseduard/estonian-scrabble/issues/32).
 
 ---
 
 ## 2. The DAWG
 
-A **DAWG** — Directed Acyclic Word Graph — is a trie with all shared *suffixes*
-merged. It is the reason 10.7 million words fit in a megabyte and a lookup takes
-0.23 microseconds.
+### Start with a trie
 
-### The idea, on six words
+Take six words: `maja, majad, majale, oja, ojad, ojale`.
 
-Take `maja, majad, majale, oja, ojad, ojale`. A trie stores each word as a path
-from the root, sharing common *prefixes* — `maja`, `majad` and `majale` share
+A trie stores each word as a path from a root node. Words that begin the same
+way share the beginning of their path. Here `maja`, `majad` and `majale` share
 their first four nodes, and the three `oja` forms share their first three. But
-`oja` shares nothing with `maja`, because they start differently. **14 nodes.**
+`oja` shares nothing with `maja`, because they begin with different letters.
 
-A DAWG also merges suffixes. `maja` and `oja` end the same way, so they should
-*converge*:
+That trie has 14 nodes.
+
+### The idea
+
+Look at where those six words end. `maja` and `oja` both end in `ja`. Both can
+take `-d`, and both can take `-le`. After you have read `ma` or `o`, the set of
+possible continuations is identical.
+
+A trie cannot use that. It merges shared beginnings only. A **DAWG**, or
+Directed Acyclic Word Graph, merges shared endings as well. Two nodes that
+accept the same set of continuations become one node.
 
 ```mermaid
 graph LR
@@ -127,15 +151,15 @@ graph LR
     class n4,n5 word
 ```
 
-Thick-bordered nodes are word endings. **Seven nodes** rather than the trie's
-14, and two convergences carry the whole saving:
+Nodes with thick borders are word endings. Seven nodes now hold what the trie
+needed 14 for, and two merge points do all of the work.
 
-- **Node 2** is reached by both `m,a` and `o` — after either, the remaining
-  possibilities are identical, so the paths merge and `…ja…` is stored once.
-- **Node 5** ends both `-d` and `-le` — so `majad`, `ojad`, `majale` and `ojale`
-  all terminate at one node.
+Node 2 is reached two ways, by `m` then `a`, and by `o` alone. Whatever follows
+is the same either way, so the `ja` path is stored once. Node 5 ends both `-d`
+and `-le`, so `majad`, `ojad`, `majale` and `ojale` all finish at the same
+place.
 
-That graph is not hand-drawn. It is the actual output of `Dawg.build`:
+That diagram is not drawn by hand. It is what `Dawg.build` produces:
 
 ```
 node  final  edges
@@ -148,22 +172,26 @@ node  final  edges
   6         {'e': 5}
 ```
 
-### How it is built
+### Building it in one pass
 
-`game/dawg.py` implements the incremental algorithm of **Daciuk et al. (2000)**,
-which builds the minimal automaton in one pass — no "build a trie, then minimise"
-phase. It has one requirement: **input must be lexicographically sorted**.
+`game/dawg.py` uses the incremental algorithm of Daciuk et al. (2000). It
+produces the minimal graph directly. There is no separate phase that builds a
+trie and then shrinks it.
 
-That requirement is what makes it work. If words arrive in order, then when you
-move from one word to the next, everything after their common prefix can never
-be touched again. It is finished, so it can be minimised immediately.
+The algorithm has one requirement: the input words must arrive in alphabetical
+order. That requirement is what makes it work.
 
-Two structures do the work:
+Consider two words in sequence. They share some prefix, and then they differ.
+Everything after that shared prefix belongs to the earlier word alone, and no
+later word can reach it, because later words sort after this one. That part of
+the graph is therefore finished. Since it will never change again, it can be
+merged with an identical part right now.
 
-- `unchecked` — the stack of nodes along the previous word that might still grow.
-- `register` — a dict from *node signature* to canonical node. The signature is
-  `(is_final, tuple of (char, child_id))`. Two nodes with equal signatures accept
-  exactly the same set of suffixes, so they are interchangeable.
+Two structures carry the state. The `unchecked` stack holds the nodes along the
+previous word that might still grow. The `register` dictionary maps a node
+signature to the one canonical node with that signature. A signature is
+`(is_final, tuple of (char, child))`, so two nodes with equal signatures accept
+exactly the same continuations and are interchangeable.
 
 ```python
 def minimize(down_to: int):
@@ -177,7 +205,9 @@ def minimize(down_to: int):
             register[key] = child          # this shape is new
 ```
 
-The subtlety is in `key()`:
+### The clever part
+
+Look at how a signature is computed:
 
 ```python
 def key(self):
@@ -185,15 +215,20 @@ def key(self):
     return (self.final, tuple((ch, id(n)) for ch, n in self.edges.items()))
 ```
 
-It compares children by **object identity**, not by structure. That would
-normally be far too weak — but because minimisation proceeds bottom-up and every
-child has already been through the register, identical subtrees are *already the
-same object*. Comparing pointers is therefore exact, and turns what looks like a
-deep recursive comparison into a hash lookup.
+It identifies each child by `id(n)`, which is its memory address. Comparing
+addresses normally proves nothing about structure, because two separate objects
+can hold identical data.
+
+Here it proves everything, and the reason is the order in which work happens.
+Minimisation runs bottom-up, so every child has already passed through the
+register before its parent is examined. Any two identical subtrees were
+therefore already merged into one object. Identical structure and identical
+address have become the same thing.
+
+So a comparison that looks like it must walk two subtrees is one dictionary
+lookup on a tuple of integers.
 
 ### What it buys
-
-Measured on the artifact in `dict/`:
 
 | | |
 |---|---|
@@ -204,56 +239,62 @@ Measured on the artifact in `dict/`:
 | Serialized size | 1,006 KB |
 | `is_word` | 0.23 µs |
 
-Estonian compresses unusually well here: inflection is regular, so millions of
-words share a few thousand suffix paths. Written out as plain text those
-10,749,582 forms are **140.8 MB**; the DAWG holding exactly the same set is
-**0.98 MB**, a factor of **143**.
+Estonian compresses well here, because its inflection is regular. Millions of
+words share a few thousand suffix paths. Written out as plain text, those
+10,749,582 forms occupy 140.8 MB. The DAWG holds the same set in 0.98 MB, which
+is 143 times smaller.
 
-The finished graph is flattened into two parallel lists — `finals[i]` and
-`edges[i]` — rather than kept as linked objects. That makes it a plain
-`marshal` dump, and lookup a couple of list indexes.
+The finished graph is flattened into two parallel lists, `finals[i]` and
+`edges[i]`, rather than kept as linked objects. A lookup is then two list
+indexes, and saving the graph is one `marshal` call.
 
 ---
 
 ## 3. Move generation
 
-This is the interesting one. Given a board and a rack, find **every** legal move.
+Given a board and a rack, find every legal move.
 
-The obvious approach is to generate candidate placements and test each against
-the dictionary. That is what this project did first, and it is bad in two ways:
-the number of permutations explodes, and it needs a time budget, so it silently
-misses moves.
+### Why the obvious method fails
 
-The **Appel & Jacobson** approach inverts it: *the dictionary traversal is the
-search*. You walk the DAWG and the board simultaneously, so a partial word that
-cannot become a real word is abandoned the moment it stops being a DAWG path.
-Nothing invalid is ever generated, so nothing needs testing.
+The obvious method generates candidate placements and tests each one against
+the dictionary. This project did that first, and it fails in two ways. The
+number of candidates grows faster than the rack size, so the search needs a
+time limit. Once it
+has a time limit it stops early, and it misses moves without saying so.
 
-The payoff, measured:
+Appel and Jacobson inverted the method in 1988. Instead of generating
+candidates and then consulting the dictionary, walk the dictionary and the
+board together. A partial word is abandoned the moment it stops being a path in
+the DAWG. Nothing invalid is ever built, so nothing needs testing afterwards.
+
+The result is exhaustive, and fast enough that the old 12-second limit is gone:
 
 | Position | Rack | Moves found | Time |
 |---|---|---|---|
-| Empty board (opening) | `MAJAKTS` | 1,036 | 48 ms |
+| Empty board | `MAJAKTS` | 1,036 | 48 ms |
 | After one word | `RELVUOI` | 861 | 5 ms |
 
-Exhaustive, and fast enough that the old 12-second budget is gone entirely.
+The rest of this section builds that search up one step at a time.
 
 ### Step 1: anchors
 
-A new word must touch what is already on the board. So the only squares worth
-building around are empty squares adjacent to an occupied one. Those are
-**anchors** (`_get_anchors`). On the first move there is exactly one: the centre.
+A new word must touch what is already on the board. So the only useful squares
+are the empty ones next to an occupied one. Those squares are called
+**anchors**, and `_get_anchors` collects them. On the first move there is
+exactly one anchor, the centre square.
 
-Anchors reduce the search from "every square" to a handful — 10 on the small
-board below.
+Anchors reduce the search from every square on the board to a handful. The
+small board in the next step has ten.
 
 ### Step 2: cross-checks
 
-Placing a tile in a row can also form a *vertical* word through it. Rather than
-discover that at the end, compute up front, for every empty square in the row,
-which letters are vertically legal (`_dawg_cross_checks_for_row`).
+A tile placed in a row can also form a vertical word through that square.
+Discovering this at the end would waste the whole search that led there, so the
+code works it out first.
 
-Real output. Put `MAJA` down column 7, then ask about the row directly beneath:
+For every empty square in the row, `_dawg_cross_checks_for_row` computes which
+letters the vertical neighbours allow. Put `MAJA` down column 7 and ask about
+the row directly beneath it:
 
 ```
        c5 c6 c7 c8 c9
@@ -264,27 +305,28 @@ Real output. Put `MAJA` down column 7, then ask about the row directly beneath:
   r10   .  .  ?  .  .
 ```
 
+The function returns this:
+
 ```
-cross-checks for row 10:
-  col 5: unconstrained (no vertical neighbours)
-  col 6: unconstrained
-  col 7: 3 letters allowed: d l s
-  col 8: unconstrained
-  col 9: unconstrained
+col 5: unconstrained (no vertical neighbours)
+col 6: unconstrained
+col 7: 3 letters allowed: d l s
+col 8: unconstrained
+col 9: unconstrained
 ```
 
-Only `d`, `l`, `s` — because *majad*, *majal* and *majas* are words and nothing
-else of the form `maja?` is. Any horizontal word crossing that square is now
-constrained to three letters before the search even starts.
+Only `d`, `l` and `s` fit, because *majad*, *majal* and *majas* are words and
+no other single letter completes `maja?`. Any horizontal word crossing that
+square is now limited to three letters before the search begins.
 
-Note the two special values: `None` means unconstrained, while an **empty set**
-means the square is unplayable — no tile at all can go there. Those are very
-different, and conflating them would be a bug.
+Two return values mean different things. `None` means the square has no
+vertical neighbours and so accepts anything. An empty set means the square
+accepts nothing at all. Treating those two as the same would be a bug.
 
-### Step 3: build left, extend right
+### Step 3: build left, then extend right
 
-Around each anchor the search runs in two phases, both recursive, both walking
-the DAWG:
+Around each anchor the search runs in two phases. Both walk the DAWG, and both
+are recursive.
 
 ```mermaid
 graph LR
@@ -299,17 +341,19 @@ graph LR
     W -->|yes| REC
 ```
 
-Both phases only ever follow edges the DAWG actually has, which is what keeps
-the search small.
+`left_part` grows a prefix leftward from the anchor, one rack tile at a time.
+It only follows edges that the DAWG actually has.
 
-`left_part` grows a prefix leftward from the anchor, one rack tile at a time,
-only along edges the DAWG actually has. `extend_right` then continues from the
-anchor: where the board already has a tile it must follow that letter, and where
-it is empty it may place a rack tile — subject to the cross-checks from step 2.
-Whenever it stands on a final node having passed the anchor, it has a word.
+`extend_right` then continues from the anchor rightward. Where the board
+already holds a tile, the search must follow that letter. Where the square is
+empty, it may place a rack tile, subject to the cross-checks from step 2.
+Whenever it stands on a final node, and it has passed the anchor, it has found
+a word.
 
-The recursion is easiest to see traced. Rack `MAJ`, empty board, anchor at the
-centre (column 7):
+### What the recursion looks like
+
+This is the part that prose alone does not convey, so here is a real trace.
+Rack `MAJ`, empty board, anchor at column 7:
 
 ```
 left_part(word=''       limit=2, anchor_col=7)
@@ -328,21 +372,20 @@ left_part(word='a'      limit=1, anchor_col=7)
     ...
 ```
 
-Look at what is **missing**. There is no `mj`, no `jm`, no `aa`. Those letter
-pairs are not prefixes of any Estonian word, so the DAWG has no such edge and the
-branch is never created — not created and rejected, never created at all. The
-whole search for that rack is 66 recursive calls.
+Now look at what is absent. There is no `mj`, and no `jm`. Those pairs begin no
+Estonian word, so the DAWG has no such edge, and the branch is never created.
+The search does not build them and reject them. It never builds them.
 
-That is the difference between "generate and test" and "the dictionary is the
-search".
+The whole search for that rack is 66 recursive calls.
 
 ### Step 4: the transposition trick
 
-Everything above finds *horizontal* words. Vertical words need the same logic
-rotated 90°, which would ordinarily mean a second copy of the algorithm with
-every row/column swapped — twice the code, twice the bugs.
+Everything above finds horizontal words. Vertical words need the same logic
+turned 90 degrees, which usually means a second copy of the algorithm with rows
+and columns swapped. That is twice the code and twice the places to make a
+mistake.
 
-Instead:
+This code instead rotates the board and reuses the scanner:
 
 ```python
 # Horizontal main words
@@ -354,26 +397,26 @@ tanchors = {(c, r) for (r, c) in anchors}
 _dawg_scan_rows(tboard, rack_counts, dawg, tanchors, moves, transposed=True)
 ```
 
-`zip(*board)` transposes the grid. Run the identical horizontal scanner over it,
-and swap the coordinates back when recording. One implementation, both
-directions.
-
-The `transposed` flag exists only so `record()` knows which way round to write
-the coordinates:
+`zip(*board)` transposes the grid. The identical horizontal scanner then runs
+over the rotated board. The `transposed` flag exists for one purpose, which is
+to tell `record()` which way round to write the coordinates back:
 
 ```python
 pos = (col, r) if transposed else (r, col)
 ```
 
-Moves are collected in a dict keyed by a `frozenset` of the placed tiles, so a
-move discoverable both ways is stored once.
+Moves are collected in a dictionary keyed by a `frozenset` of the placed tiles.
+A move that both passes find is therefore stored once.
 
 ### Blanks
 
-A blank tile can stand for any letter, which in a generate-and-test design means
-multiplying the search by the alphabet. Here it costs almost nothing: at each
-step the code already iterates the DAWG edges available from the current node, so
-a blank simply means *any* of those edges is affordable.
+A blank tile can stand for any letter. In a generate-and-test design that
+multiplies the search by the size of the alphabet. Here it costs almost
+nothing.
+
+At every step the code already loops over the DAWG edges leaving the current
+node. Those edges are exactly the letters that can continue a word. A blank
+means the player can afford any of them:
 
 ```python
 for ch, child in edges[node].items():
@@ -387,9 +430,8 @@ for ch, child in edges[node].items():
         ...
 ```
 
-The DAWG has already restricted `ch` to letters that can continue a word, so the
-blank is only ever tried where it could help. Both branches are explored, and
-`placed` records which one was taken so scoring can zero the blank later.
+Both branches are explored when both are possible, and `placed` records which
+one was taken, so scoring can give the blank zero points later.
 
 ---
 
@@ -403,15 +445,18 @@ blank is only ever tried where it could help. Both branches are explored, and
 | Incremental minimisation | `game/dawg.py::Dawg.build` |
 | Anchors | `game/ai_player.py::_get_anchors` |
 | Cross-checks | `game/ai_player.py::_dawg_cross_checks_for_row` |
-| Left-part / extend-right | `game/ai_player.py::_dawg_scan_rows` |
+| Left-part and extend-right | `game/ai_player.py::_dawg_scan_rows` |
 | Transposition | `game/ai_player.py::_find_all_moves_dawg` |
-| Move scoring and selection policy | `game/ai_player.py::_calculate_move_score`, `select_move` |
+| Scoring and move choice | `game/ai_player.py::_calculate_move_score`, `select_move` |
 
 ## References
 
-- Daciuk, Mihov, Watson & Watson (2000), *Incremental Construction of Minimal
-  Acyclic Finite-State Automata* — the DAWG construction used in `Dawg.build`.
-- Appel & Jacobson (1988), *The World's Fastest Scrabble Program*, CACM 31(5) —
-  anchors, cross-checks and the left-part/extend-right search.
-- [Issue #40](https://github.com/klauseduard/estonian-scrabble/issues/40) —
-  replacing brute force with DAWG move generation in this project.
+Daciuk, Mihov, Watson and Watson (2000), *Incremental Construction of Minimal
+Acyclic Finite-State Automata*. This is the construction used in `Dawg.build`.
+
+Appel and Jacobson (1988), *The World's Fastest Scrabble Program*, CACM 31(5).
+This is the source of anchors, cross-checks, and the left-part and extend-right
+search.
+
+[Issue #40](https://github.com/klauseduard/estonian-scrabble/issues/40) records
+the change from brute force to DAWG move generation in this project.

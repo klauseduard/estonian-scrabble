@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Block commits whose staged Python files fail ruff or are not black-formatted.
+# Block commits whose staged Python files fail ruff or black, or whose staged
+# Markdown fails Vale.
 #
 # Versioned here rather than living only in .git/hooks (which git does not
 # track) so the hook survives a fresh clone. Install with:
@@ -16,6 +17,8 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 find_tool() {
     if [ -x "$REPO_ROOT/.venv/bin/$1" ]; then
         printf '%s\n' "$REPO_ROOT/.venv/bin/$1"
+    elif [ -x "$HOME/.local/bin/$1" ]; then
+        printf '%s\n' "$HOME/.local/bin/$1"
     elif command -v "$1" >/dev/null 2>&1; then
         command -v "$1"
     fi
@@ -23,25 +26,26 @@ find_tool() {
 
 RUFF=$(find_tool ruff) || true
 BLACK=$(find_tool black) || true
-
-if [ -z "$RUFF" ] && [ -z "$BLACK" ]; then
-    echo "pre-commit: neither ruff nor black found — skipping style check." >&2
-    echo "            install them with: pip install -r requirements-dev.txt" >&2
-    exit 0
-fi
+VALE=$(find_tool vale) || true
 
 # Added, Copied, Modified, Renamed — never Deleted (the file is gone).
-mapfile -t STAGED < <(git diff --cached --name-only --diff-filter=ACMR -z \
-    | tr '\0' '\n' | grep -E '\.py$' || true)
+staged_matching() {
+    git diff --cached --name-only --diff-filter=ACMR -z \
+        | tr '\0' '\n' | grep -E "$1" || true
+}
 
-if [ ${#STAGED[@]} -eq 0 ]; then
+mapfile -t STAGED < <(staged_matching '\.py$')
+mapfile -t STAGED_MD < <(staged_matching '\.md$')
+
+if [ ${#STAGED[@]} -eq 0 ] && [ ${#STAGED_MD[@]} -eq 0 ]; then
     exit 0
 fi
 
 failed=0
 
 # ruff --force-exclude is a boolean flag: honour excludes on explicit paths.
-if [ -n "$RUFF" ] && ! "$RUFF" check --force-exclude "${STAGED[@]}"; then
+if [ -n "$RUFF" ] && [ ${#STAGED[@]} -gt 0 ] \
+    && ! "$RUFF" check --force-exclude "${STAGED[@]}"; then
     echo >&2
     echo "pre-commit: ruff found violations in staged Python files." >&2
     echo "            fix them with:  .venv/bin/ruff check --fix ." >&2
@@ -51,11 +55,23 @@ fi
 # NOTE: black's --force-exclude takes a regex ARGUMENT, unlike ruff's boolean
 # flag. Passing it here would swallow the first filename and leave black with
 # no SRC, which it reports as an error — i.e. every commit would be blocked.
-if [ -n "$BLACK" ] && ! "$BLACK" --check --quiet "${STAGED[@]}"; then
+if [ -n "$BLACK" ] && [ ${#STAGED[@]} -gt 0 ] \
+    && ! "$BLACK" --check --quiet "${STAGED[@]}"; then
     echo >&2
     echo "pre-commit: staged Python files are not black-formatted." >&2
     echo "            fix them with:  .venv/bin/black ." >&2
     failed=1
+fi
+
+# Prose. Vale exits non-zero only for errors, so warnings are shown and do not
+# block: the banned-phrase rules are unambiguous, the length heuristics are not.
+if [ -n "$VALE" ] && [ ${#STAGED_MD[@]} -gt 0 ]; then
+    if ! "$VALE" "${STAGED_MD[@]}"; then
+        echo >&2
+        echo "pre-commit: Vale found prose errors in staged Markdown." >&2
+        echo "            the rules are docs/STYLE.md, enforced from styles/Klaus/" >&2
+        failed=1
+    fi
 fi
 
 if [ "$failed" -ne 0 ]; then

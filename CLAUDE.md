@@ -96,6 +96,23 @@ the branch point.
   distinguish an absent blocklist (fine) from an unreadable one (a real
   problem); it now tests for absence first and warns on the rest.
 
+## Writing Style
+
+Prose in this repository follows `docs/STYLE.md`. That covers documentation,
+commit messages and issue text. Code and code comments are not covered by it.
+
+Vale enforces the mechanical parts from `styles/Klaus/`, and the pre-commit hook
+runs it on staged Markdown. Banned phrases are errors and block the commit;
+sentence length and em dash counts are warnings, because they have legitimate
+exceptions. Wrap a deliberate violation in `<!-- vale off -->` and
+`<!-- vale on -->`.
+
+Two rules that Vale cannot check and that matter most here. Write for a fluent
+non-native English speaker, which means avoiding phrasal verbs, idioms and long
+noun stacks rather than simplifying the vocabulary. And prefer the version that
+reads faster even when it is longer, because dense shorthand costs the reader
+more time than plain sentences.
+
 ## Git Conventions
 
 - Conventional Commits: `<type>(<scope>): <description>` (feat, fix, docs, style, refactor, test, chore, perf)

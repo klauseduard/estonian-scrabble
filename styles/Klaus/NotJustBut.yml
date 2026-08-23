@@ -1,0 +1,7 @@
+extends: existence
+message: "'not just X but Y' is a banned construction. State Y directly."
+level: error
+ignorecase: true
+raw:
+  - 'not just .{1,40}?,? but'
+  - "it's not about .{1,40}? [—-] it's about"

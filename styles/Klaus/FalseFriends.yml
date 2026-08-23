@@ -1,0 +1,8 @@
+extends: existence
+message: "'%s' is a false friend for a European-language reader. Prefer verify / current / in the end."
+level: suggestion
+ignorecase: true
+tokens:
+  - "eventually"
+  - "actual"
+  - "actually"

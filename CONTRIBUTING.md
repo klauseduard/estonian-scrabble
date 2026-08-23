@@ -22,6 +22,15 @@ pip install -r requirements-dev.txt
 tools/hooks/install.sh
 ```
 
+   Prose in Markdown is linted by [Vale](https://vale.sh), which is a single Go
+   binary rather than a Python package. Install it to `~/.local/bin` or anywhere
+   on your `PATH`. The hook skips the prose check when Vale is absent, so this
+   step is optional:
+```bash
+curl -sfL https://github.com/errata-ai/vale/releases/latest/download/vale_3.18.0_Linux_64-bit.tar.gz \
+  | tar xz -C ~/.local/bin vale
+```
+
    Claude Code users additionally get `tools/hooks/ruff-fix-hook.sh` wired up
    automatically via `.claude/settings.json`, which formats Python files as
    they are written. Personal overrides belong in `.claude/settings.local.json`,
@@ -156,7 +165,7 @@ Follow these style guidelines:
    - Run `ruff check --fix .` then `black .` before committing; the pre-commit
      hook rejects anything that fails either
    - Indentation, line length, quote style, naming and import order are all
-     handled by the tools. There is no separate list to memorise — if it passes
+     handled by the tools. There is no separate list to memorise: if it passes
      both commands, it matches the house style
    - Black will not split long string literals — if one pushes a line past 100,
      hoist it to a local rather than wrapping it (Black collapses implicit
@@ -200,10 +209,10 @@ Follow these style guidelines:
      `except WebSocketDisconnect: pass` in `server/app.py` is correct: a client
      disconnecting is ordinary control flow, the exception is named explicitly,
      and cleanup happens in `finally`. `tools/build_dawg.py` used to say
-     `except OSError: pass` when reading the blocklist, which could not tell a
-     file that is absent (fine — the DAWG is just unfiltered) from one it lacks
-     permission to read (a real problem). It now checks for absence first and
-     warns on anything else.
+     `except OSError: pass` when reading the blocklist. That could not tell an
+     absent file, which is fine because the DAWG is then unfiltered, from a file
+     it lacks permission to read, which is a real problem. It now checks for
+     absence first and warns on anything else.
 
 ## Submitting Changes
 
