@@ -63,6 +63,18 @@ if [ -n "$BLACK" ] && [ ${#STAGED[@]} -gt 0 ] \
     failed=1
 fi
 
+# Diagram width. Pure Python, so it runs from the project venv or bare python3.
+if [ ${#STAGED_MD[@]} -gt 0 ]; then
+    PY=$(find_tool python3)
+    [ -x "$REPO_ROOT/.venv/bin/python" ] && PY="$REPO_ROOT/.venv/bin/python"
+    if [ -n "$PY" ] && ! (cd "$REPO_ROOT" && "$PY" -m tools.check_diagrams "${STAGED_MD[@]}"); then
+        echo >&2
+        echo "pre-commit: a Mermaid diagram is too wide to read in a column." >&2
+        echo "            the rules are in docs/STYLE.md" >&2
+        failed=1
+    fi
+fi
+
 # Prose. Vale exits non-zero only for errors, so warnings are shown and do not
 # block: the banned-phrase rules are unambiguous, the length heuristics are not.
 if [ -n "$VALE" ] && [ ${#STAGED_MD[@]} -gt 0 ]; then

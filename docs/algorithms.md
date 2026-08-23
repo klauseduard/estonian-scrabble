@@ -9,14 +9,16 @@ They form one pipeline, and each stage exists to make the next one possible.
 Read them in order.
 
 ```mermaid
-graph LR
-    A["et_EE.dic + .aff<br/>LibreOffice Hunspell"] --> B["patch_dictionary.py<br/>strip compound flags"]
-    B --> C["et_EE_scrabble_strict<br/>stems + suffix rules"]
-    C --> D["unmunch<br/>stems x rules"]
-    D --> E["10.7M<br/>surface forms"]
-    E --> F["Dawg.build<br/>Daciuk et al. 2000"]
-    F --> G["27,014 nodes<br/>1 MB on disk"]
-    G --> H["move generation<br/>Appel-Jacobson search"]
+graph TD
+    A["et_EE.dic + .aff<br/>LibreOffice Hunspell"]
+    B["patch_dictionary.py<br/>strip compound flags"]
+    C["et_EE_scrabble_strict"]
+    D["unmunch<br/>stems x suffix rules"]
+    E["10.7M surface forms"]
+    F["Dawg.build<br/>Daciuk et al. 2000"]
+    G["27,014 nodes, 1 MB"]
+    H["move generation<br/>Appel-Jacobson"]
+    A --> B --> C --> D --> E --> F --> G --> H
 ```
 
 Every figure below was measured on the files in `dict/`. Regenerate them with:
@@ -325,30 +327,34 @@ accepts nothing at all. Treating those two as the same would be a bug.
 
 ### Step 3: build left, then extend right
 
-Around each anchor the search runs in two phases. Both walk the DAWG, and both
-are recursive.
+Around each anchor the search runs in two phases, one on each side of it.
 
-```mermaid
-graph LR
-    L["left_part<br/>grow a prefix leftward,<br/>one rack tile at a time"]
-    A(["the anchor square"])
-    R["extend_right<br/>follow board tiles,<br/>or place rack tiles"]
-    W{"final DAWG node,<br/>and past the anchor?"}
-    REC["record the move"]
-    L --> A
-    A --> R
-    R --> W
-    W -->|yes| REC
+```
+  column      5     6     7     8     9    10
+            +-----+-----+-----+-----+-----+-----+
+  board     |     |     |     |  a  |     |     |
+            +-----+-----+-----+-----+-----+-----+
+                          ^      ^
+                          |      +-- tile already played
+                          +-- anchor
+
+            <---- left_part ---|--- extend_right --->
+             rack tiles only        rack tiles, and any
+             into empty squares     tile already on the row
 ```
 
+Both phases walk the DAWG, and both are recursive.
+
 `left_part` grows a prefix leftward from the anchor, one rack tile at a time.
-It only follows edges that the DAWG actually has.
+It only follows edges that the DAWG actually has. It never crosses a tile that
+is already on the board, because anything to the left of such a tile is reached
+from a different anchor.
 
 `extend_right` then continues from the anchor rightward. Where the board
-already holds a tile, the search must follow that letter. Where the square is
-empty, it may place a rack tile, subject to the cross-checks from step 2.
-Whenever it stands on a final node, and it has passed the anchor, it has found
-a word.
+already holds a tile, the search must follow that letter, as with the `a` in
+column 8 above. Where the square is empty, it may place a rack tile, subject to
+the cross-checks from step 2. Whenever it stands on a final node, and it has
+passed the anchor, it has found a word.
 
 ### What the recursion looks like
 

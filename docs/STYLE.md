@@ -131,6 +131,39 @@ reconstruct the loop, and code alone makes them infer why it terminates. Define
 every symbol before it appears. Give complexity as a bound with the variable
 named, such as `O(n log n) in the number of records`, rather than `efficient`.
 
+## Diagrams
+
+A diagram earns its place when it lets a reader see a mechanism that they would
+otherwise assemble from prose. If a sentence says it faster, write the
+sentence.
+
+Draw the mechanism rather than its name. A row of boxes labelled with function
+names repeats the prose. A picture of the board row, with the anchor marked and
+the two search directions shown, tells the reader something the prose did not.
+
+Width is the constraint that bites first. A `graph LR` chain grows rightward
+without limit, so eight labelled stages render about 2,000 pixels wide and
+force horizontal scrolling on a laptop. Long lines are hard to read, and that
+applies to figures as much as to text.
+
+Use `graph TD` by default, because a vertical diagram grows in the direction
+the page already scrolls. Use `graph LR` only when left-to-right order carries
+meaning. The word graph in `algorithms.md` is horizontal because its edges
+spell words in reading order, and turning it vertical would lose that.
+
+Keep every diagram under 800 pixels of estimated width.
+`tools/check_diagrams.py` measures this and the pre-commit hook runs it. The
+measurement is an estimate from label lengths rather than a real render, which
+is accurate enough to separate a diagram that fits from one that does not.
+
+Label the arrows. An unlabelled arrow means "related somehow", while `writes`
+or `invalidates` is information.
+
+Prefer a plain text figure in a fenced block when the thing being shown is
+spatial. A board row with column numbers, an anchor marker and two direction
+arrows is clearer as text art than as a flowchart, and it cannot render too
+wide as long as the lines stay under about 76 characters.
+
 ## Example
 
 The bad example quotes banned constructions deliberately, so Vale is switched
